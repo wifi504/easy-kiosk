@@ -45,7 +45,7 @@ class CameraPhotoModule(private val context: Context) {
 
     private fun cameraErrorText(code: Int): String = when (code) {
         CameraDevice.StateCallback.ERROR_CAMERA_IN_USE ->
-            "The camera is in use by another app, or by FreeKiosk's live camera stream or motion detection"
+            "The camera is in use by another app, or by EasyKiosk's motion detection"
         CameraDevice.StateCallback.ERROR_MAX_CAMERAS_IN_USE -> "Too many cameras are open on this device"
         CameraDevice.StateCallback.ERROR_CAMERA_DISABLED -> "The camera is disabled by a device policy"
         else -> "The camera reported an error (code $code)"
@@ -66,7 +66,7 @@ class CameraPhotoModule(private val context: Context) {
         if (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) 
             != PackageManager.PERMISSION_GRANTED) {
             Log.e(TAG, "Camera permission not granted")
-            lastError = "The camera permission is not granted: allow Camera for FreeKiosk in the Android app settings"
+            lastError = "The camera permission is not granted: allow Camera for EasyKiosk in the Android app settings"
             return null
         }
 
@@ -274,12 +274,12 @@ class CameraPhotoModule(private val context: Context) {
 
         } catch (e: SecurityException) {
             Log.e(TAG, "Camera permission denied: ${e.message}")
-            lastError = "The camera permission was denied: allow Camera for FreeKiosk in the Android app settings"
+            lastError = "The camera permission was denied: allow Camera for EasyKiosk in the Android app settings"
         } catch (e: CameraAccessException) {
             Log.e(TAG, "Camera access error: ${e.message}")
             lastError = when (e.reason) {
                 CameraAccessException.CAMERA_IN_USE ->
-                    "The camera is in use by another app, or by FreeKiosk's live camera stream or motion detection"
+                    "The camera is in use by another app, or by EasyKiosk's motion detection"
                 CameraAccessException.CAMERA_DISABLED -> "The camera is disabled by a device policy"
                 else -> "Camera access error: ${e.message}"
             }

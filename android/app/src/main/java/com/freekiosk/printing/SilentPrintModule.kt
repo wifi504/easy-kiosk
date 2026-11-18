@@ -88,7 +88,7 @@ class SilentPrintModule(reactContext: ReactApplicationContext) :
                 val image = PageRasterizer.rasterize(
                     reactApplicationContext,
                     webView,
-                    jobName?.takeIf { it.isNotBlank() } ?: "FreeKiosk print",
+                    jobName?.takeIf { it.isNotBlank() } ?: "EasyKiosk print",
                     opts,
                 )
                 transport.write(driver.encode(image, opts))

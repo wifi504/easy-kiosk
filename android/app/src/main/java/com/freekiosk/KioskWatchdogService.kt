@@ -545,7 +545,7 @@ class KioskWatchdogService : Service() {
                 "Kiosk Watchdog",
                 NotificationManager.IMPORTANCE_MIN   // silent, no badge
             ).apply {
-                description = "Keeps FreeKiosk running in kiosk mode"
+                description = "Keeps EasyKiosk running in kiosk mode"
                 setShowBadge(false)
             }
             val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager

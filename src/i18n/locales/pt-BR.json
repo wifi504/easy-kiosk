@@ -686,7 +686,7 @@
       "removeDeviceOwner": "Remover Device Owner",
       "exitKioskMode": "Sair do modo quiosque"
     },
-    "versionFooter": "EasyKiosk v{{version}}"
+    "versionFooter": "EasyKiosk {{version}}"
   },
   "dashboard": {
     "iconModes": {

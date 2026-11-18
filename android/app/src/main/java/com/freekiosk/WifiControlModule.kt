@@ -325,7 +325,7 @@ class WifiControlModule(private val reactContext: ReactApplicationContext) :
             if (saved.any { it.SSID?.trim('"') == name }) {
                 promise.reject(
                     "NETWORK_ALREADY_SAVED",
-                    "\"$name\" is already saved on this tablet. FreeKiosk only adds networks under " +
+                    "\"$name\" is already saved on this tablet. EasyKiosk only adds networks under " +
                         "a new name, it never changes an existing one."
                 )
                 return

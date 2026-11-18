@@ -40,7 +40,7 @@ object TestPageRenderer {
         val ink = Paint().apply { color = Color.BLACK }
 
         var y = 34f
-        canvas.drawText("FreeKiosk", 0f, y, title)
+        canvas.drawText("EasyKiosk", 0f, y, title)
         y += 34f
         canvas.drawText("Printer test page", 0f, y, title)
         y += 30f

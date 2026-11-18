@@ -210,7 +210,7 @@ class PrintModule(reactContext: ReactApplicationContext) :
 
                     // IMPORTANT: PrintManager.print() must be called from an Activity context, not application context
                     val printManager = activity.getSystemService(Context.PRINT_SERVICE) as PrintManager
-                    val jobName = title?.takeIf { it.isNotBlank() } ?: "FreeKiosk Print"
+                    val jobName = title?.takeIf { it.isNotBlank() } ?: "EasyKiosk Print"
 
                     DebugLog.d(NAME, "Starting print job: $jobName for WebView at URL: ${webView.url}")
 

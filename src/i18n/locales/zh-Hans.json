@@ -686,7 +686,7 @@
       "removeDeviceOwner": "移除 Device Owner",
       "exitKioskMode": "退出自助终端模式"
     },
-    "versionFooter": "EasyKiosk v{{version}}"
+    "versionFooter": "EasyKiosk {{version}}"
   },
   "dashboard": {
     "iconModes": {

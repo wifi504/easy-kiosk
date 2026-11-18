@@ -266,7 +266,7 @@ class UpdateModule(reactContext: ReactApplicationContext) : ReactContextBaseJava
             try {
                 val downloadsDir = reactApplicationContext.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
                 downloadsDir?.listFiles()?.forEach { file ->
-                    if (file.name.startsWith("FreeKiosk-") && file.name.endsWith(".apk")) {
+                    if (file.name.startsWith("EasyKiosk-") && file.name.endsWith(".apk")) {
                         file.delete()
                         android.util.Log.d("UpdateModule", "Cleaned up old APK: ${file.name}")
                     }
@@ -275,7 +275,7 @@ class UpdateModule(reactContext: ReactApplicationContext) : ReactContextBaseJava
                 android.util.Log.w("UpdateModule", "Failed to clean up old APKs: ${e.message}")
             }
 
-            val fileName = "FreeKiosk-${version}.apk"
+            val fileName = "EasyKiosk-${version}.apk"
             val request = DownloadManager.Request(Uri.parse(downloadUrl)).apply {
                 setTitle("EasyKiosk Update")
                 setDescription("Downloading version $version")
@@ -284,7 +284,7 @@ class UpdateModule(reactContext: ReactApplicationContext) : ReactContextBaseJava
                 setDestinationInExternalFilesDir(reactApplicationContext, Environment.DIRECTORY_DOWNLOADS, fileName)
                 setAllowedOverMetered(true)
                 setAllowedOverRoaming(true)
-                addRequestHeader("User-Agent", "FreeKiosk-Updater")
+                addRequestHeader("User-Agent", "EasyKiosk-Updater")
                 addRequestHeader("Accept", "application/vnd.android.package-archive")
             }
 
