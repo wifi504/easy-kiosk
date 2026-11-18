@@ -22,7 +22,7 @@ with tempfile.TemporaryDirectory() as temp:
     report = apk.with_suffix('.shared-runtime.txt')
     subprocess.run(['java', '-cp', str(root / 'tools/engine-dex-tools/build/install/EngineDexTools/lib/*'),
                     'com.wifi504.easykiosk.tools.FilterEngineDex', str(temp), str(filtered), str(report)], check=True)
-    inputs = [p for p in inputs if Path(p).name.startswith('host-')] + [str(p) for p in sorted(filtered.glob('*.dex'))]
+    inputs = [str(p) for p in sorted(filtered.glob('*.dex'))]
     dex = temp / 'dex'; dex.mkdir()
     subprocess.run([str(tools / 'd8'), '--release', '--min-api', '29', '--output', str(dex), *inputs], check=True)
     merged = temp / 'merged.apk'

@@ -46,28 +46,54 @@ public final class FilterEngineDex {
     }
     public static void main(String[] args) throws Exception {
         Map<String, ClassDef> host = new HashMap<>();
+        Map<String, ClassDef> engine = new HashMap<>();
+        Map<File, List<ClassDef>> shards = new LinkedHashMap<>();
         File[] files = new File(args[0]).listFiles();
+        if (files == null) throw new IllegalArgumentException("DEX input directory missing");
         Arrays.sort(files, Comparator.comparing(File::getName));
-        for (File file : files) if (file.getName().startsWith("host-") && file.getName().endsWith(".dex")) {
-            for (ClassDef type : DexFileFactory.loadDexFile(file, Opcodes.forApi(29)).getClasses()) host.put(type.getType(), type);
-        }
-        new File(args[1]).mkdirs();
-        StringBuilder report = new StringBuilder();
-        for (File file : files) if (file.getName().startsWith("engine-") && file.getName().endsWith(".dex")) {
-            DexPool pool = new DexPool(Opcodes.forApi(29));
+        for (File file : files) if (file.getName().endsWith(".dex") &&
+                (file.getName().startsWith("host-") || file.getName().startsWith("engine-"))) {
+            List<ClassDef> types = new ArrayList<>();
+            Map<String, ClassDef> destination = file.getName().startsWith("host-") ? host : engine;
             for (ClassDef type : DexFileFactory.loadDexFile(file, Opcodes.forApi(29)).getClasses()) {
-                ClassDef existing = host.get(type.getType());
-                if (existing == null) pool.internClass(type);
-                else {
+                types.add(type); destination.put(type.getType(), type);
+            }
+            shards.put(file, types);
+        }
+        Set<String> engineBoundary = new HashSet<>();
+        StringBuilder report = new StringBuilder();
+        List<String> errors = new ArrayList<>();
+        for (ClassDef type : engine.values()) {
+            ClassDef existing = host.get(type.getType());
+            if (existing == null) continue;
+            try {
+                if (type.getType().startsWith("Lorg/chromium/support_lib_boundary/")) {
+                    // AndroidX and WebView share this public reflection boundary. The engine's
+                    // definition is authoritative only if it preserves every host-side API.
+                    verify(existing, type, engine);
+                    engineBoundary.add(type.getType());
+                    report.append("KEEP_ENGINE_BOUNDARY ").append(type.getType()).append('\n');
+                } else {
                     if (!shared(type.getType())) throw new IllegalStateException("Unaudited duplicate engine class: " + type.getType());
                     verify(type, existing, host);
-                    report.append(type.getType()).append('\n');
+                    report.append("REUSE_HOST_RUNTIME ").append(type.getType()).append('\n');
                 }
-            }
-            FileDataStore out = new FileDataStore(new File(args[1], file.getName()));
-            try { pool.writeTo(out); } finally { out.close(); }
+            } catch (IllegalStateException error) { errors.add(error.getMessage()); }
         }
         Files.write(Paths.get(args[2]), report.toString().getBytes(StandardCharsets.UTF_8));
-        System.out.println("Shared runtime binary API verified; deduplicated classes:\n" + report);
+        if (!errors.isEmpty()) throw new IllegalStateException(String.join("\n", errors));
+        new File(args[1]).mkdirs();
+        for (Map.Entry<File, List<ClassDef>> shard : shards.entrySet()) {
+            boolean fromHost = shard.getKey().getName().startsWith("host-");
+            DexPool pool = new DexPool(Opcodes.forApi(29));
+            for (ClassDef type : shard.getValue()) {
+                boolean keep = fromHost ? !engineBoundary.contains(type.getType()) :
+                    !host.containsKey(type.getType()) || engineBoundary.contains(type.getType());
+                if (keep) pool.internClass(type);
+            }
+            FileDataStore out = new FileDataStore(new File(args[1], shard.getKey().getName()));
+            try { pool.writeTo(out); } finally { out.close(); }
+        }
+        System.out.println("Shared runtime and WebView boundary binary APIs verified:\n" + report);
     }
 }

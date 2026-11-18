@@ -14,3 +14,7 @@
 -keep interface kotlin.** { *; }
 -keep class kotlinx.** { *; }
 -keep interface kotlinx.** { *; }
+
+# AndroidX uses this public reflection boundary, replaced only after host-API auditing.
+-keep class org.chromium.support_lib_boundary.** { *; }
+-keep interface org.chromium.support_lib_boundary.** { *; }
