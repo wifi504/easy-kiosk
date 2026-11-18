@@ -10,6 +10,7 @@ android {
         versionName 'probe'
         testInstrumentationRunner 'com.wifi504.easykiosk.engineprobe.ProbeInstrumentation'
     }
+    packaging { jniLibs { useLegacyPackaging = true } }
     androidResources { noCompress += ['apk'] }
     compileOptions { sourceCompatibility JavaVersion.VERSION_1_8; targetCompatibility JavaVersion.VERSION_1_8 }
 }

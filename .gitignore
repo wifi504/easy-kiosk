@@ -107,3 +107,6 @@ keystore.properties
 
 # Embedded engine experiments downloaded only by Actions
 .engine-loader/
+
+tools/embedded-chromium-probe/renderer-stubs.jar
+tools/embedded-chromium-probe/renderer-stubs-classes/
