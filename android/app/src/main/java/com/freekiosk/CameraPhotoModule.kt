@@ -74,7 +74,7 @@ class CameraPhotoModule(private val context: Context) {
         }
 
         val cameraManager = context.getSystemService(Context.CAMERA_SERVICE) as CameraManager
-        
+
         // Find the requested camera
         val cameraId = findCameraId(cameraManager, cameraFacing)
         if (cameraId == null) {
@@ -98,7 +98,7 @@ class CameraPhotoModule(private val context: Context) {
             val characteristics = cameraManager.getCameraCharacteristics(cameraId)
             val map = characteristics.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP)
             val outputSizes = map?.getOutputSizes(ImageFormat.JPEG) ?: emptyArray()
-            
+
             val requested = if (rotation == ROTATION_DEFAULT) storedRotation() else rotation
             val degrees = if (requested == ROTATION_AUTO) autoRotation(characteristics) else requested
             // Pick a reasonable size (not too large for API response speed)
@@ -117,7 +117,7 @@ class CameraPhotoModule(private val context: Context) {
                         val buffer = image.planes[0].buffer
                         val bytes = ByteArray(buffer.remaining())
                         buffer.get(bytes)
-                        
+
                         // JPEG quality is set in the capture request; the frame is only
                         // re-encoded when it has to be rotated.
                         val output = rotateJpeg(bytes, degrees, quality)
@@ -175,7 +175,7 @@ class CameraPhotoModule(private val context: Context) {
             val dummyTexture = SurfaceTexture(0)
             dummyTexture.setDefaultBufferSize(targetSize.width, targetSize.height)
             val dummySurface = android.view.Surface(dummyTexture)
-            
+
             val surfaces = listOf(dummySurface, imageReader.surface)
 
             // Create capture session
@@ -225,7 +225,7 @@ class CameraPhotoModule(private val context: Context) {
                     set(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE)
                     set(CaptureRequest.CONTROL_AE_MODE, CaptureRequest.CONTROL_AE_MODE_ON)
                 }.build()
-                
+
                 session.setRepeatingRequest(previewRequest, null, handler)
                 // Give auto-exposure time to settle
                 Thread.sleep(800)
@@ -385,7 +385,7 @@ class CameraPhotoModule(private val context: Context) {
      */
     private fun selectOptimalSize(sizes: Array<Size>): Size {
         val targetPixels = 1280 * 960 // ~1.2MP - good balance of quality vs speed
-        
+
         // Sort by how close they are to our target
         return sizes
             .filter { it.width >= 640 && it.height >= 480 } // Minimum acceptable
@@ -414,7 +414,7 @@ class CameraPhotoModule(private val context: Context) {
                 val map = characteristics.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP)
                 val sizes = map?.getOutputSizes(ImageFormat.JPEG) ?: emptyArray()
                 val maxSize = sizes.maxByOrNull { it.width * it.height }
-                
+
                 cameras.add(mapOf(
                     "id" to cameraId,
                     "facing" to facingName,

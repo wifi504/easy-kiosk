@@ -19,21 +19,21 @@ import org.json.JSONArray
  */
 class BlockingOverlayModule(reactContext: ReactApplicationContext) : 
     ReactContextBaseJavaModule(reactContext) {
-    
+
     companion object {
         private const val TAG = "BlockingOverlayModule"
     }
-    
+
     private val mainHandler = Handler(Looper.getMainLooper())
     private var touchLoggerView: View? = null
     private var gridHelperView: View? = null
-    
+
     override fun getName() = "BlockingOverlayModule"
-    
+
     private fun getManager(): BlockingOverlayManager {
         return BlockingOverlayManager.getInstance(reactApplicationContext)
     }
-    
+
     /**
      * Enable or disable blocking overlays
      */
@@ -49,7 +49,7 @@ class BlockingOverlayModule(reactContext: ReactApplicationContext) :
             }
         }
     }
-    
+
     /**
      * Check if blocking overlays are enabled
      */
@@ -61,7 +61,7 @@ class BlockingOverlayModule(reactContext: ReactApplicationContext) :
             promise.reject("ERROR", e.message)
         }
     }
-    
+
     /**
      * Set the list of blocking regions from JSON
      */
@@ -78,7 +78,7 @@ class BlockingOverlayModule(reactContext: ReactApplicationContext) :
             }
         }
     }
-    
+
     /**
      * Force update all overlays
      */
@@ -94,7 +94,7 @@ class BlockingOverlayModule(reactContext: ReactApplicationContext) :
             }
         }
     }
-    
+
     /**
      * Remove all overlays
      */
@@ -109,7 +109,7 @@ class BlockingOverlayModule(reactContext: ReactApplicationContext) :
             }
         }
     }
-    
+
     /**
      * Show touch logger overlay that displays touch coordinates
      */
@@ -122,17 +122,17 @@ class BlockingOverlayModule(reactContext: ReactApplicationContext) :
         mainHandler.post {
             try {
                 hideTouchLogger()
-                
+
                 val windowManager = reactApplicationContext.getSystemService(
                     android.content.Context.WINDOW_SERVICE
                 ) as WindowManager
-                
+
                 val container = FrameLayout(reactApplicationContext).apply {
                     setBackgroundColor(Color.TRANSPARENT)
                 }
-                
+
                 touchLoggerRemainingSeconds = durationSeconds
-                
+
                 val infoText = TextView(reactApplicationContext).apply {
                     text = "Touch Logger Active (${durationSeconds}s)\nTap anywhere to see coordinates"
                     setTextColor(Color.WHITE)
@@ -140,7 +140,7 @@ class BlockingOverlayModule(reactContext: ReactApplicationContext) :
                     setBackgroundColor(Color.argb(200, 0, 0, 0))
                     setPadding(24, 16, 24, 16)
                 }
-                
+
                 val textParams = FrameLayout.LayoutParams(
                     FrameLayout.LayoutParams.WRAP_CONTENT,
                     FrameLayout.LayoutParams.WRAP_CONTENT
@@ -149,7 +149,7 @@ class BlockingOverlayModule(reactContext: ReactApplicationContext) :
                     topMargin = 100
                 }
                 container.addView(infoText, textParams)
-                
+
                 // Countdown timer runnable
                 var lastTouchInfo = ""
                 touchLoggerCountdownRunnable = object : Runnable {
@@ -168,16 +168,16 @@ class BlockingOverlayModule(reactContext: ReactApplicationContext) :
                     }
                 }
                 mainHandler.postDelayed(touchLoggerCountdownRunnable!!, 1000)
-                
+
                 // Touch listener to show coordinates
                 container.setOnTouchListener { _, event ->
                     if (event.action == MotionEvent.ACTION_DOWN) {
                         val screenWidth = container.width.toFloat()
                         val screenHeight = container.height.toFloat()
-                        
+
                         val xPercent = (event.x / screenWidth * 100).toInt()
                         val yPercent = (event.y / screenHeight * 100).toInt()
-                        
+
                         lastTouchInfo = """
                             |Touch Detected:
                             |X: ${event.x.toInt()}px ($xPercent%)
@@ -185,19 +185,19 @@ class BlockingOverlayModule(reactContext: ReactApplicationContext) :
                             |
                             |Screen: ${screenWidth.toInt()} × ${screenHeight.toInt()}
                         """.trimMargin()
-                        
+
                         infoText.text = "$lastTouchInfo\n\n⏱ ${touchLoggerRemainingSeconds}s remaining"
                     }
                     false // Allow touch to pass through
                 }
-                
+
                 val type = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                     WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
                 } else {
                     @Suppress("DEPRECATION")
                     WindowManager.LayoutParams.TYPE_PHONE
                 }
-                
+
                 val params = WindowManager.LayoutParams(
                     WindowManager.LayoutParams.MATCH_PARENT,
                     WindowManager.LayoutParams.MATCH_PARENT,
@@ -207,15 +207,15 @@ class BlockingOverlayModule(reactContext: ReactApplicationContext) :
                     WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH,
                     PixelFormat.TRANSLUCENT
                 )
-                
+
                 windowManager.addView(container, params)
                 touchLoggerView = container
-                
+
                 // Auto-hide after duration
                 mainHandler.postDelayed({
                     hideTouchLogger()
                 }, durationSeconds * 1000L)
-                
+
                 promise.resolve(true)
             } catch (e: Exception) {
                 DebugLog.e(TAG, "showTouchLogger error: ${e.message}")
@@ -223,7 +223,7 @@ class BlockingOverlayModule(reactContext: ReactApplicationContext) :
             }
         }
     }
-    
+
     /**
      * Hide touch logger overlay
      */
@@ -234,7 +234,7 @@ class BlockingOverlayModule(reactContext: ReactApplicationContext) :
             promise.resolve(true)
         }
     }
-    
+
     private fun hideTouchLogger() {
         touchLoggerCountdownRunnable?.let { mainHandler.removeCallbacks(it) }
         touchLoggerCountdownRunnable = null
@@ -250,7 +250,7 @@ class BlockingOverlayModule(reactContext: ReactApplicationContext) :
             touchLoggerView = null
         }
     }
-    
+
     /**
      * Show grid helper overlay with percentage markers
      */
@@ -262,22 +262,22 @@ class BlockingOverlayModule(reactContext: ReactApplicationContext) :
         mainHandler.post {
             try {
                 hideGridHelper()
-                
+
                 val windowManager = reactApplicationContext.getSystemService(
                     android.content.Context.WINDOW_SERVICE
                 ) as WindowManager
-                
+
                 gridHelperRemainingSeconds = durationSeconds
-                
+
                 // Create container with grid view and countdown text
                 val container = FrameLayout(reactApplicationContext)
-                
+
                 val gridView = GridHelperView(reactApplicationContext)
                 container.addView(gridView, FrameLayout.LayoutParams(
                     FrameLayout.LayoutParams.MATCH_PARENT,
                     FrameLayout.LayoutParams.MATCH_PARENT
                 ))
-                
+
                 val countdownText = TextView(reactApplicationContext).apply {
                     text = "⏱ ${durationSeconds}s"
                     setTextColor(Color.WHITE)
@@ -285,7 +285,7 @@ class BlockingOverlayModule(reactContext: ReactApplicationContext) :
                     setBackgroundColor(Color.argb(180, 0, 0, 0))
                     setPadding(20, 12, 20, 12)
                 }
-                
+
                 val textParams = FrameLayout.LayoutParams(
                     FrameLayout.LayoutParams.WRAP_CONTENT,
                     FrameLayout.LayoutParams.WRAP_CONTENT
@@ -295,7 +295,7 @@ class BlockingOverlayModule(reactContext: ReactApplicationContext) :
                     marginEnd = 20
                 }
                 container.addView(countdownText, textParams)
-                
+
                 // Touch listener to dismiss on tap
                 container.setOnTouchListener { _, event ->
                     if (event.action == MotionEvent.ACTION_DOWN) {
@@ -303,7 +303,7 @@ class BlockingOverlayModule(reactContext: ReactApplicationContext) :
                     }
                     true
                 }
-                
+
                 // Countdown timer
                 gridHelperCountdownRunnable = object : Runnable {
                     override fun run() {
@@ -317,14 +317,14 @@ class BlockingOverlayModule(reactContext: ReactApplicationContext) :
                     }
                 }
                 mainHandler.postDelayed(gridHelperCountdownRunnable!!, 1000)
-                
+
                 val type = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                     WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
                 } else {
                     @Suppress("DEPRECATION")
                     WindowManager.LayoutParams.TYPE_PHONE
                 }
-                
+
                 val params = WindowManager.LayoutParams(
                     WindowManager.LayoutParams.MATCH_PARENT,
                     WindowManager.LayoutParams.MATCH_PARENT,
@@ -332,10 +332,10 @@ class BlockingOverlayModule(reactContext: ReactApplicationContext) :
                     WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
                     PixelFormat.TRANSLUCENT
                 )
-                
+
                 windowManager.addView(container, params)
                 gridHelperView = container
-                
+
                 promise.resolve(true)
             } catch (e: Exception) {
                 DebugLog.e(TAG, "showGridHelper error: ${e.message}")
@@ -343,7 +343,7 @@ class BlockingOverlayModule(reactContext: ReactApplicationContext) :
             }
         }
     }
-    
+
     /**
      * Hide grid helper overlay
      */
@@ -354,7 +354,7 @@ class BlockingOverlayModule(reactContext: ReactApplicationContext) :
             promise.resolve(true)
         }
     }
-    
+
     private fun hideGridHelper() {
         gridHelperCountdownRunnable?.let { mainHandler.removeCallbacks(it) }
         gridHelperCountdownRunnable = null
@@ -370,14 +370,14 @@ class BlockingOverlayModule(reactContext: ReactApplicationContext) :
             gridHelperView = null
         }
     }
-    
+
     /**
      * Parse JSON string to list of BlockingRegion
      */
     private fun parseRegions(json: String): List<BlockingRegion> {
         val regions = mutableListOf<BlockingRegion>()
         val jsonArray = JSONArray(json)
-        
+
         for (i in 0 until jsonArray.length()) {
             val obj = jsonArray.getJSONObject(i)
             regions.add(BlockingRegion(
@@ -394,7 +394,7 @@ class BlockingOverlayModule(reactContext: ReactApplicationContext) :
                 } else null
             ))
         }
-        
+
         return regions
     }
 }
@@ -403,48 +403,48 @@ class BlockingOverlayModule(reactContext: ReactApplicationContext) :
  * Custom view for drawing grid with percentage markers
  */
 private class GridHelperView(context: android.content.Context) : View(context) {
-    
+
     private val gridPaint = android.graphics.Paint().apply {
         color = Color.argb(100, 255, 255, 255)
         strokeWidth = 2f
         style = android.graphics.Paint.Style.STROKE
     }
-    
+
     private val textPaint = android.graphics.Paint().apply {
         color = Color.WHITE
         textSize = 28f
         textAlign = android.graphics.Paint.Align.CENTER
         isAntiAlias = true
     }
-    
+
     private val bgPaint = android.graphics.Paint().apply {
         color = Color.argb(150, 0, 0, 0)
     }
-    
+
     override fun onDraw(canvas: android.graphics.Canvas) {
         super.onDraw(canvas)
-        
+
         val w = width.toFloat()
         val h = height.toFloat()
-        
+
         // Draw semi-transparent background
         canvas.drawRect(0f, 0f, w, h, bgPaint)
-        
+
         // Draw grid lines every 10%
         for (i in 0..10) {
             val xPos = w * i / 10
             val yPos = h * i / 10
-            
+
             // Vertical lines
             canvas.drawLine(xPos, 0f, xPos, h, gridPaint)
             // Horizontal lines
             canvas.drawLine(0f, yPos, w, yPos, gridPaint)
-            
+
             // X-axis labels at top
             if (i > 0 && i < 10) {
                 canvas.drawText("${i * 10}%", xPos, 40f, textPaint)
             }
-            
+
             // Y-axis labels on left
             if (i > 0 && i < 10) {
                 textPaint.textAlign = android.graphics.Paint.Align.LEFT
@@ -452,17 +452,17 @@ private class GridHelperView(context: android.content.Context) : View(context) {
                 textPaint.textAlign = android.graphics.Paint.Align.CENTER
             }
         }
-        
+
         // Draw corner labels
         textPaint.textAlign = android.graphics.Paint.Align.LEFT
         canvas.drawText("0%", 10f, 40f, textPaint)
-        
+
         textPaint.textAlign = android.graphics.Paint.Align.RIGHT
         canvas.drawText("100%", w - 10f, 40f, textPaint)
-        
+
         textPaint.textAlign = android.graphics.Paint.Align.LEFT
         canvas.drawText("100%", 10f, h - 20f, textPaint)
-        
+
         // Draw info text
         textPaint.textAlign = android.graphics.Paint.Align.CENTER
         textPaint.textSize = 32f

@@ -41,7 +41,6 @@ class KioskModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
     private var wakeLock: PowerManager.WakeLock? = null
     // Cloud sync keep-alive: CPU + WiFi locks so the RN JS heartbeat/poll loop keeps
 
-    private var cloudCpuWakeLock: PowerManager.WakeLock? = null
 
     // #234: state for the temporary lock-task whitelist around the battery dialog.
     private val mainHandler = android.os.Handler(android.os.Looper.getMainLooper())
@@ -91,7 +90,7 @@ class KioskModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
         // Store the current instance to allow sending events from MainActivity
         @Volatile
         private var currentInstance: KioskModule? = null
-        
+
         /**
          * Send an event to React Native from outside the module (e.g., from MainActivity)
          * This is used for the 5-tap Volume Up gesture
@@ -184,10 +183,6 @@ class KioskModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
         // Release WakeLock when module is destroyed to prevent battery drain
         wakeLock?.release()
         wakeLock = null
-        cloudCpuWakeLock?.let { if (it.isHeld) it.release() }
-        cloudCpuWakeLock = null
-        cloudWifiLock?.let { if (it.isHeld) it.release() }
-        cloudWifiLock = null
         if (currentInstance == this) {
             currentInstance = null
         }
@@ -705,21 +700,21 @@ class KioskModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
                             if (isUsbDebugDialogAllowed()) {
                                 whitelist.add("com.android.systemui")
                             }
-                            
+
                             val uniqueWhitelist = whitelist.distinct()
-                            
+
                             // Configure Lock Task features based on settings
                             // GLOBAL_ACTIONS is included by default (Android's own default when setLockTaskFeatures is never called)
                             // This prevents Samsung/OneUI from muting audio streams in lock task mode
                             if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
                                 // Start with GLOBAL_ACTIONS as base (matches Android default behavior)
                                 var lockTaskFeatures = DevicePolicyManager.LOCK_TASK_FEATURE_GLOBAL_ACTIONS
-                                
+
                                 // allowPowerButton=false means admin wants to BLOCK the power menu
                                 if (!allowPowerButton) {
                                     lockTaskFeatures = lockTaskFeatures and DevicePolicyManager.LOCK_TASK_FEATURE_GLOBAL_ACTIONS.inv()
                                 }
-                                
+
                                 // SYSTEM_INFO: shows non-interactive status bar info (time, battery)
                                 if (allowSystemInfo) {
                                     lockTaskFeatures = lockTaskFeatures or DevicePolicyManager.LOCK_TASK_FEATURE_SYSTEM_INFO
@@ -752,7 +747,7 @@ class KioskModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
                             android.util.Log.d("KioskModule", "Full lock task started (Device Owner) with whitelist: $uniqueWhitelist")
                             // Update DE boot flag so the next LOCKED_BOOT_COMPLETED also locks immediately
                             BootReceiver.updateDeBootFlag(reactApplicationContext, true)
-                            
+
                             // Safety net: force unmute audio streams after entering lock task
                             // Samsung/OneUI devices may mute audio in LOCK_TASK_MODE_LOCKED
                             try {
@@ -1018,7 +1013,7 @@ class KioskModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
         try {
             val dpm = reactApplicationContext.getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
             val adminComponent = ComponentName(reactApplicationContext, DeviceAdminReceiver::class.java)
-            
+
             if (dpm.isDeviceOwnerApp(reactApplicationContext.packageName)) {
                 try {
                     // #199 — Restore the normal launcher before relinquishing Device Owner, so the
@@ -1048,7 +1043,7 @@ class KioskModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
         try {
             val dpm = reactApplicationContext.getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
             val adminComponent = ComponentName(reactApplicationContext, DeviceAdminReceiver::class.java)
-            
+
             if (dpm.isDeviceOwnerApp(reactApplicationContext.packageName)) {
                 dpm.reboot(adminComponent)
                 promise.resolve(true)
@@ -1087,7 +1082,7 @@ class KioskModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
                     return
                 }
             }
-            
+
             // Try AccessibilityService first (works cross-app on all ROMs)
             if (FreeKioskAccessibilityService.isRunning()) {
                 FreeKioskAccessibilityService.sendKey(keyCode)
@@ -1110,7 +1105,7 @@ class KioskModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
                     android.util.Log.e("KioskModule", "Failed to send key: ${e.message}")
                 }
             }
-            
+
             promise.resolve(true)
         } catch (e: Exception) {
             android.util.Log.e("KioskModule", "Failed to send remote key: ${e.message}")
@@ -1126,13 +1121,13 @@ class KioskModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
     fun turnScreenOn(promise: Promise) {
         try {
             val powerManager = reactApplicationContext.getSystemService(Context.POWER_SERVICE) as PowerManager
-            
+
             // IMPORTANT: Acquire WakeLock FIRST, before checking for activity
             // After lockNow(), activity may be null, but WakeLock still works
-            
+
             // Release old wakeLock if exists
             wakeLock?.release()
-            
+
             // Create WakeLock to turn on screen
             @Suppress("DEPRECATION")
             wakeLock = powerManager.newWakeLock(
@@ -1143,7 +1138,7 @@ class KioskModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
             )
             wakeLock?.acquire(10*60*1000L) // 10 minutes timeout
             android.util.Log.d("KioskModule", "WakeLock acquired to turn screen ON")
-            
+
             val activity = reactApplicationContext.currentActivity
             if (activity != null) {
                 activity.runOnUiThread {
@@ -1162,7 +1157,7 @@ class KioskModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
                                 android.view.WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON
                             )
                         }
-                        
+
                         // Re-enable FLAG_KEEP_SCREEN_ON only if not in system-managed mode
                         // Check SharedPreferences for the keep_screen_on setting
                         val prefs = reactApplicationContext.getSharedPreferences("FreeKioskSettings", Context.MODE_PRIVATE)
@@ -1170,11 +1165,11 @@ class KioskModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
                         if (keepScreenOn) {
                             activity.window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
                         }
-                        
+
                         // #242: restore the requested brightness rather than the system
                         // default, which FreeKiosk never wrote.
                         BrightnessPrefs.applyToWindow(reactApplicationContext, activity.window)
-                        
+
                         android.util.Log.d("KioskModule", "Screen turned ON via WakeLock + activity flags")
                     } catch (e: Exception) {
                         android.util.Log.e("KioskModule", "Failed to set activity flags: ${e.message}")
@@ -1183,7 +1178,7 @@ class KioskModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
             } else {
                 android.util.Log.w("KioskModule", "Activity is null after lockNow() — WakeLock alone will wake screen")
             }
-            
+
             // Resolve immediately - WakeLock handles the wake even if activity is null
             promise.resolve(true)
         } catch (e: Exception) {
@@ -1244,7 +1239,7 @@ class KioskModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
                             val layoutParams = activity.window.attributes
                             layoutParams.screenBrightness = 0.001f  // Near-zero, screen appears black
                             activity.window.attributes = layoutParams
-                            
+
                             android.util.Log.d("KioskModule", "Screen dimmed to near-0 brightness (no Device Owner, no AccessibilityService)")
                             promise.resolve(true)
                         }
@@ -1270,7 +1265,7 @@ class KioskModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
         try {
             val powerManager = reactApplicationContext.getSystemService(Context.POWER_SERVICE) as PowerManager
             val isScreenOn = powerManager.isInteractive
-            
+
             android.util.Log.d("KioskModule", "Screen state: ${if (isScreenOn) "ON" else "OFF"}")
             promise.resolve(isScreenOn)
         } catch (e: Exception) {
@@ -1342,13 +1337,13 @@ class KioskModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
         try {
             val salt = java.util.UUID.randomUUID().toString()
             val hash = hashPinWithSalt(pin, salt)
-            
+
             val prefs = reactApplicationContext.getSharedPreferences("FreeKioskAdbConfig", Context.MODE_PRIVATE)
             prefs.edit()
                 .putString("pin_hash", hash)
                 .putString("pin_salt", salt)
                 .apply()
-            
+
             android.util.Log.d("KioskModule", "ADB PIN hash saved from React Native")
             promise.resolve(true)
         } catch (e: Exception) {
@@ -1368,7 +1363,7 @@ class KioskModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
                 .remove("pin_hash")
                 .remove("pin_salt")
                 .apply()
-            
+
             android.util.Log.d("KioskModule", "ADB PIN hash cleared")
             promise.resolve(true)
         } catch (e: Exception) {
@@ -1387,12 +1382,12 @@ class KioskModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
         try {
             val prefs = reactApplicationContext.getSharedPreferences("FreeKioskPendingConfig", Context.MODE_PRIVATE)
             val hasPending = prefs.getBoolean("has_pending_config", false)
-            
+
             if (!hasPending) {
                 promise.resolve(null)
                 return
             }
-            
+
             val result = com.facebook.react.bridge.Arguments.createMap()
             val allEntries = prefs.all
             for ((key, value) in allEntries) {
@@ -1400,7 +1395,7 @@ class KioskModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
                     result.putString(key, value)
                 }
             }
-            
+
             android.util.Log.i("KioskModule", "Returning pending ADB config with ${allEntries.size - 1} entries")
             promise.resolve(result)
         } catch (e: Exception) {
@@ -1408,7 +1403,7 @@ class KioskModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
             promise.reject("ERROR", "Failed to get pending config: ${e.message}")
         }
     }
-    
+
     /**
      * Clear pending ADB config after it has been applied to AsyncStorage
      */
@@ -1466,7 +1461,7 @@ class KioskModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
         val hashBytes = digest.digest(combined.toByteArray(Charsets.UTF_8))
         return hashBytes.joinToString("") { "%02x".format(it) }
     }
-    
+
     /**
      * Save PIN to AsyncStorage for UI display
      * This is called from native ADB config to make PIN visible in Settings
@@ -1475,7 +1470,7 @@ class KioskModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
         return try {
             val dbPath = reactApplicationContext.getDatabasePath("RKStorage").absolutePath
             val db = android.database.sqlite.SQLiteDatabase.openOrCreateDatabase(dbPath, null)
-            
+
             db.execSQL("""
                 CREATE TABLE IF NOT EXISTS catalystLocalStorage (
                   `key` TEXT NOT NULL,
@@ -1483,14 +1478,14 @@ class KioskModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
                   PRIMARY KEY(`key`)
                 )
             """.trimIndent())
-            
+
             val contentValues = android.content.ContentValues().apply {
                 put("key", "@kiosk_pin")
                 put("value", pin)
             }
             db.insertWithOnConflict("catalystLocalStorage", null, contentValues, android.database.sqlite.SQLiteDatabase.CONFLICT_REPLACE)
             db.close()
-            
+
             android.util.Log.i("KioskModule", "PIN saved to AsyncStorage for UI")
             true
         } catch (e: Exception) {
@@ -1518,7 +1513,7 @@ class KioskModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
         try {
             val context = reactApplicationContext
             val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as android.app.AlarmManager
-            
+
             val intent = Intent(context, ScreenSchedulerReceiver::class.java).apply {
                 action = ScreenSchedulerReceiver.ACTION_SCREEN_WAKE
             }
@@ -1593,7 +1588,7 @@ class KioskModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
         try {
             val context = reactApplicationContext
             val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as android.app.AlarmManager
-            
+
             val intent = Intent(context, ScreenSchedulerReceiver::class.java).apply {
                 action = ScreenSchedulerReceiver.ACTION_SCREEN_SLEEP
             }

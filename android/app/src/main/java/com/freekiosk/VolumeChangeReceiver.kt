@@ -21,10 +21,10 @@ import android.util.Log
  * When not in lock task mode, users can access settings normally.
  */
 class VolumeChangeReceiver : BroadcastReceiver() {
-    
+
     companion object {
         private const val TAG = "VolumeChangeReceiver"
-        
+
         // Track volume changes for 5-tap gesture (any direction)
         private var volumeChangeTapCount = 0
         private var volumeChangeLastTapTime = 0L
@@ -32,7 +32,7 @@ class VolumeChangeReceiver : BroadcastReceiver() {
         private val volumeChangeMinInterval = 250L // Minimum ms between counted taps (filters hold/auto-repeat)
         private var lastVolume = -1
     }
-    
+
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action == "android.media.VOLUME_CHANGED_ACTION") {
             try {
@@ -40,18 +40,18 @@ class VolumeChangeReceiver : BroadcastReceiver() {
                 val currentVolume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
                 val maxVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
                 val volumePercent = (currentVolume * 100) / maxVolume
-                
+
                 Log.d(TAG, "Volume changed to $volumePercent% (raw: $currentVolume/$maxVolume)")
-                
+
                 // Check for 5-tap gesture (any volume change direction)
                 checkVolume5Tap(context, currentVolume)
-                
+
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to read volume: ${e.message}")
             }
         }
     }
-    
+
     private fun checkVolume5Tap(context: Context, currentVolume: Int) {
         // Check if feature is enabled — user-controlled toggle, same default for all modes.
         // In App mode this can cause accidental triggers during normal volume adjustment;
@@ -63,14 +63,14 @@ class VolumeChangeReceiver : BroadcastReceiver() {
             lastVolume = currentVolume
             return
         }
-        
+
         // Get required tap count from storage (default 5)
         val requiredTaps = try {
             getAsyncStorageValue(context, "@kiosk_return_tap_count", "5").toInt().coerceIn(2, 20)
         } catch (e: Exception) {
             5
         }
-        
+
         // Check if we're in lock task mode (kiosk mode active)
         // If not in lock mode, user can access settings normally - no need for N-tap
         if (!isInLockTaskMode(context)) {
@@ -78,17 +78,17 @@ class VolumeChangeReceiver : BroadcastReceiver() {
             lastVolume = currentVolume
             return
         }
-        
+
         // Check if volume actually changed (not just a duplicate event)
         if (lastVolume >= 0 && currentVolume != lastVolume) {
             val currentTime = System.currentTimeMillis()
             val timeSinceLastTap = currentTime - volumeChangeLastTapTime
-            
+
             // Reset counter if timeout exceeded
             if (timeSinceLastTap > volumeChangeTapTimeout) {
                 volumeChangeTapCount = 0
             }
-            
+
             // Ignore rapid volume changes from holding the button (auto-repeat).
             // When holding, events arrive every ~50-100ms. Deliberate separate
             // presses are at least ~250ms apart.
@@ -98,28 +98,28 @@ class VolumeChangeReceiver : BroadcastReceiver() {
                 lastVolume = currentVolume
                 return
             }
-            
+
             volumeChangeTapCount++
             volumeChangeLastTapTime = currentTime
-            
+
             val direction = if (currentVolume > lastVolume) "UP" else "DOWN"
             Log.d(TAG, "Volume $direction detected! Count: $volumeChangeTapCount/$requiredTaps (was: $lastVolume, now: $currentVolume)")
-            
+
             if (volumeChangeTapCount >= requiredTaps) {
                 volumeChangeTapCount = 0
                 Log.d(TAG, "$requiredTaps-tap Volume detected! Navigating to PIN screen")
-                
+
                 // Set flag to block auto-relaunch
                 MainActivity.blockAutoRelaunch = true
-                
+
                 // Launch MainActivity with navigateToPin flag
                 navigateToPin(context)
             }
         }
-        
+
         lastVolume = currentVolume
     }
-    
+
     private fun navigateToPin(context: Context) {
         try {
             val intent = Intent(context, MainActivity::class.java).apply {
@@ -133,19 +133,19 @@ class VolumeChangeReceiver : BroadcastReceiver() {
             Log.e(TAG, "Failed to launch MainActivity: ${e.message}")
         }
     }
-    
+
     private fun getAsyncStorageValue(context: Context, key: String, defaultValue: String): String {
         try {
             val dbPath = context.getDatabasePath("RKStorage").absolutePath
             val db = SQLiteDatabase.openDatabase(dbPath, null, SQLiteDatabase.OPEN_READONLY)
             val cursor = db.rawQuery("SELECT value FROM catalystLocalStorage WHERE key = ?", arrayOf(key))
-            
+
             val value = if (cursor.moveToFirst()) {
                 cursor.getString(0) ?: defaultValue
             } else {
                 defaultValue
             }
-            
+
             cursor.close()
             db.close()
             return value
@@ -153,7 +153,7 @@ class VolumeChangeReceiver : BroadcastReceiver() {
             return defaultValue
         }
     }
-    
+
     private fun isInLockTaskMode(context: Context): Boolean {
         return try {
             val activityManager = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager

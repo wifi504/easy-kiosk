@@ -23,13 +23,13 @@ class HomeActivity : AppCompatActivity() {
         val displayMode = getAsyncStorageValue("@kiosk_display_mode", "webview")
         val externalAppPackage = getAsyncStorageValue("@kiosk_external_app_package", "")
         val externalAppActivity = getAsyncStorageValue("@kiosk_external_app_activity", "")
-        
+
         // Load tap settings
         val tapCountStr = getAsyncStorageValue("@kiosk_return_tap_count", "5")
         val tapTimeoutStr = getAsyncStorageValue("@kiosk_return_tap_timeout", "1500")
         val tapCount = try { tapCountStr.toInt() } catch (e: Exception) { 5 }
         val tapTimeout = try { tapTimeoutStr.toLong() } catch (e: Exception) { 1500L }
-        
+
         // Load return mode settings
         val returnMode = getAsyncStorageValue("@kiosk_return_mode", "tap_anywhere")
         val buttonPosition = getAsyncStorageValue("@kiosk_return_button_position", "bottom-right")

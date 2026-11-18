@@ -48,7 +48,7 @@ class KioskWatchdogService : Service() {
         private const val FOREGROUND_LOOKBACK_MS = 24 * 60 * 60 * 1000L // #282
         private const val SYSTEM_UI_PACKAGE = "com.android.systemui" // #268
 
-        
+
 
         /**
          * #234: the service runs in one of two modes, persisted because START_STICKY
@@ -380,7 +380,7 @@ class KioskWatchdogService : Service() {
      * We only skip relaunch when the process importance is IMPORTANCE_FOREGROUND,
      * meaning our activity is actually visible to the user.
      */
-    
+
 
 
     private fun isMainActivityRunning(): Boolean {

@@ -421,7 +421,7 @@ class BootReceiver : BroadcastReceiver() {
             DebugLog.errorProduction("BootReceiver", "Failed to start KioskWatchdogService: ${e.message}")
         }
     }
-    
+
     /**
      * Re-enable the accessibility service after boot if the app is Device Owner.
      * Android 13+ can disable accessibility services of sideloaded apps after reboot.
@@ -442,7 +442,7 @@ class BootReceiver : BroadcastReceiver() {
             // Build permitted list: FreeKiosk + managed apps with allowAccessibility=true
             val permitted = mutableListOf(context.packageName)
             permitted.addAll(getManagedAppsWithAccessibility(context))
-            
+
             dpm.setPermittedAccessibilityServices(adminComponent, permitted.distinct())
             DebugLog.d("BootReceiver", "Permitted accessibility services: $permitted")
 
@@ -491,7 +491,7 @@ class BootReceiver : BroadcastReceiver() {
                 DebugLog.d("BootReceiver", "No background apps to launch on boot")
                 return
             }
-            
+
             val pm = context.packageManager
             for (packageName in apps) {
                 try {
@@ -502,7 +502,7 @@ class BootReceiver : BroadcastReceiver() {
                         DebugLog.d("BootReceiver", "Boot app not installed, skipping: $packageName")
                         continue
                     }
-                    
+
                     val launchIntent = pm.launchIntentFor(packageName)
                     if (launchIntent != null) {
                         launchIntent.addFlags(
@@ -535,7 +535,7 @@ class BootReceiver : BroadcastReceiver() {
                 DebugLog.d("BootReceiver", "No keep-alive apps configured, skipping BackgroundAppMonitorService")
                 return
             }
-            
+
             val serviceIntent = Intent(context, BackgroundAppMonitorService::class.java)
             try {
                 if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
@@ -617,17 +617,17 @@ class BootReceiver : BroadcastReceiver() {
             // AsyncStorage uses SQLite database "RKStorage" with table "catalystLocalStorage"
             val dbPath = context.getDatabasePath("RKStorage").absolutePath
             val db = SQLiteDatabase.openDatabase(dbPath, null, SQLiteDatabase.OPEN_READONLY)
-            
+
             val cursor = db.rawQuery(
                 "SELECT value FROM catalystLocalStorage WHERE key = ?",
                 arrayOf("@kiosk_auto_launch")
             )
-            
+
             val isEnabled = if (cursor.moveToFirst()) {
                 val value = cursor.getString(0)
                 cursor.close()
                 db.close()
-                
+
                 // AsyncStorage stores values as JSON strings, so "true" or "false"
                 val enabled = value == "true"
                 DebugLog.d("BootReceiver", "Auto-launch setting: $enabled (value=$value)")
@@ -635,12 +635,12 @@ class BootReceiver : BroadcastReceiver() {
             } else {
                 cursor.close()
                 db.close()
-                
+
                 // If not set, default to false (don't auto-launch unless explicitly enabled)
                 DebugLog.d("BootReceiver", "Auto-launch setting not found, defaulting to false")
                 false
             }
-            
+
             isEnabled
         } catch (e: Exception) {
             DebugLog.errorProduction("BootReceiver", "Error reading auto-launch setting: ${e.message}")

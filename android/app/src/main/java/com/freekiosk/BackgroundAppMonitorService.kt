@@ -67,20 +67,20 @@ class BackgroundAppMonitorService : Service() {
 
         // Read keep-alive packages from AsyncStorage
         keepAlivePackages = readKeepAlivePackages()
-        
+
         if (keepAlivePackages.isEmpty()) {
             DebugLog.d(TAG, "No keep-alive apps configured, stopping service")
             stopSelf()
             return START_NOT_STICKY
         }
-        
+
         isRunning = true
         handler.removeCallbacks(checkRunnable)
         // Start first check after a longer initial delay (give boot apps time to start)
         handler.postDelayed(checkRunnable, CHECK_INTERVAL_MS * 2)
-        
+
         DebugLog.d(TAG, "Monitoring ${keepAlivePackages.size} keep-alive apps: $keepAlivePackages")
-        
+
         return START_STICKY
     }
 
@@ -103,7 +103,7 @@ class BackgroundAppMonitorService : Service() {
             DebugLog.d(TAG, "FreeKiosk is not in foreground, skipping relaunch check")
             return
         }
-        
+
         // Re-read in case config changed
         keepAlivePackages = readKeepAlivePackages()
         if (keepAlivePackages.isEmpty()) {
@@ -121,7 +121,7 @@ class BackgroundAppMonitorService : Service() {
                     DebugLog.d(TAG, "Cooldown active for $packageName, skipping relaunch (${(now - lastRelaunch) / 1000}s < ${RELAUNCH_COOLDOWN_MS / 1000}s)")
                     continue
                 }
-                
+
                 DebugLog.d(TAG, "Keep-alive app process not found, relaunching: $packageName")
                 relaunchApp(packageName)
                 relaunchTimestamps[packageName] = now
@@ -210,7 +210,7 @@ class BackgroundAppMonitorService : Service() {
         } catch (e: Exception) {
             DebugLog.d(TAG, "getRunningServices failed: ${e.message}")
         }
-        
+
         DebugLog.d(TAG, "Process NOT found for $packageName (all methods failed)")
         return false
     }

@@ -61,16 +61,9 @@ build-time tools and are not in the JavaScript bundle shipped in the APK (checke
 |---|---|---|---|
 | `com.facebook.react:react-android`, `hermes-android` | 0.82.0 | MIT | Copyright (c) Meta Platforms, Inc. and affiliates. |
 | `androidx.mediarouter:mediarouter` | 1.8.1 | Apache-2.0 | The Android Open Source Project |
-| `org.nanohttpd:nanohttpd` | 2.3.1 | BSD-3-Clause | Copyright (c) 2012-2013 by Paul S. Hawke, 2001,2005-2013 by Jarno Elonen, 2010 by Konstantinos Togias |
-| `com.hivemq:hivemq-mqtt-client` | 1.3.12 | Apache-2.0 | HiveMQ and the HiveMQ Community |
-| `io.netty:netty-*` (pulled in by the HiveMQ client) | 4.1.130.Final | Apache-2.0 | The Netty project; see the artifacts |
 
-React Native, AndroidX and the other transitive libraries that Gradle pulls in come with their own licenses,
-published with each artifact. On 2026-11-17 we read the license declared by each of the 178 libraries of the release
-runtime classpath. 159 declare Apache-2.0, MIT, BSD or MIT-0; 9 declare none in their own POM and are Apache-2.0
-(Netty, Guava's `listenablefuture`, through their parent POM) or BSD-3-Clause (NanoHTTPD); the compile-time
-`auto-value-annotations` declares none in the POM we have; and 9 are the Google components below. None is GPL, LGPL,
-AGPL or MPL.
+React Native and AndroidX include their own license metadata in their artifacts.
+The remote HTTP/MQTT dependencies and their transitive runtime libraries have been removed.
 
 ## Google components that are not open source
 
@@ -112,24 +105,7 @@ TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR TH
 SOFTWARE.
 ```
 
-### BSD 3-Clause License (NanoHTTPD)
-
-```
-Copyright (c) 2012-2013 by Paul S. Hawke, 2001,2005-2013 by Jarno Elonen, 2010 by Konstantinos Togias
-All rights reserved.
-
-Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
-
-* Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.
-
-* Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution.
-
-* Neither the name of the NanoHttpd organization nor the names of its contributors may be used to endorse or promote products derived from this software without specific prior written permission.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-```
-
-### Apache License 2.0 (PDF.js, Material Design Icons, AndroidX, HiveMQ MQTT Client)
+### Apache License 2.0 (PDF.js, Material Design Icons, AndroidX)
 
 ```
 

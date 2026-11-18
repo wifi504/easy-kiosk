@@ -70,7 +70,7 @@ class SystemInfoModule(reactContext: ReactApplicationContext) : ReactContextBase
             // This ensures we always get fresh data, not cached broadcast
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
                 val batteryManager = reactApplicationContext.getSystemService(Context.BATTERY_SERVICE) as BatteryManager
-                
+
                 val batteryPct = batteryManager.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY)
                 val status = batteryManager.getIntProperty(BatteryManager.BATTERY_PROPERTY_STATUS)
                 val isCharging = status == BatteryManager.BATTERY_STATUS_CHARGING ||

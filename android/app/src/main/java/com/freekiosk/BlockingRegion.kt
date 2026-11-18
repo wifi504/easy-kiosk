@@ -29,7 +29,7 @@ data class BlockingRegion(
             (screenHeight * yEnd / 100f).toInt()
         )
     }
-    
+
     /**
      * Check if this region applies to a specific package
      */
@@ -39,7 +39,7 @@ data class BlockingRegion(
         // Otherwise, check if package matches
         return packageName == targetPackage
     }
-    
+
     companion object {
         const val MODE_TRANSPARENT = "transparent"
         const val MODE_SEMI_TRANSPARENT = "semi_transparent"

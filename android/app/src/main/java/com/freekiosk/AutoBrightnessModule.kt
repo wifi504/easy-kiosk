@@ -32,27 +32,27 @@ class AutoBrightnessModule(private val reactContext: ReactApplicationContext) :
         private const val PENDING_BRIGHTNESS_MAX_AGE_MS = 3000L
         private const val TAG = "AutoBrightnessModule"
         private const val NAME = "AutoBrightnessModule"
-        
+
         // Lux thresholds for brightness mapping
         private const val LUX_MIN = 10f      // Dark environment
         private const val LUX_MAX = 1000f    // Bright environment
-        
+
         // Throttling: minimum change required to update brightness (prevents flickering)
         private const val BRIGHTNESS_CHANGE_THRESHOLD = 0.05f // 5%
-        
+
         // Smoothing factor for gradual transitions (0.0 = instant, 1.0 = no change)
         private const val SMOOTHING_FACTOR = 0.3f
     }
 
     private var sensorManager: SensorManager? = null
     private var lightSensor: Sensor? = null
-    
+
     private var isActive = false
     private var minBrightness = 0.1f  // 10%
     private var maxBrightness = 1.0f  // 100%
     private var brightnessOffset = 0.0f // Offset added to calculated brightness
     private var updateInterval = 1000 // ms
-    
+
     private var lastBrightnessValue = -1f
 
     /**
@@ -68,7 +68,7 @@ class AutoBrightnessModule(private val reactContext: ReactApplicationContext) :
     private val pendingBrightness = java.util.concurrent.atomic.AtomicReference<PendingBrightness?>(null)
     private var currentLightLevel = 0f
     private var smoothedBrightness = -1f
-    
+
     private var lastUpdateTime = 0L
 
     override fun getName(): String = NAME
@@ -89,14 +89,14 @@ class AutoBrightnessModule(private val reactContext: ReactApplicationContext) :
             this.maxBrightness = maxBrightness.toFloat().coerceIn(0f, 1f)
             this.brightnessOffset = brightnessOffset.toFloat().coerceIn(0f, 1f)
             this.updateInterval = updateInterval.coerceIn(100, 10000)
-            
+
             // Ensure min <= max
             if (this.minBrightness > this.maxBrightness) {
                 val temp = this.minBrightness
                 this.minBrightness = this.maxBrightness
                 this.maxBrightness = temp
             }
-            
+
             // If already active, just update parameters and return
             if (isActive) {
                 Log.d(TAG, "Auto-brightness parameters updated: min=${this.minBrightness}, max=${this.maxBrightness}, offset=${this.brightnessOffset}")
@@ -126,7 +126,7 @@ class AutoBrightnessModule(private val reactContext: ReactApplicationContext) :
             lastUpdateTime = System.currentTimeMillis()
 
             Log.i(TAG, "Auto-brightness started: min=$minBrightness, max=$maxBrightness, offset=$brightnessOffset, interval=$updateInterval")
-            
+
             promise.resolve(createResultMap(true, "Auto-brightness started"))
         } catch (e: Exception) {
             Log.e(TAG, "Failed to start auto-brightness", e)
@@ -147,7 +147,7 @@ class AutoBrightnessModule(private val reactContext: ReactApplicationContext) :
 
             sensorManager?.unregisterListener(this)
             isActive = false
-            
+
             Log.i(TAG, "Auto-brightness stopped")
             promise.resolve(createResultMap(true, "Auto-brightness stopped"))
         } catch (e: Exception) {
@@ -235,7 +235,7 @@ class AutoBrightnessModule(private val reactContext: ReactApplicationContext) :
             this.maxBrightness = maxBrightness.toFloat().coerceIn(0f, 1f)
             this.brightnessOffset = brightnessOffset.toFloat().coerceIn(0f, 1f)
             this.updateInterval = updateInterval.coerceIn(100, 10000)
-            
+
             // Ensure min <= max
             if (this.minBrightness > this.maxBrightness) {
                 val temp = this.minBrightness
@@ -381,7 +381,7 @@ class AutoBrightnessModule(private val reactContext: ReactApplicationContext) :
         if (!isActive || event.sensor.type != Sensor.TYPE_LIGHT) return
 
         currentLightLevel = event.values[0]
-        
+
         // Throttle updates based on interval
         val currentTime = System.currentTimeMillis()
         if (currentTime - lastUpdateTime < updateInterval) {
@@ -391,7 +391,7 @@ class AutoBrightnessModule(private val reactContext: ReactApplicationContext) :
 
         // Calculate target brightness using logarithmic curve, then apply offset
         val targetBrightness = (calculateBrightness(currentLightLevel) + brightnessOffset).coerceIn(0.01f, 1f)
-        
+
         // Apply smoothing for gradual transitions
         val newBrightness = if (smoothedBrightness < 0) {
             targetBrightness
@@ -445,7 +445,7 @@ class AutoBrightnessModule(private val reactContext: ReactApplicationContext) :
             // #314: visible to getBrightnessLevel() from this moment, until the UI thread has applied it
             val pending = PendingBrightness(target, System.currentTimeMillis())
             pendingBrightness.set(pending)
-            
+
             activity.runOnUiThread {
                 try {
                     val window = activity.window

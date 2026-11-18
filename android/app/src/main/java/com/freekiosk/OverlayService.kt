@@ -52,7 +52,7 @@ class OverlayService : Service() {
         // Status bar enabled/disabled
         @Volatile
         var statusBarEnabled = false
-        
+
         // Status bar items visibility
         @Volatile
         var showBattery = true
@@ -209,7 +209,7 @@ class OverlayService : Service() {
             }
         }
     }
-    
+
     // BroadcastReceiver pour détecter les changements de volume
     private val volumeReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -219,7 +219,7 @@ class OverlayService : Service() {
             }
         }
     }
-    
+
     // BroadcastReceiver pour détecter les changements de batterie en temps réel
     private val batteryReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -238,24 +238,24 @@ class OverlayService : Service() {
         super.onCreate()
         instance = this
         windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
-        
+
         // Charger l'opacité depuis SharedPreferences
         loadButtonOpacity()
-        
+
         // Démarrer comme Foreground Service pour survivre à la mise en veille
         startForegroundService()
-        
+
         // Enregistrer le receiver pour les événements écran
         val filter = IntentFilter().apply {
             addAction(Intent.ACTION_SCREEN_ON)
             addAction(Intent.ACTION_SCREEN_OFF)
         }
         registerReceiver(screenReceiver, filter)
-        
+
         // Enregistrer le receiver pour les changements de volume
         val volumeFilter = IntentFilter("android.media.VOLUME_CHANGED_ACTION")
         registerReceiver(volumeReceiver, volumeFilter)
-        
+
         // Enregistrer le receiver pour les changements de batterie
         val batteryFilter = IntentFilter().apply {
             addAction(Intent.ACTION_BATTERY_CHANGED)
@@ -264,7 +264,7 @@ class OverlayService : Service() {
         }
         registerReceiver(batteryReceiver, batteryFilter)
 
-        
+
         // Créer l'overlay seulement si la permission est accordée
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M || Settings.canDrawOverlays(this)) {
             createOverlay()
@@ -359,7 +359,7 @@ class OverlayService : Service() {
         // Reload button opacity and status bar settings from SharedPreferences
         // This ensures we have the latest values when service is restarted
         loadButtonOpacity()
-        
+
         // Track if overlay parameters changed — avoid unnecessary destroy/recreate
         val oldReturnMode = returnMode
         val oldButtonPosition = buttonPosition
@@ -369,41 +369,41 @@ class OverlayService : Service() {
             requiredTaps = taps.coerceIn(2, 20)
             DebugLog.d("OverlayService", "Required taps set to: $requiredTaps")
         }
-        
+
         // Get tap timeout from intent (default 1500ms)
         intent.getLongExtra("TAP_TIMEOUT", 1500L).let { timeout ->
             tapTimeout = timeout.coerceIn(500L, 5000L)
             DebugLog.d("OverlayService", "Tap timeout set to: ${tapTimeout}ms")
         }
-        
+
         // Get return mode from intent (default 'tap_anywhere')
         intent.getStringExtra("RETURN_MODE")?.let { mode ->
             returnMode = mode
             DebugLog.d("OverlayService", "Return mode set to: $returnMode")
         }
-        
+
         // Get button position from intent (default 'bottom-right')
         intent.getStringExtra("BUTTON_POSITION")?.let { position ->
             buttonPosition = position
             DebugLog.d("OverlayService", "Button position set to: $buttonPosition")
         }
-        
+
         // Get locked package and auto-relaunch settings for monitoring
         intent.getStringExtra("LOCKED_PACKAGE")?.let { pkg ->
             lockedPackage = pkg
             DebugLog.d("OverlayService", "Locked package set to: $lockedPackage")
         }
-        
+
         intent.getBooleanExtra("AUTO_RELAUNCH", false).let { enabled ->
             autoRelaunchEnabled = enabled
             DebugLog.d("OverlayService", "Auto-relaunch enabled: $autoRelaunchEnabled")
         }
-        
+
         intent.getBooleanExtra("NFC_ENABLED", false).let { enabled ->
             nfcEnabled = enabled
             DebugLog.d("OverlayService", "NFC enabled (monitoring filter): $nfcEnabled")
         }
-        
+
         // Start monitoring if auto-relaunch is enabled and we have a locked package
         if (autoRelaunchEnabled && lockedPackage != null) {
             startForegroundMonitoring()
@@ -417,10 +417,10 @@ class OverlayService : Service() {
         } else {
             stopOverlayRepinLoop()
         }
-        
+
         // Vérifier la permission overlay avant de créer des vues
         val hasOverlayPermission = Build.VERSION.SDK_INT < Build.VERSION_CODES.M || Settings.canDrawOverlays(this)
-        
+
         // Only recreate overlay if parameters changed or overlay doesn't exist
         val overlayParamsChanged = returnMode != oldReturnMode || buttonPosition != oldButtonPosition
         if (hasOverlayPermission) {
@@ -437,7 +437,7 @@ class OverlayService : Service() {
         if (hasOverlayPermission && statusBarEnabled && statusBarView == null) {
             createStatusBar()
         }
-        
+
         // START_STICKY: le service sera redémarré si tué par le système
         return START_STICKY
     }
@@ -453,16 +453,16 @@ class OverlayService : Service() {
             createTapAnywhereModeOverlay()
         }
     }
-    
+
     private fun createButtonModeOverlay() {
         // MODE BOUTON: Petit bouton cliquable dans un coin
         // L'utilisateur doit taper N fois SUR le bouton pour retourner aux settings
-        
+
         val buttonSize = 48 // dp
         val density = resources.displayMetrics.density
         val buttonSizePx = (buttonSize * density).toInt()
         val marginPx = (8 * density).toInt()
-        
+
         val buttonView = FrameLayout(this).apply {
             returnButton = Button(context).apply {
                 text = "↩"
@@ -520,7 +520,7 @@ class OverlayService : Service() {
             DebugLog.errorProduction("OverlayService", "Failed to create button overlay: ${e.message}")
         }
     }
-    
+
     private fun getButtonGravity(): Int {
         return when (buttonPosition) {
             "top-left" -> Gravity.TOP or Gravity.START
@@ -530,7 +530,7 @@ class OverlayService : Service() {
             else -> Gravity.BOTTOM or Gravity.END
         }
     }
-    
+
     private fun getButtonMargins(marginPx: Int): Pair<Int, Int> {
         // Return (horizontal margin, vertical margin)
         return when (buttonPosition) {
@@ -541,18 +541,18 @@ class OverlayService : Service() {
             else -> Pair(marginPx, marginPx)
         }
     }
-    
+
     private fun createTapAnywhereModeOverlay() {
         // MODE TAP ANYWHERE: Overlay invisible UNIQUEMENT
         // Overlay INVISIBLE de 1x1 pixel avec FLAG_WATCH_OUTSIDE_TOUCH
         // Détecte TOUS les taps de l'écran sans bloquer l'app en dessous
         // PAS de bouton visible en mode tap_anywhere!
-        
+
         // Créer un overlay INVISIBLE de 1x1 pixel qui observe TOUS les taps de l'écran
         // FLAG_WATCH_OUTSIDE_TOUCH fait que cet overlay reçoit les événements de TOUT l'écran
         overlayView = View(this).apply {
             setBackgroundColor(android.graphics.Color.TRANSPARENT)
-            
+
             // Ce listener reçoit TOUS les taps de l'écran grâce à FLAG_WATCH_OUTSIDE_TOUCH
             setOnTouchListener { _, event ->
                 if (event.action == android.view.MotionEvent.ACTION_OUTSIDE ||
@@ -602,7 +602,7 @@ class OverlayService : Service() {
         try {
             // Détruire complètement les anciens overlays
             destroyOverlay()
-            
+
             // Recréer l'overlay avec la nouvelle position
             createOverlay()
         } catch (e: Exception) {
@@ -715,7 +715,7 @@ class OverlayService : Service() {
                 textStyle(this)
             }
             batteryContainer.addView(batteryText)
-            
+
             // Ajouter la batterie seulement si activée
             // No battery on a TV or a box: showing one would be a made-up level
             if (showBattery && TvSupport.hasBattery(this)) {
@@ -741,7 +741,7 @@ class OverlayService : Service() {
                 }
             }
             wifiContainer.addView(wifiStatusIcon)
-            
+
             // Ajouter le WiFi seulement si activé
             if (showWifi) {
                 statusLayout.addView(wifiContainer)
@@ -766,7 +766,7 @@ class OverlayService : Service() {
                 }
             }
             bluetoothContainer.addView(bluetoothStatusIcon)
-            
+
             // Ajouter le Bluetooth seulement si activé
             if (showBluetooth) {
                 statusLayout.addView(bluetoothContainer)
@@ -794,7 +794,7 @@ class OverlayService : Service() {
             // Spacer pour pousser l'heure à droite (seulement si on a des items à gauche OU à droite)
             val hasLeftItems = showBattery || showWifi || showBluetooth
             val hasRightItems = showVolume || showTime
-            
+
             if (hasLeftItems && hasRightItems) {
                 val spacer = View(this)
                 statusLayout.addView(spacer, LinearLayout.LayoutParams(
@@ -803,7 +803,7 @@ class OverlayService : Service() {
                     1f
                 ))
             }
-            
+
             // Ajouter le volume seulement si activé
             if (showVolume) {
                 statusLayout.addView(volumeContainer)
@@ -813,7 +813,7 @@ class OverlayService : Service() {
             val timeIcon = resources.getIdentifier("ic_time", "drawable", packageName)
             val (timeContainer, timeTextView) = createStatusItem(timeIcon, "--:--")
             timeText = timeTextView
-            
+
             // Ajouter l'heure seulement si activée
             if (showTime) {
                 statusLayout.addView(timeContainer)
@@ -980,7 +980,7 @@ class OverlayService : Service() {
             DebugLog.errorProduction("OverlayService", "Failed to update status bar: ${e.message}")
         }
     }
-    
+
     // Méthode dédiée pour mettre à jour uniquement l'icône de charge en temps réel
     private fun updateBatteryChargingIcon(intent: Intent?) {
         try {
@@ -991,7 +991,7 @@ class OverlayService : Service() {
                                 status == BatteryManager.BATTERY_STATUS_FULL
 
                 batteryChargingIcon?.visibility = if (isCharging) View.VISIBLE else View.GONE
-                
+
                 // Mettre à jour aussi le pourcentage de batterie
                 val level = batteryStatus.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
                 val scale = batteryStatus.getIntExtra(BatteryManager.EXTRA_SCALE, -1)
@@ -999,7 +999,7 @@ class OverlayService : Service() {
                     val batteryPct = (level * 100 / scale.toFloat()).toInt()
                     batteryText?.text = "$batteryPct%"
                 }
-                
+
                 DebugLog.d("OverlayService", "Battery charging icon updated: isCharging=$isCharging")
             }
         } catch (e: Exception) {
@@ -1061,7 +1061,7 @@ class OverlayService : Service() {
                 }, tapTimeout)
             }
         }
-        
+
         tapCount++
         DebugLog.d("OverlayService", "Tap count: $tapCount/$requiredTaps (timeout: ${tapTimeout}ms)")
 
@@ -1070,10 +1070,10 @@ class OverlayService : Service() {
             DebugLog.d("OverlayService", "$requiredTaps taps detected! Returning to FreeKiosk")
             tapCount = 0
             tapHandler.removeCallbacksAndMessages(null)
-            
+
             // Détruire l'overlay IMMÉDIATEMENT avant de retourner
             destroyOverlay()
-            
+
             returnToFreeKiosk()
         }
     }
@@ -1081,7 +1081,7 @@ class OverlayService : Service() {
     private fun returnToFreeKiosk() {
         try {
             DebugLog.d("OverlayService", "returnToFreeKiosk() called")
-            
+
             // IMPORTANT: Bloquer le relaunch automatique AVANT de lancer MainActivity
             MainActivity.blockAutoRelaunch = true
             DebugLog.d("OverlayService", "Set blockAutoRelaunch = true")
@@ -1093,7 +1093,7 @@ class OverlayService : Service() {
             try {
                 val am = getSystemService(Context.ACTIVITY_SERVICE) as android.app.ActivityManager
                 val tasks = am.appTasks
-                
+
                 // Chercher la task de FreeKiosk
                 for (task in tasks) {
                     val taskInfo = task.taskInfo
@@ -1101,7 +1101,7 @@ class OverlayService : Service() {
                         DebugLog.d("OverlayService", "Found FreeKiosk task, moving to front")
                         task.moveToFront()
                         DebugLog.d("OverlayService", "Successfully moved FreeKiosk to front")
-                        
+
                         // Ensuite, s'assurer que MainActivity est au top de notre task
                         val intent = Intent(this, MainActivity::class.java)
                         intent.addFlags(
@@ -1119,7 +1119,7 @@ class OverlayService : Service() {
             } catch (e: Exception) {
                 DebugLog.errorProduction("OverlayService", "moveTaskToFront failed: ${e.message}")
             }
-            
+
             // FALLBACK: Si moveTaskToFront ne marche pas, essayer l'ancienne méthode
             DebugLog.d("OverlayService", "Trying fallback method with startActivity")
             val intent = Intent(this, MainActivity::class.java)
@@ -1132,16 +1132,16 @@ class OverlayService : Service() {
             )
             intent.putExtra("voluntaryReturn", true)
             intent.putExtra("navigateToPin", true)
-            
+
             try {
                 startActivity(intent)
                 DebugLog.d("OverlayService", "MainActivity started with fallback intent")
             } catch (e: Exception) {
                 DebugLog.errorProduction("OverlayService", "Failed to start MainActivity: ${e.message}")
             }
-            
+
             DebugLog.d("OverlayService", "Returning to FreeKiosk PIN screen from overlay button")
-            
+
             // Arrêter le service overlay après retour
             stopSelf()
         } catch (e: Exception) {
@@ -1300,9 +1300,9 @@ class OverlayService : Service() {
     private fun startForegroundMonitoring() {
         stopForegroundMonitoring() // Clear any existing monitoring
         foregroundNullCount = 0
-        
+
         android.util.Log.i("OverlayService", "Starting foreground monitoring for package: $lockedPackage (interval=${FOREGROUND_CHECK_INTERVAL}ms)")
-        
+
         foregroundMonitorHandler.post(object : Runnable {
             override fun run() {
                 if (autoRelaunchEnabled && lockedPackage != null) {
@@ -1325,11 +1325,11 @@ class OverlayService : Service() {
      * Check if the locked app is still in foreground, bring FreeKiosk back if not
      */
     private var foregroundNullCount = 0
-    
+
     private fun checkForegroundApp() {
         try {
             val topPackage = getForegroundPackage()
-            
+
             if (topPackage == null) {
                 foregroundNullCount++
                 // Log warning every 12 checks (~60s at 5s interval) to avoid spam
@@ -1339,31 +1339,31 @@ class OverlayService : Service() {
                 return
             }
             foregroundNullCount = 0
-            
+
             // Correct app in foreground - nothing to do
             if (topPackage == lockedPackage || topPackage == packageName) {
                 return
             }
-            
+
             // Ignore managed background apps (keep-alive, launchOnBoot, etc.)
             // These apps may appear as "top" in UsageStats even though they run in background
             if (isManagedAppPackage(topPackage)) {
                 return
             }
-            
+
             // When NFC is enabled, ignore transient NFC system package to prevent false relaunch
             if (nfcEnabled && topPackage.contains(".nfc")) {
                 android.util.Log.d("OverlayService", "NFC package detected ($topPackage) - ignoring (NFC mode active)")
                 return
             }
-            
+
             // Check if it's a launcher (user pressed Home button) - always relaunch
             if (isLauncherPackage(topPackage)) {
                 android.util.Log.i("OverlayService", "Launcher detected ($topPackage) - user pressed Home, bringing FreeKiosk back")
                 bringFreeKioskToFront()
                 return
             }
-            
+
             // Check if the locked app still has a visible/foreground process
             // This indicates a child activity (barcode scanner, file picker, camera, etc.)
             // was launched BY the locked app itself - allow it
@@ -1372,7 +1372,7 @@ class OverlayService : Service() {
                 android.util.Log.d("OverlayService", "Child activity detected ($topPackage) - locked app ($lockedPackage) process still alive, allowing")
                 return
             }
-            
+
             // Locked app process is dead (crashed/killed) and foreground is not a child activity
             android.util.Log.i("OverlayService", "Locked app ($lockedPackage) process dead (current: $topPackage) - bringing FreeKiosk back")
             bringFreeKioskToFront()
@@ -1380,7 +1380,7 @@ class OverlayService : Service() {
             android.util.Log.e("OverlayService", "Error checking foreground app: ${e.message}")
         }
     }
-    
+
     /**
      * Check if the locked app's process is still alive (not crashed).
      * 
@@ -1399,7 +1399,7 @@ class OverlayService : Service() {
     private fun isLockedAppProcessAlive(): Boolean {
         val am = getSystemService(Context.ACTIVITY_SERVICE) as? ActivityManager ?: return false
         val processes = am.runningAppProcesses ?: return false
-        
+
         for (proc in processes) {
             if (proc.processName == lockedPackage || proc.processName?.startsWith("$lockedPackage:") == true) {
                 android.util.Log.d("OverlayService", "Locked app process ($lockedPackage) alive - importance=${proc.importance}")
@@ -1410,7 +1410,7 @@ class OverlayService : Service() {
         android.util.Log.d("OverlayService", "Locked app process ($lockedPackage) NOT found in running processes")
         return false
     }
-    
+
     /**
      * Check if a package is a launcher (Home screen app).
      * Uses PackageManager to dynamically detect all registered launchers on the device.
@@ -1434,7 +1434,7 @@ class OverlayService : Service() {
      */
     private var managedPackagesCacheTime = 0L
     private val MANAGED_CACHE_TTL = 300_000L // 5 minutes
-    
+
     private fun isManagedAppPackage(pkg: String): Boolean {
         val now = System.currentTimeMillis()
         if (cachedManagedPackages == null || now - managedPackagesCacheTime > MANAGED_CACHE_TTL) {
@@ -1443,7 +1443,7 @@ class OverlayService : Service() {
         }
         return cachedManagedPackages?.contains(pkg) == true
     }
-    
+
     /**
      * Read all managed app package names from AsyncStorage.
      */
@@ -1496,7 +1496,7 @@ class OverlayService : Service() {
                         currentTime - 5000,
                         currentTime
                     )
-                    
+
                     if (stats != null && stats.isNotEmpty()) {
                         // Find the most recently used app
                         val mostRecent = stats.maxByOrNull { it.lastTimeUsed }
@@ -1575,7 +1575,7 @@ class OverlayService : Service() {
 
             // Arrêter les mises à jour de la status bar
             stopStatusUpdates()
-            
+
             // Arrêter le monitoring du foreground
             stopForegroundMonitoring()
             stopOverlayRepinLoop()
@@ -1586,14 +1586,14 @@ class OverlayService : Service() {
             } catch (e: Exception) {
                 // Ignore si déjà désenregistré
             }
-            
+
             // Désenregistrer le volume receiver
             try {
                 unregisterReceiver(volumeReceiver)
             } catch (e: Exception) {
                 // Ignore si déjà désenregistré
             }
-            
+
             // Désenregistrer le battery receiver
             try {
                 unregisterReceiver(batteryReceiver)
@@ -1609,7 +1609,7 @@ class OverlayService : Service() {
             DebugLog.errorProduction("OverlayService", "Error removing overlay: ${e.message}")
         }
     }
-    
+
     /**
      * Start periodic MQTT health-check watchdog.
      * Runs every 60s inside the foreground service — survives Doze mode.
@@ -1622,7 +1622,7 @@ class OverlayService : Service() {
     private fun destroyOverlay() {
         try {
             DebugLog.d("OverlayService", "destroyOverlay() - statusBarView=${statusBarView != null}, overlayView=${overlayView != null}, indicatorView=${indicatorView != null}")
-            
+
             // Supprimer la status bar
             statusBarView?.let {
                 try {
@@ -1644,7 +1644,7 @@ class OverlayService : Service() {
                 }
             }
             overlayView = null
-            
+
             // Supprimer l'indicateur visuel (mode tap_anywhere seulement)
             indicatorView?.let { 
                 try {
@@ -1655,7 +1655,7 @@ class OverlayService : Service() {
                 }
             }
             indicatorView = null
-            
+
             // Clear returnButton reference
             returnButton = null
 
@@ -1677,9 +1677,9 @@ class OverlayService : Service() {
      */
     override fun onConfigurationChanged(newConfig: android.content.res.Configuration) {
         super.onConfigurationChanged(newConfig)
-        
+
         DebugLog.d("OverlayService", "Configuration changed - recreating overlays")
-        
+
         // Notify blocking overlay manager
         try {
             val manager = BlockingOverlayManager.getInstance(this)
@@ -1687,7 +1687,7 @@ class OverlayService : Service() {
         } catch (e: Exception) {
             DebugLog.e("OverlayService", "Error updating blocking overlays: ${e.message}")
         }
-        
+
         // Recreate the return button and status bar with new dimensions
         try {
             destroyOverlay()

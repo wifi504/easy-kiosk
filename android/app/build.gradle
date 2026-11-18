@@ -69,7 +69,6 @@ def enableProguardInReleaseBuilds = true
 def enableSelfUpdate = !project.hasProperty('playstore')
 def enableAccessibilityService = !project.hasProperty('playstore')
 // Camera-type foreground service for the remote camera behind another app: Play reviews that type.
-def enableCameraForegroundService = false
 // All files access (MANAGE_EXTERNAL_STORAGE) lets a file:// URL reach shared storage. Play restricts
 // it to a few app categories, so a Play Store build has neither the permission nor the setting (#385).
 def enableAllFilesAccess = !project.hasProperty('playstore')
@@ -107,14 +106,12 @@ android {
 
         // Expose self-update flag to both Kotlin (BuildConfig) and JS (via UpdateModule constants)
         buildConfigField "boolean", "ENABLE_SELF_UPDATE", "${enableSelfUpdate}"
-        buildConfigField "boolean", "ENABLE_CAMERA_FGS", "${enableCameraForegroundService}"
         buildConfigField "boolean", "ENABLE_ALL_FILES_ACCESS", "${enableAllFilesAccess}"
 
         // Play Store compliance: when -Pplaystore is set, replace REQUEST_INSTALL_PACKAGES
         // with INTERNET (already declared → deduplicated by manifest merger → effectively removed)
         // and disable UpdateInstallReceiver.
         //
-        // The two flags move independently: -Pcloudprovi keeps self-update and drops only
         // the accessibility service, so these cannot share one if/else.
         manifestPlaceholders = [
             usesCleartextTraffic: "true",
@@ -218,7 +215,6 @@ project.ext.vectoricons = [iconFontNames: ['MaterialCommunityIcons.ttf']]
 apply from: file("../../node_modules/react-native-vector-icons/fonts.gradle")
 
 // The third-party notices travel with the APK, as the Apache-2.0 and BSD-3-Clause licenses of what it
-// carries (PDF.js, the icon font, NanoHTTPD, HiveMQ...) ask for their texts to be passed on. One source:
 // THIRD-PARTY-NOTICES.md at the root of the repository, copied into the assets at build time.
 def thirdPartyNoticesDir = layout.buildDirectory.dir('generated/third-party-notices')
 def copyThirdPartyNotices = tasks.register('copyThirdPartyNotices', Copy) {
@@ -233,9 +229,7 @@ dependencies {
     implementation("com.facebook.react:react-android")
     implementation("androidx.mediarouter:mediarouter:1.8.1")
 
-    // NanoHTTPD for REST API server
 
-    // HiveMQ MQTT Client for Home Assistant integration
 
     if (hermesEnabled.toBoolean()) {
         implementation("com.facebook.react:hermes-android")

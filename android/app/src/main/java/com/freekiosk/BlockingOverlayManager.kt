@@ -15,14 +15,14 @@ import android.view.WindowManager
  * Manages blocking overlay views that block touch input on specific screen areas
  */
 class BlockingOverlayManager(private val context: Context) {
-    
+
     companion object {
         const val MAX_REGIONS = 10
         private const val TAG = "BlockingOverlayManager"
-        
+
         @Volatile
         private var instance: BlockingOverlayManager? = null
-        
+
         fun getInstance(context: Context): BlockingOverlayManager {
             return instance ?: synchronized(this) {
                 instance ?: BlockingOverlayManager(context.applicationContext).also {
@@ -31,13 +31,13 @@ class BlockingOverlayManager(private val context: Context) {
             }
         }
     }
-    
+
     private val windowManager = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
     private val activeOverlays = mutableMapOf<String, View>()
     private var regions = listOf<BlockingRegion>()
     private var isEnabled = false
     private var currentForegroundPackage: String? = null
-    
+
     /**
      * Enable or disable blocking overlays globally
      */
@@ -50,12 +50,12 @@ class BlockingOverlayManager(private val context: Context) {
             updateOverlays()
         }
     }
-    
+
     /**
      * Check if blocking overlays are enabled
      */
     fun isEnabled(): Boolean = isEnabled
-    
+
     /**
      * Set the list of blocking regions
      */
@@ -66,12 +66,12 @@ class BlockingOverlayManager(private val context: Context) {
             updateOverlays()
         }
     }
-    
+
     /**
      * Get current regions
      */
     fun getRegions(): List<BlockingRegion> = regions
-    
+
     /**
      * Update the current foreground package (for package-filtered overlays)
      */
@@ -83,45 +83,45 @@ class BlockingOverlayManager(private val context: Context) {
             }
         }
     }
-    
+
     /**
      * Update all overlays based on current state
      */
     fun updateOverlays() {
         DebugLog.d(TAG, "updateOverlays called, enabled=$isEnabled, regions=${regions.size}")
-        
+
         removeAllOverlays()
-        
+
         if (!isEnabled) return
-        
+
         val screenSize = getScreenSize()
         DebugLog.d(TAG, "Screen size: ${screenSize.x}x${screenSize.y}")
-        
+
         regions
             .filter { it.enabled && it.appliesTo(currentForegroundPackage) }
             .forEach { region ->
                 showRegion(region, screenSize.x, screenSize.y)
             }
-        
+
         // Bring the return button to front to ensure it stays above blocking overlays
         OverlayService.bringToFront()
     }
-    
+
     /**
      * Show a single blocking region
      */
     private fun showRegion(region: BlockingRegion, screenWidth: Int, screenHeight: Int) {
         val rect = region.toRect(screenWidth, screenHeight)
-        
+
         // Validate rect
         if (rect.width() <= 0 || rect.height() <= 0) {
             DebugLog.w(TAG, "Invalid rect for region ${region.name}: $rect")
             return
         }
-        
+
         val overlayView = createOverlayView(region)
         val params = createLayoutParams(rect)
-        
+
         try {
             windowManager.addView(overlayView, params)
             activeOverlays[region.id] = overlayView
@@ -130,7 +130,7 @@ class BlockingOverlayManager(private val context: Context) {
             DebugLog.e(TAG, "Failed to add overlay ${region.name}: ${e.message}")
         }
     }
-    
+
     /**
      * Create the overlay view with appropriate styling
      */
@@ -143,16 +143,16 @@ class BlockingOverlayManager(private val context: Context) {
                 BlockingRegion.MODE_OPAQUE -> Color.argb(230, 32, 32, 32)
                 else -> Color.TRANSPARENT
             })
-            
+
             // Block all touches - the view consumes touch events
             isClickable = true
             isFocusable = false
-            
+
             // Set content description for accessibility
             contentDescription = "Blocked area: ${region.name}"
         }
     }
-    
+
     /**
      * Create WindowManager layout params for the overlay
      */
@@ -163,7 +163,7 @@ class BlockingOverlayManager(private val context: Context) {
             @Suppress("DEPRECATION")
             WindowManager.LayoutParams.TYPE_PHONE
         }
-        
+
         return WindowManager.LayoutParams(
             rect.width(),
             rect.height(),
@@ -182,7 +182,7 @@ class BlockingOverlayManager(private val context: Context) {
             y = rect.top
         }
     }
-    
+
     /**
      * Remove all active overlays
      */
@@ -197,7 +197,7 @@ class BlockingOverlayManager(private val context: Context) {
         activeOverlays.clear()
         DebugLog.d(TAG, "Removed all overlays")
     }
-    
+
     /**
      * Handle configuration changes (orientation, screen size)
      */
@@ -208,7 +208,7 @@ class BlockingOverlayManager(private val context: Context) {
             updateOverlays()
         }
     }
-    
+
     /**
      * Get actual screen size
      */
@@ -224,7 +224,7 @@ class BlockingOverlayManager(private val context: Context) {
         }
         return size
     }
-    
+
     /**
      * Clean up resources
      */

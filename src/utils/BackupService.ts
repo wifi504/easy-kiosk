@@ -288,15 +288,9 @@ export async function buildBackupJson(): Promise<{ success: boolean; json?: stri
       }
     }
 
-    try {
-    } catch (e) {
-      console.warn('Failed to read API key from secure storage:', e);
-    }
 
-    try {
-    } catch (e) {
-      console.warn('Failed to read MQTT password from secure storage:', e);
-    }
+
+
 
     const hasPinConfigured = await hasSecurePin();
 

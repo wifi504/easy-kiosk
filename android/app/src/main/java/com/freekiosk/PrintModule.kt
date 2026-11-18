@@ -162,10 +162,10 @@ class PrintModule(reactContext: ReactApplicationContext) :
     fun getPrintSpoolerPackages(promise: Promise) {
         try {
             val packages = mutableSetOf<String>()
-            
+
             // Always include the core Android print spooler
             packages.add("com.android.printspooler")
-            
+
             // Discover all installed print services dynamically
             val printServices = reactApplicationContext.packageManager.queryIntentServices(
                 Intent("android.printservice.PrintService"),
@@ -177,12 +177,12 @@ class PrintModule(reactContext: ReactApplicationContext) :
                     DebugLog.d(NAME, "Discovered print service package: $pkg")
                 }
             }
-            
+
             val result = Arguments.createArray()
             for (pkg in packages) {
                 result.pushString(pkg)
             }
-            
+
             DebugLog.d(NAME, "Print spooler packages: $packages")
             promise.resolve(result)
         } catch (e: Exception) {
@@ -276,7 +276,7 @@ class PrintModule(reactContext: ReactApplicationContext) :
         if (view is WebView) {
             return view
         }
-        
+
         if (view is ViewGroup) {
             for (i in 0 until view.childCount) {
                 val child = view.getChildAt(i)
@@ -286,7 +286,7 @@ class PrintModule(reactContext: ReactApplicationContext) :
                 }
             }
         }
-        
+
         return null
     }
 }

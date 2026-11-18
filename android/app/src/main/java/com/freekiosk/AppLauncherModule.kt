@@ -34,23 +34,23 @@ class AppLauncherModule(reactContext: ReactApplicationContext) : ReactContextBas
                 // task to the front as it was left, like a stock launcher, and starts it if absent.
 
                 val currentActivity = reactApplicationContext.currentActivity
-                
+
                 // Si Lock Task est activé, s'assurer que l'app est dans la whitelist AVANT de lancer
                 if (currentActivity != null && currentActivity is MainActivity) {
                     val mainActivity = currentActivity as MainActivity
                     if (mainActivity.isTaskLocked()) {
                         DebugLog.d("AppLauncherModule", "In Lock Task mode - updating whitelist and features before launch")
-                        
+
                         try {
                             val dpm = reactApplicationContext.getSystemService(android.content.Context.DEVICE_POLICY_SERVICE) as android.app.admin.DevicePolicyManager
                             val adminComponent = android.content.ComponentName(reactApplicationContext, DeviceAdminReceiver::class.java)
-                            
+
                             if (dpm.isDeviceOwnerApp(reactApplicationContext.packageName)) {
                                 // Configure lock task features respecting user settings
                                 if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
                                     // Start with GLOBAL_ACTIONS as base (Android default, prevents Samsung audio mute)
                                     var lockTaskFeatures = android.app.admin.DevicePolicyManager.LOCK_TASK_FEATURE_GLOBAL_ACTIONS
-                                    
+
                                     // Read user settings from AsyncStorage
                                     try {
                                         val dbPath = reactApplicationContext.getDatabasePath("RKStorage").absolutePath
@@ -59,16 +59,16 @@ class AppLauncherModule(reactContext: ReactApplicationContext) : ReactContextBas
                                         // Default to true (power menu allowed) - same as storage default
                                         val allowPowerButton = if (cursor.moveToFirst()) cursor.getString(0) == "true" else true
                                         cursor.close()
-                                        
+
                                         val cursor2 = db.rawQuery("SELECT value FROM catalystLocalStorage WHERE key = ?", arrayOf("@kiosk_allow_notifications"))
                                         val allowNotifications = if (cursor2.moveToFirst()) cursor2.getString(0) == "true" else false
                                         cursor2.close()
-                                        
+
                                         val cursor3 = db.rawQuery("SELECT value FROM catalystLocalStorage WHERE key = ?", arrayOf("@kiosk_allow_system_info"))
                                         val allowSystemInfo = if (cursor3.moveToFirst()) cursor3.getString(0) == "true" else false
                                         cursor3.close()
                                         db.close()
-                                        
+
                                         // allowPowerButton=false means admin wants to BLOCK the power menu
                                         if (!allowPowerButton) {
                                             lockTaskFeatures = lockTaskFeatures and android.app.admin.DevicePolicyManager.LOCK_TASK_FEATURE_GLOBAL_ACTIONS.inv()
@@ -101,7 +101,7 @@ class AppLauncherModule(reactContext: ReactApplicationContext) : ReactContextBas
                                     dpm.setLockTaskFeatures(adminComponent, lockTaskFeatures)
                                     DebugLog.d("AppLauncherModule", "Lock task features applied before launching external app")
                                 }
-                                
+
                                 // Mettre à jour la whitelist pour inclure cette app
                                 // Android 7 cannot read the whitelist back: leave it as the lock task start built it.
                                 val currentWhitelist = LockTaskCompat.readPackages(dpm, adminComponent)?.toMutableList()
@@ -123,7 +123,7 @@ class AppLauncherModule(reactContext: ReactApplicationContext) : ReactContextBas
 
                 // Send event to React Native
                 sendEvent("onAppLaunched", null)
-                
+
                 // Broadcast for ADB monitoring - verify app is in foreground before broadcasting
                 verifyAndBroadcastAppLaunched(packageName)
 
@@ -254,17 +254,17 @@ class AppLauncherModule(reactContext: ReactApplicationContext) : ReactContextBas
                 val pm = reactApplicationContext.packageManager
                 val appInfo = pm.getApplicationInfo(packageName, 0)
                 val drawable = pm.getApplicationIcon(appInfo)
-                
+
                 val targetSize = if (size > 0) size else 96
                 val bitmap = android.graphics.Bitmap.createBitmap(targetSize, targetSize, android.graphics.Bitmap.Config.ARGB_8888)
                 val canvas = android.graphics.Canvas(bitmap)
                 drawable.setBounds(0, 0, targetSize, targetSize)
                 drawable.draw(canvas)
-                
+
                 val stream = java.io.ByteArrayOutputStream()
                 bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, stream)
                 bitmap.recycle()
-                
+
                 val base64 = android.util.Base64.encodeToString(stream.toByteArray(), android.util.Base64.NO_WRAP)
                 promise.resolve("data:image/png;base64,$base64")
             } catch (e: PackageManager.NameNotFoundException) {
@@ -283,7 +283,7 @@ class AppLauncherModule(reactContext: ReactApplicationContext) : ReactContextBas
         val maxRetries = 10
         val retryDelayMs = 500L
         var retryCount = 0
-        
+
         fun checkAndBroadcast() {
             try {
                 // Get foreground app using UsageStatsManager (requires PACKAGE_USAGE_STATS permission)
@@ -305,7 +305,7 @@ class AppLauncherModule(reactContext: ReactApplicationContext) : ReactContextBas
                     @Suppress("DEPRECATION")
                     am?.getRunningTasks(1)?.firstOrNull()?.topActivity?.packageName
                 }
-                
+
                 if (topPackage == packageName) {
                     // App is in foreground, broadcast success
                     reactApplicationContext.sendBroadcast(Intent("com.freekiosk.EXTERNAL_APP_LAUNCHED").apply {
@@ -341,7 +341,7 @@ class AppLauncherModule(reactContext: ReactApplicationContext) : ReactContextBas
                 }
             }
         }
-        
+
         // Start verification after initial delay
         android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({ checkAndBroadcast() }, 500)
     }
@@ -366,7 +366,7 @@ class AppLauncherModule(reactContext: ReactApplicationContext) : ReactContextBas
                     promise.resolve(0)
                     return@execute
                 }
-                
+
                 val pm = reactApplicationContext.packageManager
                 var launchedCount = 0
                 for (packageName in apps) {
@@ -389,7 +389,7 @@ class AppLauncherModule(reactContext: ReactApplicationContext) : ReactContextBas
                         DebugLog.errorProduction("AppLauncherModule", "Failed to launch boot app $packageName: ${e.message}")
                     }
                 }
-                
+
                 // Do NOT bring FreeKiosk to front here. loadSettings() will call
                 // launchExternalApp() right after, which properly starts OverlayService
                 // and launches the primary app. Bringing FreeKiosk back in between would

@@ -36,7 +36,7 @@ class OverlayServiceModule(reactContext: ReactApplicationContext) :
             serviceIntent.putExtra("TAP_TIMEOUT", tapTimeout.coerceIn(500, 5000).toLong())
             serviceIntent.putExtra("RETURN_MODE", returnMode)
             serviceIntent.putExtra("BUTTON_POSITION", buttonPosition)
-            
+
             // Add auto-relaunch monitoring parameters
             if (lockedPackage != null && lockedPackage.isNotEmpty()) {
                 serviceIntent.putExtra("LOCKED_PACKAGE", lockedPackage)
@@ -44,7 +44,7 @@ class OverlayServiceModule(reactContext: ReactApplicationContext) :
                 serviceIntent.putExtra("NFC_ENABLED", nfcEnabled)
                 DebugLog.d("OverlayServiceModule", "Auto-relaunch monitoring enabled for: $lockedPackage (autoRelaunch=$autoRelaunch, nfcEnabled=$nfcEnabled)")
             }
-            
+
             reactApplicationContext.startService(serviceIntent)
             DebugLog.d("OverlayServiceModule", "Started OverlayService with tapCount=$tapCount, tapTimeout=${tapTimeout}ms, mode=$returnMode, position=$buttonPosition")
             promise.resolve(true)
@@ -104,14 +104,14 @@ class OverlayServiceModule(reactContext: ReactApplicationContext) :
     fun setButtonOpacity(opacity: Double, promise: Promise) {
         try {
             val opacityFloat = opacity.toFloat().coerceIn(0.0f, 1.0f)
-            
+
             // Sauvegarder dans SharedPreferences
             val prefs = reactApplicationContext.getSharedPreferences("FreeKioskSettings", android.content.Context.MODE_PRIVATE)
             prefs.edit().putFloat("overlay_button_opacity", opacityFloat).apply()
-            
+
             // Mettre à jour le bouton en temps réel via la méthode statique
             OverlayService.updateButtonOpacity(opacityFloat)
-            
+
             DebugLog.d("OverlayServiceModule", "Set button opacity to: $opacityFloat")
             promise.resolve(true)
         } catch (e: Exception) {
@@ -137,7 +137,7 @@ class OverlayServiceModule(reactContext: ReactApplicationContext) :
             // Sauvegarder dans SharedPreferences pour le JavaScript
             val prefs = reactApplicationContext.getSharedPreferences("FreeKioskSettings", android.content.Context.MODE_PRIVATE)
             prefs.edit().putBoolean("test_mode_enabled", enabled).apply()
-            
+
             DebugLog.d("OverlayServiceModule", "Set test mode to: $enabled")
             promise.resolve(true)
         } catch (e: Exception) {
@@ -152,7 +152,7 @@ class OverlayServiceModule(reactContext: ReactApplicationContext) :
             // Sync back_button_mode to SharedPreferences so onBackPressed() can read it
             val prefs = reactApplicationContext.getSharedPreferences("FreeKioskSettings", android.content.Context.MODE_PRIVATE)
             prefs.edit().putString("back_button_mode", mode).apply()
-            
+
             DebugLog.d("OverlayServiceModule", "Set back button mode to: $mode")
             promise.resolve(true)
         } catch (e: Exception) {

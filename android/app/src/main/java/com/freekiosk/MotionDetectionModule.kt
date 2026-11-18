@@ -157,7 +157,7 @@ class MotionDetectionModule(reactContext: ReactApplicationContext) : ReactContex
         if (previous.isRecycled || current.isRecycled) {
             return false
         }
-        
+
         if (previous.width != current.width || previous.height != current.height) {
             android.util.Log.w("MotionDetection", "Image size mismatch: ${previous.width}x${previous.height} vs ${current.width}x${current.height}")
             return false
@@ -214,10 +214,10 @@ class MotionDetectionModule(reactContext: ReactApplicationContext) : ReactContex
         val changeRatio = if (samples > 0) differences.toDouble() / samples else 0.0
         val avgDiff = if (samples > 0) totalDiff.toDouble() / samples else 0.0
         val result = changeRatio > threshold
-        
+
         // Log comparison results for debugging
         android.util.Log.d("MotionDetection", "Compare: ${width}x${height}, samples=$samples, changed=$differences, ratio=${"%,.4f".format(changeRatio)}, avgDiff=${"%,.1f".format(avgDiff)}, threshold=$threshold, motion=$result")
-        
+
         return result
     }
 

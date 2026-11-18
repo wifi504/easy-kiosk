@@ -118,7 +118,7 @@ class AccessibilityModule(private val reactContext: ReactApplicationContext) :
         try {
             val dpm = reactContext.getSystemService(Context.DEVICE_POLICY_SERVICE) as android.app.admin.DevicePolicyManager
             val adminComponent = ComponentName(reactContext, DeviceAdminReceiver::class.java)
-            
+
             if (!dpm.isDeviceOwnerApp(reactContext.packageName)) {
                 promise.reject("NOT_DEVICE_OWNER", "This feature requires Device Owner mode")
                 return
@@ -127,11 +127,11 @@ class AccessibilityModule(private val reactContext: ReactApplicationContext) :
             // Build permitted list: FreeKiosk + managed apps with allowAccessibility=true
             val permitted = mutableListOf(reactContext.packageName)
             permitted.addAll(getManagedAppsWithAccessibility())
-            
+
             // Allow FreeKiosk's accessibility service + managed apps
             dpm.setPermittedAccessibilityServices(adminComponent, permitted.distinct())
             Log.d(TAG, "Permitted accessibility services set: $permitted")
-            
+
             // Enable FreeKiosk's own accessibility service via secure settings
             val serviceComponent = ComponentName(reactContext, FreeKioskAccessibilityService::class.java)
             val serviceName = "${reactContext.packageName}/${serviceComponent.className}"
@@ -139,7 +139,7 @@ class AccessibilityModule(private val reactContext: ReactApplicationContext) :
                 reactContext.contentResolver,
                 Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
             ) ?: ""
-            
+
             if (!currentServices.contains(serviceName)) {
                 val newServices = if (currentServices.isEmpty()) serviceName 
                                   else "$currentServices:$serviceName"
@@ -164,7 +164,7 @@ class AccessibilityModule(private val reactContext: ReactApplicationContext) :
                     return
                 }
             }
-            
+
             promise.resolve(true)
         } catch (e: Exception) {
             Log.e(TAG, "Failed to enable via Device Owner: ${e.message}")
@@ -182,7 +182,7 @@ class AccessibilityModule(private val reactContext: ReactApplicationContext) :
         try {
             val dpm = reactContext.getSystemService(Context.DEVICE_POLICY_SERVICE) as android.app.admin.DevicePolicyManager
             val adminComponent = ComponentName(reactContext, DeviceAdminReceiver::class.java)
-            
+
             if (!dpm.isDeviceOwnerApp(reactContext.packageName)) {
                 promise.reject("NOT_DEVICE_OWNER", "This feature requires Device Owner mode")
                 return
@@ -195,7 +195,7 @@ class AccessibilityModule(private val reactContext: ReactApplicationContext) :
                     permitted.add(pkg)
                 }
             }
-            
+
             dpm.setPermittedAccessibilityServices(adminComponent, permitted.distinct())
             Log.d(TAG, "Updated permitted accessibility services: $permitted")
             promise.resolve(true)

@@ -37,8 +37,6 @@ interface SecurityTabProps {
   onBlockFactoryResetChange: (value: boolean) => void;
 
   // Allow remote screenshots (Device Owner only) (#229)
-  allowRemoteScreenshot: boolean;
-  onAllowRemoteScreenshotChange: (value: boolean) => void;
   allowHardwareScreenshot: boolean;
   onAllowHardwareScreenshotChange: (value: boolean) => void;
   allowUsbDebugDialog: boolean;
@@ -127,8 +125,6 @@ const SecurityTab: React.FC<SecurityTabProps> = ({
   onAllowPowerButtonChange,
   blockFactoryReset,
   onBlockFactoryResetChange,
-  allowRemoteScreenshot,
-  onAllowRemoteScreenshotChange,
   allowHardwareScreenshot,
   onAllowHardwareScreenshotChange,
   allowUsbDebugDialog,
@@ -303,20 +299,6 @@ const SecurityTab: React.FC<SecurityTabProps> = ({
         {isDeviceOwner && (
           <>
             <View style={styles.divider} />
-            <SettingsSwitch
-              label={t('security.lockMode.allowRemoteScreenshots')}
-              icon="camera-outline"
-              hint={t('security.lockMode.allowRemoteScreenshotsHint')}
-              value={allowRemoteScreenshot}
-              onValueChange={onAllowRemoteScreenshotChange}
-            />
-            {allowRemoteScreenshot && (
-              <SettingsInfoBox variant="warning">
-                <Text style={styles.infoText}>
-                  {t('security.lockMode.remoteScreenshotWarning')}
-                </Text>
-              </SettingsInfoBox>
-            )}
             <View style={styles.divider} />
             <SettingsSwitch
               label={t('security.lockMode.allowHardwareScreenshots')}

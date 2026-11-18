@@ -157,7 +157,6 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation, route })
   const [screenOrientation, setScreenOrientation] = useState<string>('auto');
   const [allowPowerButton, setAllowPowerButton] = useState<boolean>(true);
   const [blockFactoryReset, setBlockFactoryReset] = useState<boolean>(false);
-  const [allowRemoteScreenshot, setAllowRemoteScreenshot] = useState<boolean>(false);
   const [allowHardwareScreenshot, setAllowHardwareScreenshot] = useState<boolean>(false);
   const [allowUsbDebugDialog, setAllowUsbDebugDialog] = useState<boolean>(false);
   const [allowNotifications, setAllowNotifications] = useState<boolean>(false);
@@ -604,7 +603,6 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation, route })
     const savedKeyboardMode = await StorageService.getKeyboardMode();
     const savedAllowPowerButton = await StorageService.getAllowPowerButton();
     const savedBlockFactoryReset = await StorageService.getBlockFactoryReset();
-    const savedAllowRemoteScreenshot = await StorageService.getAllowRemoteScreenshot();
     const savedAllowHardwareScreenshot = await StorageService.getAllowHardwareScreenshot();
     const savedAllowUsbDebugDialog = await StorageService.getAllowUsbDebugDialog();
     const savedAllowNotifications = await StorageService.getAllowNotifications();
@@ -684,7 +682,6 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation, route })
     setScreenOrientation(await StorageService.getScreenOrientation());
     setAllowPowerButton(savedAllowPowerButton);
     setBlockFactoryReset(savedBlockFactoryReset);
-    setAllowRemoteScreenshot(savedAllowRemoteScreenshot);
     setAllowHardwareScreenshot(savedAllowHardwareScreenshot);
     setAllowUsbDebugDialog(savedAllowUsbDebugDialog);
     setAllowNotifications(savedAllowNotifications);
@@ -1705,7 +1702,6 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation, route })
     }
     await StorageService.saveAllowPowerButton(allowPowerButton);
     await StorageService.saveBlockFactoryReset(blockFactoryReset);
-    await StorageService.saveAllowRemoteScreenshot(allowRemoteScreenshot);
     await StorageService.saveAllowHardwareScreenshot(allowHardwareScreenshot);
     await StorageService.saveAllowUsbDebugDialog(allowUsbDebugDialog);
     await StorageService.saveAllowNotifications(allowNotifications);
@@ -2391,8 +2387,6 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation, route })
             onAllowPowerButtonChange={setAllowPowerButton}
             blockFactoryReset={blockFactoryReset}
             onBlockFactoryResetChange={setBlockFactoryReset}
-            allowRemoteScreenshot={allowRemoteScreenshot}
-            onAllowRemoteScreenshotChange={setAllowRemoteScreenshot}
             allowHardwareScreenshot={allowHardwareScreenshot}
             onAllowHardwareScreenshotChange={setAllowHardwareScreenshot}
             allowUsbDebugDialog={allowUsbDebugDialog}

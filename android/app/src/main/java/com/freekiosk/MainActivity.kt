@@ -219,7 +219,7 @@ class MainActivity : ReactActivity() {
 
   // Screen state receiver
   private var screenStateReceiver: ScreenStateReceiver? = null
-  
+
   // Volume change receiver (also handles 5-tap gesture detection)
   private var volumeChangeReceiver: VolumeChangeReceiver? = null
   private val emergencyDialAction = "android.intent.action.DIAL_EMERGENCY"
@@ -295,7 +295,7 @@ class MainActivity : ReactActivity() {
 
     // Register screen state receiver to track screen on/off events
     registerScreenStateReceiver()
-    
+
     // Register volume change receiver to track volume changes
     registerVolumeChangeReceiver()
 
@@ -353,23 +353,23 @@ class MainActivity : ReactActivity() {
   override fun onNewIntent(intent: Intent?) {
     super.onNewIntent(intent)
     setIntent(intent) // Important: update the intent
-    
+
     // Handle ADB config on new intent too (when app is already running)
     // If returns true, the app will restart and we should not continue
     if (handleAdbConfig(intent)) {
       return
     }
-    
+
     // Reload config after ADB changes
     readExternalAppConfig()
-    
+
     handleNavigationIntent(intent)
   }
 
   private fun handleNavigationIntent(intent: Intent?) {
     val shouldNavigateToPin = intent?.getBooleanExtra("navigateToPin", false) == true
     val isVoluntary = intent?.getBooleanExtra("voluntaryReturn", false) == true
-    
+
     if (shouldNavigateToPin || isVoluntary) {
       // IMPORTANT: Mettre le flag AVANT tout traitement async
       blockAutoRelaunch = true
@@ -673,7 +673,7 @@ class MainActivity : ReactActivity() {
 
         // Add all managed apps to lock task whitelist
         whitelist.addAll(getManagedAppPackages())
-        
+
         // Add print spooler packages if window.print() is enabled
         if (isWindowPrintSettingEnabled()) {
             whitelist.addAll(getPrintSpoolerPackages())
@@ -689,7 +689,7 @@ class MainActivity : ReactActivity() {
         if (getAsyncStorageValue("@kiosk_allow_usb_debug_dialog", "false") == "true") {
           whitelist.add("com.android.systemui")
         }
-        
+
         val uniqueWhitelist = whitelist.distinct()
 
         // Configurer la whitelist Lock Task
@@ -728,19 +728,19 @@ class MainActivity : ReactActivity() {
       val allowNotifications = allowNotificationsValue == "true"
       val allowSystemInfoValue = getAsyncStorageValue("@kiosk_allow_system_info", "false")
       val allowSystemInfo = allowSystemInfoValue == "true"
-      
+
       // Configure Lock Task features
       // GLOBAL_ACTIONS is included by default (Android's own default when setLockTaskFeatures is never called)
       // This prevents Samsung/OneUI from muting audio streams in lock task mode
       if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
         // Start with GLOBAL_ACTIONS as base (matches Android default behavior)
         var lockTaskFeatures = DevicePolicyManager.LOCK_TASK_FEATURE_GLOBAL_ACTIONS
-        
+
         // allowPowerButton=false means admin wants to BLOCK the power menu
         if (!allowPowerButton) {
           lockTaskFeatures = lockTaskFeatures and DevicePolicyManager.LOCK_TASK_FEATURE_GLOBAL_ACTIONS.inv()
         }
-        
+
         // SYSTEM_INFO: shows non-interactive status bar info (time, battery)
         if (allowSystemInfo) {
           lockTaskFeatures = lockTaskFeatures or DevicePolicyManager.LOCK_TASK_FEATURE_SYSTEM_INFO
@@ -765,7 +765,7 @@ class MainActivity : ReactActivity() {
         devicePolicyManager.setLockTaskFeatures(adminComponent, lockTaskFeatures)
         DebugLog.d("MainActivity", "Lock task features set: blockPowerButton=${!allowPowerButton}, notifications=$allowNotifications, systemInfo=$allowSystemInfo, keyguard=$screenLockCompat (flags=$lockTaskFeatures)")
       }
-      
+
       // Safety net: force unmute audio streams after configuring lock task
       // Samsung/OneUI devices may mute audio in LOCK_TASK_MODE_LOCKED
       try {
@@ -792,9 +792,9 @@ class MainActivity : ReactActivity() {
         "com.samsung.android.sdm.config",
         "com.sec.android.soagent"
       )
-      
+
       devicePolicyManager.setPackagesSuspended(adminComponent, samsungUpdateApps, true)
-      
+
       val policy = android.app.admin.SystemUpdatePolicy.createPostponeInstallPolicy()
       devicePolicyManager.setSystemUpdatePolicy(adminComponent, policy)
 
@@ -828,7 +828,7 @@ class MainActivity : ReactActivity() {
         "com.samsung.android.sdm.config",
         "com.sec.android.soagent"
       )
-      
+
       devicePolicyManager.setPackagesSuspended(adminComponent, samsungUpdateApps, false)
       devicePolicyManager.setSystemUpdatePolicy(adminComponent, null)
 
@@ -858,12 +858,12 @@ class MainActivity : ReactActivity() {
 
     readExternalAppConfig()
     applyScreenOrientation()
-    
+
     // Re-register screen state receiver in case it was lost
     if (screenStateReceiver == null) {
       registerScreenStateReceiver()
     }
-    
+
     // Re-register volume change receiver in case it was lost
     if (volumeChangeReceiver == null) {
       registerVolumeChangeReceiver()
@@ -872,7 +872,7 @@ class MainActivity : ReactActivity() {
     // Vérifier si c'est un retour volontaire (depuis l'intent de l'overlay - 5 taps)
     val voluntaryReturn = intent?.getBooleanExtra("voluntaryReturn", false) ?: false
     val navigateToPin = intent?.getBooleanExtra("navigateToPin", false) ?: false
-    
+
     if (voluntaryReturn) {
       // Reset les flags pour les prochains resumes
       intent?.removeExtra("voluntaryReturn")
@@ -982,7 +982,7 @@ class MainActivity : ReactActivity() {
         // loss may be from the power menu. Delay the re-lock to avoid dismissing it.
         val allowPowerButton = getAsyncStorageValue("@kiosk_allow_power_button", "true") == "true"
         val timeSinceFocusLost = System.currentTimeMillis() - lastFocusLostTime
-        
+
         if (allowPowerButton && timeSinceFocusLost < 2000L) {
           // #248: the power menu was probably just shown, so defer the re-lock rather
           // than dismissing it. This used to re-lock on a flat 2s timer, which is less
@@ -1135,7 +1135,7 @@ class MainActivity : ReactActivity() {
         hideSystemUIHandler.postDelayed({ hideSystemUI() }, 1500L)
         return
       }
-      
+
       // Debounce hideSystemUI: wait 600ms before re-applying immersive mode.
       // This prevents the power menu from being immediately dismissed on devices
       // where the WindowManager focus bounces rapidly (TECNO, Infinix, itel / HiOS).
@@ -1347,7 +1347,7 @@ class MainActivity : ReactActivity() {
 
   override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
     android.util.Log.d("MainActivity", "onKeyDown: keyCode=$keyCode, repeatCount=${event?.repeatCount ?: -1}")
-    
+
     // Ignore auto-repeat events (when user HOLDS the volume button)
     // Only count the initial press (repeatCount == 0)
     if (event != null && event.repeatCount > 0) {
@@ -1356,7 +1356,7 @@ class MainActivity : ReactActivity() {
       }
       return super.onKeyDown(keyCode, event)
     }
-    
+
     // Intercept Volume Up key events
     if (keyCode == KeyEvent.KEYCODE_VOLUME_UP) {
       // Check if feature is enabled
@@ -1369,27 +1369,27 @@ class MainActivity : ReactActivity() {
       // once we've already navigated to Pin/Settings.
       if (volumeUp5TapEnabled && kioskScreenActive) {
         val currentTime = System.currentTimeMillis()
-        
+
         // Reset counter if timeout exceeded
         if (currentTime - volumeUpLastTapTime > volumeUpTapTimeout) {
           volumeUpTapCount = 0
         }
-        
+
         volumeUpTapCount++
         volumeUpLastTapTime = currentTime
-        
+
         android.util.Log.d("MainActivity", "Volume Up pressed! Count: $volumeUpTapCount")
-        
+
         if (volumeUpTapCount >= 5) {
           volumeUpTapCount = 0
           android.util.Log.d("MainActivity", "5-tap Volume Up detected! Navigating to PIN")
-          
+
           blockAutoRelaunch = true
-          
+
           Handler(Looper.getMainLooper()).postDelayed({
             sendNavigateToPinEvent()
           }, 100)
-          
+
           return true // Consume the 5th tap - don't change volume
         }
       }
@@ -1400,7 +1400,7 @@ class MainActivity : ReactActivity() {
         volumeUpTapCount = 0
       }
     }
-    
+
     // Let the event propagate normally
     return super.onKeyDown(keyCode, event)
   }
@@ -1588,9 +1588,9 @@ class MainActivity : ReactActivity() {
   override fun onBackPressed() {
     val prefs = getSharedPreferences("FreeKioskSettings", Context.MODE_PRIVATE)
     val backButtonMode = prefs.getString("back_button_mode", "test") ?: "test"
-    
+
     android.util.Log.i("FreeKiosk", "Back button pressed - back_button_mode=$backButtonMode")
-    
+
     when (backButtonMode) {
       "test" -> {
         // Mode test: allow back button (shows FreeKiosk, user can see test UI)
@@ -1640,18 +1640,18 @@ class MainActivity : ReactActivity() {
     return try {
       val dbPath = getDatabasePath("RKStorage").absolutePath
       val db = android.database.sqlite.SQLiteDatabase.openDatabase(dbPath, null, android.database.sqlite.SQLiteDatabase.OPEN_READONLY)
-      
+
       val cursor = db.rawQuery(
         "SELECT value FROM catalystLocalStorage WHERE key = ?",
         arrayOf(key)
       )
-      
+
       val value = if (cursor.moveToFirst()) {
         cursor.getString(0) ?: defaultValue
       } else {
         defaultValue
       }
-      
+
       cursor.close()
       db.close()
       value
@@ -1756,7 +1756,7 @@ class MainActivity : ReactActivity() {
       if (externalAppPackage.isNullOrEmpty()) externalAppPackage = null
       isExternalAppMode = displayMode == "external_app"
       isDeviceOwner = devicePolicyManager.isDeviceOwnerApp(packageName)
-      
+
       DebugLog.d("MainActivity", "External app config: mode=$displayMode, package=$externalAppPackage, isDeviceOwner=$isDeviceOwner")
     } catch (e: Exception) {
       DebugLog.errorProduction("MainActivity", "Error reading external app config: ${e.message}")
@@ -1772,7 +1772,7 @@ class MainActivity : ReactActivity() {
     try {
       val autoLaunchValue = getAsyncStorageValue("@kiosk_auto_launch", "false")
       val autoLaunchEnabled = autoLaunchValue == "true"
-      
+
       if (autoLaunchEnabled) {
         val componentName = ComponentName(this, BootReceiver::class.java)
         val currentState = packageManager.getComponentEnabledSetting(componentName)
@@ -1826,7 +1826,7 @@ class MainActivity : ReactActivity() {
     }
   }
 
-  
+
 
 
   /**
@@ -1848,7 +1848,7 @@ class MainActivity : ReactActivity() {
   }
 
   // ==================== ADB Configuration ====================
-  
+
   /**
    * Handle ADB intent configuration
    * Allows setting up FreeKiosk via ADB commands:
@@ -1866,7 +1866,7 @@ class MainActivity : ReactActivity() {
    */
   private fun handleAdbConfig(intent: Intent?): Boolean {
     if (intent == null) return false
-    
+
     // Check if this is an ADB config intent
     val lockPackage = intent.getStringExtra("lock_package")
     val url = intent.getStringExtra("url")
@@ -1877,17 +1877,17 @@ class MainActivity : ReactActivity() {
     // the ones with their own handling, so adding a setting to the map is enough and this
     // list can no longer drift out of sync with what is actually read (#193).
     if ((ADB_SIMPLE_KEYS.keys + ADB_SPECIAL_KEYS).none { intent.hasExtra(it) }) return false
-    
+
     android.util.Log.i("FreeKiosk-ADB", "ADB config received: lock_package=$lockPackage, url=$url, config=${configJson != null}")
-    
+
     // Prevent processing the same intent twice (after recreate)
     val intentHash = ((lockPackage ?: "").hashCode() + (url ?: "").hashCode() + (pin ?: "").hashCode() + System.currentTimeMillis() / 2000).toLong()
     if (intentHash == lastProcessedAdbIntent) return false
     lastProcessedAdbIntent = intentHash
-    
+
     // Check if device is already configured (has PIN)
     val isVirginSetup = !hasExistingPin()
-    
+
     if (isVirginSetup) {
       // First setup - PIN is REQUIRED to be set
       if (pin.isNullOrEmpty()) {
@@ -1898,7 +1898,7 @@ class MainActivity : ReactActivity() {
       // Save the new PIN (hashed for ADB verification AND in AsyncStorage for UI)
       saveAdbPinHash(pin)
       savePinDirectly(pin)
-      
+
     } else {
       // Already configured - verify PIN
       if (pin.isNullOrEmpty()) {
@@ -1906,25 +1906,25 @@ class MainActivity : ReactActivity() {
         showAdbToast("❌ ADB Config rejected: PIN required")
         return false
       }
-      
+
       if (!verifyAdbPin(pin)) {
         android.util.Log.w("FreeKiosk-ADB", "Rejected: Invalid PIN")
         showAdbToast("❌ ADB Config rejected: Invalid PIN")
         return false
       }
     }
-    
+
     // PIN verified - Save configuration to SharedPreferences as "pending config"
     // React Native (KioskScreen) will read this on startup and apply to AsyncStorage
     // This avoids Room/AsyncStorage v2 database compatibility issues
     val pendingConfig = getSharedPreferences("FreeKioskPendingConfig", Context.MODE_PRIVATE)
     val editor = pendingConfig.edit()
     editor.clear() // Clear any previous pending config
-    
+
     android.util.Log.i("FreeKiosk-ADB", "Writing pending config to SharedPreferences...")
-    
+
     try {
-    
+
       // Handle full JSON config
       if (configJson != null) {
         try {
@@ -1936,7 +1936,7 @@ class MainActivity : ReactActivity() {
           return false
         }
       }
-    
+
     // Every passthrough key, whatever type it was passed as. This is the other half of
     // #240: kiosk_enabled was read with getBooleanExtra, so "--es kiosk_enabled true" handed
     // it a String, getBooleanExtra fell back to its default of false, and the command turned
@@ -1976,7 +1976,7 @@ class MainActivity : ReactActivity() {
         return false
       }
     }
-    
+
     if (url != null) {
       editor.putString("@kiosk_url", url)
       // Only set display_mode to webview if lock_package was NOT provided
@@ -1986,7 +1986,7 @@ class MainActivity : ReactActivity() {
         editor.putString("@kiosk_display_mode", "webview")
       }
     }
-    
+
     // Handle auto_launch as string or auto_start as boolean
     intent.getStringExtra("auto_launch")?.let {
       editor.putString("@kiosk_auto_launch", it)
@@ -1994,7 +1994,7 @@ class MainActivity : ReactActivity() {
     intent.extras?.get("auto_start")?.let {
       editor.putString("@kiosk_auto_launch", it.toString())
     }
-    
+
     // test_mode: "true" = show return button with timer, "false" = immediate return (production)
     intent.getStringExtra("test_mode")?.let {
       editor.putString("@kiosk_external_app_test_mode", it)
@@ -2005,16 +2005,16 @@ class MainActivity : ReactActivity() {
         editor.putString("@kiosk_back_button_mode", "test")
       }
     }
-    
+
     // back_button_mode: "test" = stay on FreeKiosk, "timer" = countdown then relaunch, "immediate" = relaunch immediately
     intent.getStringExtra("back_button_mode")?.let {
       editor.putString("@kiosk_back_button_mode", it)
     }
-    
+
     intent.getStringExtra("status_bar")?.let {
       editor.putString("@kiosk_status_bar_enabled", it)
     }
-    
+
     intent.getStringExtra("pin_mode")?.let {
       // Only accept valid values: "numeric" or "alphanumeric"
       if (it == "numeric" || it == "alphanumeric") {
@@ -2078,7 +2078,7 @@ class MainActivity : ReactActivity() {
         showAdbToast("❌ ADB Config: Invalid managed_apps JSON")
       }
     }
-    
+
     // Dashboard mode. The tile grid only exists inside the WebView display mode
     // (KioskScreen renders DashboardGrid under displayMode === 'webview'), so enabling it
     // without setting the mode would write a setting the runtime never reads. This mirrors
@@ -2101,10 +2101,10 @@ class MainActivity : ReactActivity() {
 
     // Mark that there is pending config
     editor.putBoolean("has_pending_config", true)
-    
+
     // Use commit() (synchronous) instead of apply() to ensure data is written before process kill
     editor.commit()
-    
+
     // Verify
     val verifyPrefs = getSharedPreferences("FreeKioskPendingConfig", Context.MODE_PRIVATE)
     val allEntries = verifyPrefs.all
@@ -2114,13 +2114,13 @@ class MainActivity : ReactActivity() {
       val shown = if (ADB_SENSITIVE_KEYS.any { key.endsWith(it) }) "***" else value
       android.util.Log.i("FreeKiosk-ADB", "  Pending: $key = $shown")
     }
-    
+
     } catch (e: Exception) {
       android.util.Log.e("FreeKiosk-ADB", "Error applying config: ${e.message}")
       showAdbToast("❌ ADB Config: Error: ${e.message}")
       return false
     }
-    
+
     // Show success toast
     val configType = when {
       lockPackage != null -> "app: $lockPackage"
@@ -2130,17 +2130,17 @@ class MainActivity : ReactActivity() {
     }
     android.util.Log.i("FreeKiosk-ADB", "Config applied: $configType")
     showAdbToast("✅ ADB Config applied: $configType")
-    
+
     // Broadcast that config is saved (before restart)
     sendBroadcast(Intent("com.freekiosk.ADB_CONFIG_SAVED").apply {
       putExtra("config_type", configType)
     })
-    
+
     // Restart in a handler to allow database sync to complete
     Handler(Looper.getMainLooper()).postDelayed({
       // Broadcast that restart is starting
       sendBroadcast(Intent("com.freekiosk.ADB_CONFIG_RESTARTING"))
-      
+
       // Create restart intent - FreeKiosk will restart, load settings (including
       // lock_package), activate kiosk mode, then launch the external app via 
       // KioskScreen.loadSettings() → launchExternalApp() → AppLauncherModule
@@ -2149,11 +2149,11 @@ class MainActivity : ReactActivity() {
       restartIntent?.apply {
         addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
       }
-      
+
       if (intent.getBooleanExtra("auto_start", false) && lockPackage != null) {
         android.util.Log.i("FreeKiosk-ADB", "App will auto-start after restart via normal loadSettings flow")
       }
-      
+
       // Relaunch through AlarmManager a moment after this process is gone. Starting the
       // new instance before the kill made it bind a WebView renderer slot while the
       // system was still tearing down the old one, and on slow devices that bind stayed
@@ -2179,14 +2179,14 @@ class MainActivity : ReactActivity() {
           pending
         )
       }
-      
+
       android.os.Process.killProcess(android.os.Process.myPid())
       System.exit(0)
     }, 500) // Wait 500ms for toast to show
-    
+
     return true
   }
-  
+
   /**
    * Restart the app by killing the process and relaunching
    * This ensures React Native picks up the new config from SharedPreferences
@@ -2198,7 +2198,7 @@ class MainActivity : ReactActivity() {
       restartIntent?.apply {
         addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
       }
-      
+
       // Start the new instance
       if (restartIntent != null) {
         startActivity(restartIntent)
@@ -2211,7 +2211,7 @@ class MainActivity : ReactActivity() {
       android.util.Log.e("FreeKiosk-ADB", "Failed to restart app: ${e.message}")
     }
   }
-  
+
   /**
    * Open the AsyncStorage SQLite database (create if not exists)
    * Uses database "RKStorage" with table "catalystLocalStorage"
@@ -2219,7 +2219,7 @@ class MainActivity : ReactActivity() {
   private fun openAsyncStorageDb(): SQLiteDatabase? {
     return try {
       val dbPath = getDatabasePath("RKStorage").absolutePath
-      
+
       // Create parent directory if it doesn't exist
       val dbFile = java.io.File(dbPath)
       dbFile.parentFile?.let { parent ->
@@ -2227,10 +2227,10 @@ class MainActivity : ReactActivity() {
           parent.mkdirs()
         }
       }
-      
+
       // Open or create database
       val db = SQLiteDatabase.openOrCreateDatabase(dbPath, null)
-      
+
       // Ensure the catalystLocalStorage table exists (same schema as AsyncStorage)
       db.execSQL("""
         CREATE TABLE IF NOT EXISTS catalystLocalStorage (
@@ -2239,14 +2239,14 @@ class MainActivity : ReactActivity() {
           PRIMARY KEY(`key`)
         )
       """.trimIndent())
-      
+
       db
     } catch (e: Exception) {
       android.util.Log.e("FreeKiosk-ADB", "Failed to open AsyncStorage DB: ${e.message}")
       null
     }
   }
-  
+
   /**
    * Set a value in AsyncStorage SQLite database
    */
@@ -2319,14 +2319,14 @@ class MainActivity : ReactActivity() {
       "pin_mode" to "@kiosk_pin_mode",
       "external_app_mode" to "@kiosk_external_app_mode"
     )
-    
+
     for ((jsonKey, storageKey) in keyMapping) {
       if (config.has(jsonKey)) {
         val value = config.get(jsonKey)
         editor.putString(storageKey, value.toString())
       }
     }
-    
+
     // Handle lock_package -> also set display_mode
     if (config.has("lock_package") && !config.has("display_mode")) {
       editor.putString("@kiosk_display_mode", "external_app")
@@ -2389,7 +2389,7 @@ class MainActivity : ReactActivity() {
       editor.putString("@kiosk_display_mode", "external_app")
     }
   }
-  
+
   /**
    * Check if a PIN is already configured
    */
@@ -2397,7 +2397,7 @@ class MainActivity : ReactActivity() {
     val adbPrefs = getSharedPreferences("FreeKioskAdbConfig", Context.MODE_PRIVATE)
     return adbPrefs.getString("pin_hash", null) != null
   }
-  
+
   /**
    * Save PIN hash for ADB verification
    * Uses SHA-256 with salt for secure storage
@@ -2406,19 +2406,19 @@ class MainActivity : ReactActivity() {
     try {
       val salt = java.util.UUID.randomUUID().toString()
       val hash = hashPinWithSalt(pin, salt)
-      
+
       val prefs = getSharedPreferences("FreeKioskAdbConfig", Context.MODE_PRIVATE)
       prefs.edit()
         .putString("pin_hash", hash)
         .putString("pin_salt", salt)
         .apply()
-        
+
       DebugLog.d("MainActivity", "ADB PIN hash saved")
     } catch (e: Exception) {
       DebugLog.errorProduction("MainActivity", "Failed to save ADB PIN hash: ${e.message}")
     }
   }
-  
+
   /**
    * Save PIN directly to pending config SharedPreferences for UI
    */
@@ -2431,7 +2431,7 @@ class MainActivity : ReactActivity() {
       android.util.Log.e("FreeKiosk-ADB", "Failed to save PIN: ${e.message}")
     }
   }
-  
+
   /**
    * Verify PIN against stored hash
    */
@@ -2440,12 +2440,12 @@ class MainActivity : ReactActivity() {
       val prefs = getSharedPreferences("FreeKioskAdbConfig", Context.MODE_PRIVATE)
       val storedHash = prefs.getString("pin_hash", null)
       val storedSalt = prefs.getString("pin_salt", null)
-      
+
       if (storedHash != null && storedSalt != null) {
         val inputHash = hashPinWithSalt(pin, storedSalt)
         return inputHash == storedHash
       }
-      
+
       // Fallback: check legacy plaintext PIN from AsyncStorage v2
       val legacyPin = getAsyncStorageValue("@kiosk_pin", "")
       if (legacyPin.isNotEmpty()) {
@@ -2456,16 +2456,16 @@ class MainActivity : ReactActivity() {
         }
         return false
       }
-      
+
       // No PIN stored, check default (for backward compatibility)
       return pin == "1234"
-      
+
     } catch (e: Exception) {
       DebugLog.errorProduction("MainActivity", "Failed to verify ADB PIN: ${e.message}")
       return false
     }
   }
-  
+
   /**
    * Hash PIN with salt using SHA-256
    */
@@ -2475,7 +2475,7 @@ class MainActivity : ReactActivity() {
     val hashBytes = digest.digest(combined.toByteArray(Charsets.UTF_8))
     return hashBytes.joinToString("") { "%02x".format(it) }
   }
-  
+
   /**
    * Show toast for ADB feedback
    */
@@ -2506,7 +2506,7 @@ class MainActivity : ReactActivity() {
     if (blockAutoRelaunch) {
       disableKioskRestrictions()
     }
-    
+
     // Stop KioskWatchdogService if kiosk mode was intentionally disabled (#96 fix)
     // This prevents the watchdog from relaunching the app after an intentional exit.
     // We check the flag rather than isKioskEnabled() because onDestroy may also fire
@@ -2514,7 +2514,7 @@ class MainActivity : ReactActivity() {
     if (blockAutoRelaunch) {
       stopKioskWatchdog()
     }
-    
+
     // Clean up blocking overlays
     try {
       BlockingOverlayManager.getInstance(this).destroy()
@@ -2522,7 +2522,7 @@ class MainActivity : ReactActivity() {
     } catch (e: Exception) {
       DebugLog.errorProduction("MainActivity", "Error cleaning up blocking overlays: ${e.message}")
     }
-    
+
     // Unregister screen state receiver
     try {
       if (screenStateReceiver != null) {
@@ -2533,7 +2533,7 @@ class MainActivity : ReactActivity() {
     } catch (e: Exception) {
       DebugLog.errorProduction("MainActivity", "Error unregistering screen state receiver: ${e.message}")
     }
-    
+
     // Unregister volume change receiver
     try {
       if (volumeChangeReceiver != null) {
@@ -2557,13 +2557,13 @@ class MainActivity : ReactActivity() {
         android.util.Log.d("MainActivity", "Screen state receiver already registered")
         return
       }
-      
+
       screenStateReceiver = ScreenStateReceiver(this)
-      
+
       val filter = IntentFilter()
       filter.addAction(Intent.ACTION_SCREEN_ON)
       filter.addAction(Intent.ACTION_SCREEN_OFF)
-      
+
       registerReceiver(screenStateReceiver, filter)
       android.util.Log.d("MainActivity", "Screen state receiver registered successfully")
     } catch (e: Exception) {
@@ -2582,12 +2582,12 @@ class MainActivity : ReactActivity() {
         android.util.Log.d("MainActivity", "Volume change receiver already registered")
         return
       }
-      
+
       volumeChangeReceiver = VolumeChangeReceiver()
-      
+
       val filter = IntentFilter()
       filter.addAction("android.media.VOLUME_CHANGED_ACTION")
-      
+
       registerReceiver(volumeChangeReceiver, filter)
       android.util.Log.d("MainActivity", "Volume change receiver registered successfully")
     } catch (e: Exception) {
@@ -2641,10 +2641,10 @@ class MainActivity : ReactActivity() {
    */
   override fun onConfigurationChanged(newConfig: android.content.res.Configuration) {
     super.onConfigurationChanged(newConfig)
-    
+
     // Re-hide system UI after rotation (system bars can reappear on config change)
     hideSystemUI()
-    
+
     // Notify blocking overlay manager about configuration change
     try {
       val manager = BlockingOverlayManager.getInstance(this)

@@ -48,20 +48,20 @@ class FreeKioskAccessibilityService : AccessibilityService() {
 
     companion object {
         private const val TAG = "FreeKioskA11y"
-        
+
         @Volatile
         var instance: FreeKioskAccessibilityService? = null
             private set
-        
+
         fun isRunning(): Boolean = instance != null
-        
+
         /**
          * Send a single key press.
          * Strategy: globalAction → InputMethod (API 33+) → a11y navigation → ACTION_SET_TEXT → input keyevent
          */
         fun sendKey(keyCode: Int): Boolean {
             val service = instance ?: return false
-            
+
             // 1. Global actions (Back, Home, Recents) — always works, all API levels
             val globalAction = mapToGlobalAction(keyCode)
             if (globalAction != null) {
@@ -69,7 +69,7 @@ class FreeKioskAccessibilityService : AccessibilityService() {
                 Log.d(TAG, "Global action: keyCode=$keyCode, action=$globalAction, ok=$ok")
                 return ok
             }
-            
+
             // 2. API 33+: InputMethod.sendKeyEvent (works in focused input fields across apps)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 try {
@@ -85,12 +85,12 @@ class FreeKioskAccessibilityService : AccessibilityService() {
                     Log.w(TAG, "InputMethod unavailable: ${e.message}")
                 }
             }
-            
+
             // 3. Accessibility node actions (DPAD select, navigation, scroll — all API levels)
             if (performAccessibilityNavigation(service, keyCode)) {
                 return true
             }
-            
+
             // 4. Backspace: remove last char via ACTION_SET_TEXT (all API levels)
             if (keyCode == KeyEvent.KEYCODE_DEL) {
                 if (deleteLastCharViaSetText(service)) {
@@ -98,7 +98,7 @@ class FreeKioskAccessibilityService : AccessibilityService() {
                     return true
                 }
             }
-            
+
             // 5. Printable char: convert keyCode → char, append via ACTION_SET_TEXT (all API levels)
             val char = keyCodeToChar(keyCode, 0)
             if (char != null) {
@@ -107,18 +107,18 @@ class FreeKioskAccessibilityService : AccessibilityService() {
                     return true
                 }
             }
-            
+
             // 6. Last resort: input keyevent shell command (requires root/shell, usually fails)
             return execInputCommand("keyevent", keyCode.toString(), "Key fallback: keyCode=$keyCode")
         }
-        
+
         /**
          * Send a key press with modifier meta state (e.g., Ctrl+C, Alt+F4).
          * Strategy: InputMethod (API 33+) → ACTION_SET_TEXT for Shift+char → input keyevent
          */
         fun sendKeyWithMeta(keyCode: Int, metaState: Int): Boolean {
             val service = instance ?: return false
-            
+
             // 1. API 33+: InputMethod.sendKeyEvent with meta state
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 try {
@@ -134,7 +134,7 @@ class FreeKioskAccessibilityService : AccessibilityService() {
                     Log.w(TAG, "InputMethod unavailable for combo: ${e.message}")
                 }
             }
-            
+
             // 2. Shift + printable char: get shifted character (e.g. Shift+A → 'A') via ACTION_SET_TEXT
             //    Only for Shift-only combos (no Ctrl, no Alt) since those are system shortcuts.
             val isShiftOnly = (metaState and KeyEvent.META_SHIFT_ON) != 0
@@ -149,18 +149,18 @@ class FreeKioskAccessibilityService : AccessibilityService() {
                     }
                 }
             }
-            
+
             // 3. Last resort: input keyevent (meta state is lost, limited)
             return execInputCommand("keyevent", keyCode.toString(), "Combo fallback: keyCode=$keyCode (meta=$metaState lost)")
         }
-        
+
         /**
          * Type text into the focused input field.
          * Strategy: InputMethod.commitText (API 33+) → ACTION_SET_TEXT on focused node (all APIs)
          */
         fun sendText(text: String): Boolean {
             val service = instance ?: return false
-            
+
             // 1. API 33+: InputMethod.commitText (best — acts like real keyboard typing)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 try {
@@ -174,13 +174,13 @@ class FreeKioskAccessibilityService : AccessibilityService() {
                     Log.w(TAG, "InputMethod unavailable for text: ${e.message}")
                 }
             }
-            
+
             // 2. ACTION_SET_TEXT on focused input node (all API levels)
             if (injectTextViaSetText(service, text)) {
                 Log.d(TAG, "Text via ACTION_SET_TEXT: '${text.take(50)}'")
                 return true
             }
-            
+
             Log.w(TAG, "All text injection methods failed")
             return false
         }
@@ -211,9 +211,9 @@ class FreeKioskAccessibilityService : AccessibilityService() {
                 else -> null
             }
         }
-        
+
         // ======= Accessibility Navigation (DPAD support, all API levels) =======
-        
+
         /**
          * Handle DPAD keys and select via accessibility node actions.
          * Enables UI navigation on devices where InputMethod is unavailable
@@ -232,7 +232,7 @@ class FreeKioskAccessibilityService : AccessibilityService() {
                 else -> false
             }
         }
-        
+
         /**
          * Click the currently focused UI element.
          * Returns false for editable fields (text inputs) so Enter/Select
@@ -243,22 +243,22 @@ class FreeKioskAccessibilityService : AccessibilityService() {
             try {
                 val focused = root.findFocus(AccessibilityNodeInfo.FOCUS_INPUT)
                     ?: root.findFocus(AccessibilityNodeInfo.FOCUS_ACCESSIBILITY)
-                
+
                 if (focused == null) {
                     // No focused element — tap center of screen as fallback (API 24+)
                     return tapCenterGesture(service)
                 }
-                
+
                 try {
                     // Don't click editable text fields — let key be handled as text input
                     if (focused.isEditable) return false
-                    
+
                     // Walk up to find nearest clickable ancestor (or self)
                     var target = focused
                     while (!target.isClickable) {
                         target = target.parent ?: return false
                     }
-                    
+
                     val ok = target.performAction(AccessibilityNodeInfo.ACTION_CLICK)
                     Log.d(TAG, "Select via a11y click: ok=$ok, class=${target.className}")
                     return ok
@@ -269,7 +269,7 @@ class FreeKioskAccessibilityService : AccessibilityService() {
                 root.recycle()
             }
         }
-        
+
         /**
          * Navigate focus to the nearest interactive element in the given direction,
          * or scroll if no candidate is found.
@@ -286,15 +286,15 @@ class FreeKioskAccessibilityService : AccessibilityService() {
                         val focusedRect = Rect().also { focused.getBoundsInScreen(it) }
                         val candidates = mutableListOf<Pair<AccessibilityNodeInfo, Rect>>()
                         collectInteractiveNodes(root, candidates)
-                        
+
                         var bestNode: AccessibilityNodeInfo? = null
                         var bestScore = Int.MAX_VALUE
-                        
+
                         for ((node, rect) in candidates) {
                             // Skip self (compare by bounds center)
                             if (rect.centerX() == focusedRect.centerX()
                                 && rect.centerY() == focusedRect.centerY()) continue
-                            
+
                             val inDir = when (direction) {
                                 View.FOCUS_UP -> rect.centerY() < focusedRect.centerY()
                                 View.FOCUS_DOWN -> rect.centerY() > focusedRect.centerY()
@@ -302,7 +302,7 @@ class FreeKioskAccessibilityService : AccessibilityService() {
                                 View.FOCUS_RIGHT -> rect.centerX() > focusedRect.centerX()
                                 else -> false
                             }
-                            
+
                             if (inDir) {
                                 val dx = rect.centerX() - focusedRect.centerX()
                                 val dy = rect.centerY() - focusedRect.centerY()
@@ -316,7 +316,7 @@ class FreeKioskAccessibilityService : AccessibilityService() {
                                 }
                             }
                         }
-                        
+
                         if (bestNode != null) {
                             // Try input focus first, then accessibility focus
                             var ok = bestNode.performAction(AccessibilityNodeInfo.ACTION_FOCUS)
@@ -330,17 +330,17 @@ class FreeKioskAccessibilityService : AccessibilityService() {
                         focused.recycle()
                     }
                 }
-                
+
                 // 2. Fallback: scroll the nearest scrollable container
                 if (scrollInDirection(root, direction)) return true
-                
+
                 // 3. Last resort: dispatchGesture swipe (API 24+)
                 return swipeGesture(service, direction)
             } finally {
                 root.recycle()
             }
         }
-        
+
         /**
          * Recursively collect all visible, focusable or clickable nodes with their screen bounds.
          */
@@ -365,7 +365,7 @@ class FreeKioskAccessibilityService : AccessibilityService() {
                 // Node may become stale during traversal — skip silently
             }
         }
-        
+
         /**
          * Scroll the nearest scrollable container in the given direction.
          * Uses BFS to find the first scrollable node in the accessibility tree.
@@ -391,7 +391,7 @@ class FreeKioskAccessibilityService : AccessibilityService() {
             }
             return false
         }
-        
+
         /**
          * Simulate a swipe gesture in the given direction.
          * Uses dispatchGesture (API 24+) to scroll/navigate when no focusable nodes exist.
@@ -407,7 +407,7 @@ class FreeKioskAccessibilityService : AccessibilityService() {
                 val cx = w / 2f
                 val cy = h / 2f
                 val dist = h / 4f
-                
+
                 val path = Path()
                 when (direction) {
                     View.FOCUS_UP -> { path.moveTo(cx, cy); path.lineTo(cx, cy + dist) }
@@ -416,7 +416,7 @@ class FreeKioskAccessibilityService : AccessibilityService() {
                     View.FOCUS_RIGHT -> { path.moveTo(cx, cy); path.lineTo(cx - dist, cy) }
                     else -> return false
                 }
-                
+
                 val gesture = GestureDescription.Builder()
                     .addStroke(GestureDescription.StrokeDescription(path, 0, 250))
                     .build()
@@ -428,7 +428,7 @@ class FreeKioskAccessibilityService : AccessibilityService() {
                 return false
             }
         }
-        
+
         /**
          * Simulate a tap at the center of the screen.
          * Used as fallback when no focused/clickable element is found for Select.
@@ -439,10 +439,10 @@ class FreeKioskAccessibilityService : AccessibilityService() {
                 val dm = service.resources.displayMetrics
                 val cx = dm.widthPixels / 2f
                 val cy = dm.heightPixels / 2f
-                
+
                 val path = Path()
                 path.moveTo(cx, cy)
-                
+
                 val gesture = GestureDescription.Builder()
                     .addStroke(GestureDescription.StrokeDescription(path, 0, 50))
                     .build()
@@ -454,9 +454,9 @@ class FreeKioskAccessibilityService : AccessibilityService() {
                 return false
             }
         }
-        
+
         // ======= Text Injection Helpers =======
-        
+
         /**
          * Convert a keyCode (with optional metaState) to its printable character.
          * Uses the Android virtual keyboard character map.
@@ -472,7 +472,7 @@ class FreeKioskAccessibilityService : AccessibilityService() {
                 null
             }
         }
-        
+
         /**
          * Inject text into the currently focused input field via ACTION_SET_TEXT.
          * Appends the text to any existing content in the field.
@@ -503,7 +503,7 @@ class FreeKioskAccessibilityService : AccessibilityService() {
             }
             return false
         }
-        
+
         /**
          * Simulate Backspace by removing the last character from the focused input field.
          * Works on all API levels via ACTION_SET_TEXT.
@@ -534,7 +534,7 @@ class FreeKioskAccessibilityService : AccessibilityService() {
             }
             return false
         }
-        
+
         /**
          * Last resort: exec "input" shell command. This requires elevated privileges
          * and will silently fail on most non-rooted devices.
@@ -674,7 +674,7 @@ class FreeKioskAccessibilityService : AccessibilityService() {
     override fun onServiceConnected() {
         super.onServiceConnected()
         instance = this
-        
+
         // On API 33+, ensure InputMethod editor flag is set for text/key injection
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             try {
@@ -686,7 +686,7 @@ class FreeKioskAccessibilityService : AccessibilityService() {
                 Log.w(TAG, "Could not set InputMethod editor flag: ${e.message}")
             }
         }
-        
+
         Log.i(TAG, "FreeKiosk Accessibility Service connected (API ${Build.VERSION.SDK_INT})")
     }
 

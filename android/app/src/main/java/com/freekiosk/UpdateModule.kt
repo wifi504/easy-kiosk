@@ -70,7 +70,7 @@ class UpdateModule(reactContext: ReactApplicationContext) : ReactContextBaseJava
                 @Suppress("DEPRECATION")
                 packageInfo.versionCode
             }
-            
+
             val result = Arguments.createMap().apply {
                 putString("versionName", versionName)
                 putInt("versionCode", versionCode)
@@ -111,19 +111,19 @@ class UpdateModule(reactContext: ReactApplicationContext) : ReactContextBaseJava
                 } else {
                     "https://api.github.com/repos/rushb-fr/freekiosk/releases/latest"
                 }
-                
+
                 android.util.Log.d("UpdateModule", "Checking updates: includeBeta=$includeBeta, url=$apiUrl")
-                
+
                 val url = URL(apiUrl)
                 val connection = url.openConnection() as HttpURLConnection
                 connection.requestMethod = "GET"
                 connection.connectTimeout = 10000
                 connection.readTimeout = 10000
-                
+
                 val responseCode = connection.responseCode
                 if (responseCode == HttpURLConnection.HTTP_OK) {
                     val response = connection.inputStream.bufferedReader().use { it.readText() }
-                    
+
                     // Parse the release object
                     val jsonObject = if (includeBeta) {
                         // /releases returns an array — pick the first one (most recent, beta or stable)
@@ -138,13 +138,13 @@ class UpdateModule(reactContext: ReactApplicationContext) : ReactContextBaseJava
                         // /releases/latest returns a single object
                         JSONObject(response)
                     }
-                    
+
                     val tagName = jsonObject.getString("tag_name").removePrefix("v")
                     val releaseName = jsonObject.optString("name", "")
                     val releaseNotes = jsonObject.optString("body", "")
                     val publishedAt = jsonObject.optString("published_at", "")
                     val isPrerelease = jsonObject.optBoolean("prerelease", false)
-                    
+
                     // Get the actual APK download URL from release assets
                     var apkUrl = ""
                     val assetsArray = jsonObject.optJSONArray("assets")
@@ -159,18 +159,18 @@ class UpdateModule(reactContext: ReactApplicationContext) : ReactContextBaseJava
                             }
                         }
                     }
-                    
+
                     // Fallback to constructed URL if no asset found (should not happen)
                     if (apkUrl.isEmpty()) {
                         apkUrl = "https://github.com/rushb-fr/freekiosk/releases/download/v${tagName}/FreeKiosk-v${tagName}.apk"
                         android.util.Log.w("UpdateModule", "No APK asset found, using fallback URL")
                     }
-                    
+
                     android.util.Log.d("UpdateModule", "Tag from GitHub: ${jsonObject.getString("tag_name")}")
                     android.util.Log.d("UpdateModule", "Version after removePrefix: $tagName")
                     android.util.Log.d("UpdateModule", "APK Download URL: $apkUrl")
                     android.util.Log.d("UpdateModule", "Is pre-release: $isPrerelease")
-                    
+
                     val result = Arguments.createMap().apply {
                         putString("version", tagName)
                         putString("name", releaseName)
@@ -179,7 +179,7 @@ class UpdateModule(reactContext: ReactApplicationContext) : ReactContextBaseJava
                         putString("downloadUrl", apkUrl)
                         putBoolean("isPrerelease", isPrerelease)
                     }
-                    
+
                     android.util.Log.d("UpdateModule", "Update available: $tagName at $apkUrl (prerelease=$isPrerelease)")
                     promise.resolve(result)
                 } else {
@@ -254,14 +254,14 @@ class UpdateModule(reactContext: ReactApplicationContext) : ReactContextBaseJava
         }
         try {
             android.util.Log.d("UpdateModule", "Starting download from: $downloadUrl")
-            
+
             if (downloadUrl.isEmpty()) {
                 promise.reject("ERROR", "Download URL is empty")
                 return
             }
-            
+
             updatePromise = promise
-            
+
             // Clean up old downloaded APKs
             try {
                 val downloadsDir = reactApplicationContext.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
@@ -274,7 +274,7 @@ class UpdateModule(reactContext: ReactApplicationContext) : ReactContextBaseJava
             } catch (e: Exception) {
                 android.util.Log.w("UpdateModule", "Failed to clean up old APKs: ${e.message}")
             }
-            
+
             val fileName = "FreeKiosk-${version}.apk"
             val request = DownloadManager.Request(Uri.parse(downloadUrl)).apply {
                 setTitle("FreeKiosk Update")
@@ -287,18 +287,18 @@ class UpdateModule(reactContext: ReactApplicationContext) : ReactContextBaseJava
                 addRequestHeader("User-Agent", "FreeKiosk-Updater")
                 addRequestHeader("Accept", "application/vnd.android.package-archive")
             }
-            
+
             android.util.Log.d("UpdateModule", "Download request configured for file: $fileName")
-            
+
             val downloadManager = reactApplicationContext.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
             downloadId = downloadManager.enqueue(request)
-            
+
             // Register receiver for download completion
             // RECEIVER_EXPORTED est nécessaire pour recevoir les broadcasts système du DownloadManager
             val filter = IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE)
             // ContextCompat passes the flag from Android 13 and registers as before below it.
             ContextCompat.registerReceiver(reactApplicationContext, downloadReceiver, filter, ContextCompat.RECEIVER_EXPORTED)
-            
+
             android.util.Log.d("UpdateModule", "Download started with ID: $downloadId")
             downloadHandled = false
             lastBytes = -1L
@@ -327,33 +327,33 @@ class UpdateModule(reactContext: ReactApplicationContext) : ReactContextBaseJava
         stopDownloadPoll()
         try {
             val downloadManager = reactApplicationContext.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
-            
+
             // Vérifier le statut du téléchargement
             val query = DownloadManager.Query().setFilterById(downloadId)
             val cursor = downloadManager.query(query)
-            
+
             if (cursor.moveToFirst()) {
                 val statusIndex = cursor.getColumnIndex(DownloadManager.COLUMN_STATUS)
                 val status = cursor.getInt(statusIndex)
-                
+
                 when (status) {
                     DownloadManager.STATUS_SUCCESSFUL -> {
                         android.util.Log.d("UpdateModule", "Download successful")
-                        
+
                         // Vérifier les informations du fichier téléchargé
                         val mimeIndex = cursor.getColumnIndex(DownloadManager.COLUMN_MEDIA_TYPE)
                         val sizeIndex = cursor.getColumnIndex(DownloadManager.COLUMN_TOTAL_SIZE_BYTES)
                         val uriIndex = cursor.getColumnIndex(DownloadManager.COLUMN_LOCAL_URI)
-                        
+
                         val mimeType = if (mimeIndex >= 0) cursor.getString(mimeIndex) else "unknown"
                         val fileSize = if (sizeIndex >= 0) cursor.getLong(sizeIndex) else -1L
                         val localUri = if (uriIndex >= 0) cursor.getString(uriIndex) else "unknown"
-                        
+
                         android.util.Log.d("UpdateModule", "Downloaded file info:")
                         android.util.Log.d("UpdateModule", "  - MIME type: $mimeType")
                         android.util.Log.d("UpdateModule", "  - File size: $fileSize bytes")
                         android.util.Log.d("UpdateModule", "  - Local URI: $localUri")
-                        
+
                         // Vérifier que le fichier n'est pas trop petit (un HTML ferait < 50KB)
                         if (fileSize > 0 && fileSize < 50000) {
                             android.util.Log.e("UpdateModule", "Downloaded file too small ($fileSize bytes), probably not a valid APK")
@@ -361,9 +361,9 @@ class UpdateModule(reactContext: ReactApplicationContext) : ReactContextBaseJava
                             cursor.close()
                             return
                         }
-                        
+
                         val uri = downloadManager.getUriForDownloadedFile(downloadId)
-                        
+
                         if (uri != null) {
                             android.util.Log.d("UpdateModule", "Installing APK from: $uri")
                             installApk(uri)
@@ -530,40 +530,40 @@ class UpdateModule(reactContext: ReactApplicationContext) : ReactContextBaseJava
             // Try silent install if in Device Owner mode
             val dpm = reactApplicationContext.getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
             val adminComponent = ComponentName(reactApplicationContext, DeviceAdminReceiver::class.java)
-            
+
             if (dpm.isDeviceOwnerApp(reactApplicationContext.packageName)) {
                 android.util.Log.d("UpdateModule", "Device Owner detected - attempting silent install")
-                
+
                 // Convert content:// URI to file:// path for PackageInstaller
                 val downloadManager = reactApplicationContext.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
                 val query = DownloadManager.Query().setFilterById(downloadId)
                 val cursor = downloadManager.query(query)
-                
+
                 if (cursor.moveToFirst()) {
                     val localUriIndex = cursor.getColumnIndex(DownloadManager.COLUMN_LOCAL_URI)
                     val localUriString = cursor.getString(localUriIndex)
                     val file = File(Uri.parse(localUriString).path ?: "")
                     cursor.close()
-                    
+
                     if (file.exists()) {
                         android.util.Log.d("UpdateModule", "Installing from file: ${file.absolutePath}")
-                        
+
                         // Use DevicePolicyManager to install silently
                         val packageInstaller = reactApplicationContext.packageManager.packageInstaller
                         val params = android.content.pm.PackageInstaller.SessionParams(
                             android.content.pm.PackageInstaller.SessionParams.MODE_FULL_INSTALL
                         )
-                        
+
                         val sessionId = packageInstaller.createSession(params)
                         val session = packageInstaller.openSession(sessionId)
-                        
+
                         session.openWrite("package", 0, -1).use { output ->
                             file.inputStream().use { input ->
                                 input.copyTo(output)
                             }
                             session.fsync(output)
                         }
-                        
+
                         // Create install intent
                         val intent = Intent(reactApplicationContext, UpdateInstallReceiver::class.java)
                         val pendingIntent = android.app.PendingIntent.getBroadcast(
@@ -576,15 +576,15 @@ class UpdateModule(reactContext: ReactApplicationContext) : ReactContextBaseJava
                                 0
                             }
                         )
-                        
+
                         session.commit(pendingIntent.intentSender)
                         session.close()
-                        
+
                         android.util.Log.d("UpdateModule", "Silent install initiated")
                         return
                     }
                 }
-                
+
                 android.util.Log.w("UpdateModule", "Failed to get file path, falling back to normal install")
             } else {
                 android.util.Log.d("UpdateModule", "Not in Device Owner mode - using normal install")
@@ -593,10 +593,10 @@ class UpdateModule(reactContext: ReactApplicationContext) : ReactContextBaseJava
             android.util.Log.e("UpdateModule", "Silent install failed: ${e.message}", e)
             android.util.Log.d("UpdateModule", "Falling back to normal install method")
         }
-        
+
         // Fallback to normal install method
         android.util.Log.d("UpdateModule", "Starting normal APK install from URI: $uri")
-        
+
         // Check install permission on API 26+ (non-Device Owner)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             if (!reactApplicationContext.packageManager.canRequestPackageInstalls()) {
@@ -614,25 +614,25 @@ class UpdateModule(reactContext: ReactApplicationContext) : ReactContextBaseJava
                 // Still attempt the install - the system may prompt the user
             }
         }
-        
+
         val intent = Intent(Intent.ACTION_VIEW).apply {
             setDataAndType(uri, "application/vnd.android.package-archive")
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION
         }
         reactApplicationContext.startActivity(intent)
-        
+
         // Monitor installation completion for auto-restart (non-Device Owner mode)
         // We can't get a callback for ACTION_VIEW install, so we monitor package changes
         monitorInstallationCompletion()
     }
-    
+
     private fun monitorInstallationCompletion() {
         // Register a receiver to detect when our package is replaced
         val filter = IntentFilter().apply {
             addAction(Intent.ACTION_PACKAGE_REPLACED)
             addDataScheme("package")
         }
-        
+
         val installMonitor = object : BroadcastReceiver() {
             override fun onReceive(context: Context?, intent: Intent?) {
                 val packageName = intent?.data?.schemeSpecificPart
@@ -647,7 +647,7 @@ class UpdateModule(reactContext: ReactApplicationContext) : ReactContextBaseJava
                 }
             }
         }
-        
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             reactApplicationContext.registerReceiver(installMonitor, filter, Context.RECEIVER_NOT_EXPORTED)
         } else {

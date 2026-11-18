@@ -70,9 +70,6 @@
         tools:node="remove" />
 
     <application>
-        <service
-            android:name="com.freekiosk.CameraForegroundService"
-            tools:node="remove" />
 
         <!-- Strip AccessibilityService (BIND_ACCESSIBILITY_SERVICE) -->
         <service
