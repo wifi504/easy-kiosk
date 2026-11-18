@@ -43,7 +43,7 @@ jobs:
             defaultConfig { minSdk 21; consumerProguardFiles 'consumer-rules.pro' }
             compileOptions { sourceCompatibility JavaVersion.VERSION_1_8; targetCompatibility JavaVersion.VERSION_1_8 }
           }
-          dependencies { implementation 'androidx.appcompat:appcompat:1.6.1' }
+          dependencies { compileOnly 'androidx.annotation:annotation:1.7.1' }
           GRADLE
           mkdir -p tools/embedded-chromium-probe/app/src/main/assets
           curl -fL --retry 3 'https://github.com/JonaNorman/WebViewPackage/releases/download/android/134.0.6998.39_min26_x86.apk' -o tools/embedded-chromium-probe/app/src/main/assets/chromium-probe.apk
