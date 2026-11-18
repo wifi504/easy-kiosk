@@ -17,7 +17,7 @@ npm test -- --runInBand
 
 ## 改造工作方式
 
-唯一 remote 为个人仓库 `origin`，唯一开发分支为 `main`。当前作者配置为 `WIFI连接超时` / `localaccount@qq.com`，使用仓库本地配置，不更改全局作者。
+唯一 remote 为个人仓库 `origin`，稳定分支为 `main`，改造与 Actions 验证使用 `dev`。当前作者配置为 `WIFI连接超时` / `localaccount@qq.com`，使用仓库本地配置，不更改全局作者。
 
 业务功能、存储、原生桥接修改应按实施计划安排针对性测试；本次文档准备只做差异范围、内部链接、配置示例一致性及许可完整性检查，不用完整 APK 构建代替文档检查。
 

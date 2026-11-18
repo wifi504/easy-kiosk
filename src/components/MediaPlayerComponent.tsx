@@ -198,11 +198,11 @@ export function generatePlayerHTML(settings: {
     -webkit-user-select: none; user-select: none;
     -webkit-touch-callout: none;
   }
-  
+
   .player-container {
     width: 100%; height: 100%; position: relative;
   }
-  
+
   .media-slot {
     position: absolute; top: 0; left: 0; width: 100%; height: 100%;
     display: flex; justify-content: center; align-items: center;
@@ -214,7 +214,7 @@ export function generatePlayerHTML(settings: {
     opacity: 1;
     pointer-events: auto;
   }
-  
+
   .media-slot video,
   .media-slot img {
     width: 100%; height: 100%;
@@ -229,7 +229,7 @@ export function generatePlayerHTML(settings: {
     background: #000;
     pointer-events: none;
   }
-  
+
   /* Controls overlay */
   .controls-bar {
     position: absolute; bottom: 0; left: 0; right: 0;
@@ -242,7 +242,7 @@ export function generatePlayerHTML(settings: {
     transition: opacity 0.3s ease;
   }
   .controls-bar.visible { opacity: 1; }
-  
+
   .ctrl-btn {
     background: rgba(255,255,255,0.15);
     border: 2px solid rgba(255,255,255,0.3);
@@ -262,7 +262,7 @@ export function generatePlayerHTML(settings: {
     width: 56px; height: 56px; font-size: 22px;
     border-color: rgba(255,255,255,0.5);
   }
-  
+
   .progress-container {
     flex: 1; max-width: 200px;
     display: flex; flex-direction: column; align-items: center; gap: 4px;
@@ -282,7 +282,7 @@ export function generatePlayerHTML(settings: {
     font-size: 12px; font-family: monospace;
     letter-spacing: 0.5px;
   }
-  
+
   /* Loading spinner */
   .loading-overlay {
     position: absolute; top: 0; left: 0; width: 100%; height: 100%;
@@ -298,7 +298,7 @@ export function generatePlayerHTML(settings: {
     animation: spin 0.8s linear infinite;
   }
   @keyframes spin { to { transform: rotate(360deg); } }
-  
+
   /* Error display */
   .error-overlay {
     position: absolute; top: 0; left: 0; width: 100%; height: 100%;
@@ -331,11 +331,11 @@ export function generatePlayerHTML(settings: {
       </div>
     </div>
   </div>
-  
+
 <script>
 (function() {
   'use strict';
-  
+
   var playlist = ${itemsJSON};
   var SETTINGS = {
     autoPlay: ${autoPlay},
@@ -348,7 +348,7 @@ export function generatePlayerHTML(settings: {
     muteVideo: ${muteVideo},
     unattended: ${unattended}
   };
-  
+
   // DOM refs
   var slotA = document.getElementById('slotA');
   var slotB = document.getElementById('slotB');
@@ -359,7 +359,7 @@ export function generatePlayerHTML(settings: {
   var playBtn = document.getElementById('playBtn');
   var counterLabel = document.getElementById('counterLabel');
   var progressFill = document.getElementById('progressFill');
-  
+
   // State
   var currentIndex = 0;
   var isPlaying = SETTINGS.autoPlay;
@@ -374,7 +374,7 @@ export function generatePlayerHTML(settings: {
   var errorRetryTimer = null;
   var guardTimer = null;
   var GUARD_LIMIT_MS = 30000;
-  
+
   // Unattended: an item that never loads, or whose video freezes, would hold the screen for
   // good (no error event fires for either), so it is skipped after 30 seconds.
   function guard(el) {
@@ -400,7 +400,7 @@ export function generatePlayerHTML(settings: {
       if (now - since > GUARD_LIMIT_MS) { clearInterval(guardTimer); guardTimer = null; advanceToNext(); }
     }, 2000);
   }
-  
+
   // Build shuffle order
   function buildShuffleOrder() {
     shuffleOrder = [];
@@ -412,14 +412,14 @@ export function generatePlayerHTML(settings: {
       shuffleOrder[k] = tmp;
     }
   }
-  
+
   function getPlaylistIndex(idx) {
     if (SETTINGS.shuffle && shuffleOrder.length > 0) {
       return shuffleOrder[idx % shuffleOrder.length];
     }
     return idx % playlist.length;
   }
-  
+
   function showLoading() { loadingEl.className = 'loading-overlay show'; }
   function hideLoading() { loadingEl.className = 'loading-overlay'; }
   // Unattended: nobody reads an error on a wall screen, and it carries the URL (and any token in it)
@@ -429,14 +429,14 @@ export function generatePlayerHTML(settings: {
     errorEl.className = 'error-overlay show';
   }
   function hideError() { errorEl.className = 'error-overlay'; }
-  
+
   function updateControls() {
     if (!SETTINGS.showControls) return;
     var realIdx = getPlaylistIndex(currentIndex);
     counterLabel.textContent = (realIdx + 1) + ' / ' + playlist.length;
     playBtn.textContent = isPlaying ? '⏸' : '▶';
   }
-  
+
   function showControlsBar() {
     if (!SETTINGS.showControls) return;
     controlsBar.className = 'controls-bar visible';
@@ -449,24 +449,24 @@ export function generatePlayerHTML(settings: {
       }
     }, 3000);
   }
-  
+
   function startProgress(durationSec) {
     progressFill.style.transition = 'none';
     progressFill.style.width = '0%';
     progressStart = Date.now();
     progressDuration = durationSec * 1000;
-    
+
     // Force reflow then animate
     void progressFill.offsetWidth;
     progressFill.style.transition = 'width ' + durationSec + 's linear';
     progressFill.style.width = '100%';
   }
-  
+
   function stopProgress() {
     progressFill.style.transition = 'none';
     progressFill.style.width = '0%';
   }
-  
+
   function clearTimers() {
     if (imageTimer) { clearTimeout(imageTimer); imageTimer = null; }
     if (errorRetryTimer) { clearTimeout(errorRetryTimer); errorRetryTimer = null; }
@@ -475,23 +475,23 @@ export function generatePlayerHTML(settings: {
     if (frameMessageHandler) { window.removeEventListener('message', frameMessageHandler); frameMessageHandler = null; }
     stopProgress();
   }
-  
+
   function getActiveSlot() { return activeSlot === 'A' ? slotA : slotB; }
   function getInactiveSlot() { return activeSlot === 'A' ? slotB : slotA; }
-  
+
   function swapSlots() {
     var active = getActiveSlot();
     var inactive = getInactiveSlot();
     inactive.classList.add('active');
     active.classList.remove('active');
     activeSlot = activeSlot === 'A' ? 'B' : 'A';
-    
+
     // Clean old slot after transition
     setTimeout(function() {
       active.innerHTML = '';
     }, SETTINGS.transitionEnabled ? SETTINGS.transitionDuration + 100 : 50);
   }
-  
+
 
   // A web page and a YouTube video are shown live: they need the network and have no offline copy.
   // Without it the item is skipped, after a pause so that a playlist made only of them does not spin.
@@ -595,17 +595,17 @@ export function generatePlayerHTML(settings: {
 
   function loadMedia(index) {
     if (playlist.length === 0) return;
-    
+
     var realIdx = getPlaylistIndex(index);
     var item = playlist[realIdx];
     if (!item) return;
-    
+
     clearTimers();
     hideError();
-    
+
     var slot = getInactiveSlot();
     slot.innerHTML = '';
-    
+
     if (item.type === 'video') {
       loadVideo(slot, item, realIdx);
     } else if (item.type === 'web') {
@@ -615,10 +615,10 @@ export function generatePlayerHTML(settings: {
     } else {
       loadImage(slot, item, realIdx);
     }
-    
+
     updateControls();
   }
-  
+
   function loadVideo(slot, item, realIdx) {
     showLoading();
     var video = document.createElement('video');
@@ -629,7 +629,7 @@ export function generatePlayerHTML(settings: {
     video.setAttribute('playsinline', '');
     video.setAttribute('webkit-playsinline', '');
     video.preload = 'auto';
-    
+
     video.addEventListener('loadeddata', function() {
       hideLoading();
       swapSlots();
@@ -637,14 +637,14 @@ export function generatePlayerHTML(settings: {
         startProgress(video.duration || 0);
       }
     });
-    
+
     video.addEventListener('ended', function() {
       stopProgress();
       if (isPlaying) {
         advanceToNext();
       }
     });
-    
+
     video.addEventListener('error', function(e) {
       hideLoading();
       showError('Failed to load video: ' + item.url);
@@ -653,7 +653,7 @@ export function generatePlayerHTML(settings: {
         advanceToNext();
       }, 3000);
     });
-    
+
     video.addEventListener('timeupdate', function() {
       if (SETTINGS.showControls && video.duration) {
         var pct = (video.currentTime / video.duration) * 100;
@@ -661,23 +661,23 @@ export function generatePlayerHTML(settings: {
         progressFill.style.width = pct + '%';
       }
     });
-    
+
     slot.appendChild(video);
     guard(video);
   }
-  
+
   function loadImage(slot, item, realIdx) {
     showLoading();
     var img = document.createElement('img');
     img.src = item.url;
     img.draggable = false;
-    
+
     var dur = item.duration || SETTINGS.imageDuration;
-    
+
     img.addEventListener('load', function() {
       hideLoading();
       swapSlots();
-      
+
       if (isPlaying) {
         if (SETTINGS.showControls) startProgress(dur);
         imageTimer = setTimeout(function() {
@@ -685,7 +685,7 @@ export function generatePlayerHTML(settings: {
         }, dur * 1000);
       }
     });
-    
+
     img.addEventListener('error', function() {
       hideLoading();
       showError('Failed to load image: ' + item.url);
@@ -694,11 +694,11 @@ export function generatePlayerHTML(settings: {
         advanceToNext();
       }, 3000);
     });
-    
+
     slot.appendChild(img);
     guard(img);
   }
-  
+
   function advanceToNext() {
     var nextIdx = currentIndex + 1;
     if (nextIdx >= playlist.length) {
@@ -714,7 +714,7 @@ export function generatePlayerHTML(settings: {
     currentIndex = nextIdx;
     loadMedia(currentIndex);
   }
-  
+
   function advanceToPrev() {
     var prevIdx = currentIndex - 1;
     if (prevIdx < 0) {
@@ -727,7 +727,7 @@ export function generatePlayerHTML(settings: {
     currentIndex = prevIdx;
     loadMedia(currentIndex);
   }
-  
+
   // Public API
   window.player = {
     togglePlay: function() {
@@ -762,7 +762,7 @@ export function generatePlayerHTML(settings: {
       showControlsBar();
     }
   };
-  
+
   // Touch/click interactions
   document.addEventListener('click', function(e) {
     // Report interaction to React Native
@@ -774,7 +774,7 @@ export function generatePlayerHTML(settings: {
         y: e.clientY
       }));
     }
-    
+
     // Toggle controls visibility
     if (SETTINGS.showControls) {
       if (controlsVisible) {
@@ -785,15 +785,15 @@ export function generatePlayerHTML(settings: {
       }
     }
   });
-  
+
   // Initialize
   if (SETTINGS.shuffle) buildShuffleOrder();
-  
+
   // Load first item directly into slot A
   if (playlist.length > 0) {
     var firstRealIdx = getPlaylistIndex(0);
     var firstItem = playlist[firstRealIdx];
-    
+
     if (firstItem.type === 'web') {
       loadWeb(slotA, firstItem, true);
     } else if (firstItem.type === 'youtube') {
@@ -807,7 +807,7 @@ export function generatePlayerHTML(settings: {
       video.setAttribute('playsinline', '');
       video.setAttribute('webkit-playsinline', '');
       video.preload = 'auto';
-      
+
       video.addEventListener('loadeddata', function() {
         hideLoading();
         slotA.classList.add('active');
@@ -831,7 +831,7 @@ export function generatePlayerHTML(settings: {
           progressFill.style.width = pct + '%';
         }
       });
-      
+
       showLoading();
       slotA.appendChild(video);
       guard(video);
@@ -840,7 +840,7 @@ export function generatePlayerHTML(settings: {
       img.src = firstItem.url;
       img.draggable = false;
       var initDur = firstItem.duration || SETTINGS.imageDuration;
-      
+
       img.addEventListener('load', function() {
         hideLoading();
         slotA.classList.add('active');
@@ -854,12 +854,12 @@ export function generatePlayerHTML(settings: {
         showError('Failed to load image: ' + firstItem.url);
         errorRetryTimer = setTimeout(function() { hideError(); advanceToNext(); }, 3000);
       });
-      
+
       showLoading();
       slotA.appendChild(img);
       guard(img);
     }
-    
+
     updateControls();
   }
 })();

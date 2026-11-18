@@ -2,7 +2,7 @@ import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { View, StyleSheet, AppState } from 'react-native';
 import { Camera, useCameraDevice, useCameraPermission } from 'react-native-vision-camera';
 import MotionDetectionModule from '../utils/MotionDetectionModule';
-import { httpServer } from '../utils/HttpServerModule';
+import { deviceUtilities } from '../utils/DeviceUtilitiesModule';
 
 export type MotionStatus = 'idle' | 'active' | 'error' | 'no-camera';
 
@@ -113,7 +113,7 @@ const MotionDetector: React.FC<MotionDetectorProps> = ({
     (async () => {
       try {
         console.log('[MotionDetection] vision-camera has no device, checking Camera2 fallback...');
-        const camera2Devices = await httpServer.getCamera2Devices();
+        const camera2Devices = await deviceUtilities.getCamera2Devices();
         if (cancelled || !isMounted.current) return;
 
         const hasTargetCamera = camera2Devices.some(
@@ -225,7 +225,7 @@ const MotionDetector: React.FC<MotionDetectorProps> = ({
     return () => subscription.remove();
   }, [scheduleRecovery]);
 
-  // Camera2 fallback capture — uses Camera2 API via HttpServerModule
+  // Camera2 fallback capture — uses Camera2 API via DeviceUtilitiesModule
   const captureAndCompareCamera2 = useCallback(async () => {
     if (!isMounted.current || !enabled || isCapturing.current) {
       return;
@@ -234,7 +234,7 @@ const MotionDetector: React.FC<MotionDetectorProps> = ({
     isCapturing.current = true;
 
     try {
-      const photoPath = await httpServer.captureCamera2Photo(cameraPosition, 50);
+      const photoPath = await deviceUtilities.captureCamera2Photo(cameraPosition, 50);
 
       if (!isMounted.current || !enabled) return;
 

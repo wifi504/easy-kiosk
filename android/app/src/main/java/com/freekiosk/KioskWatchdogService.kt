@@ -17,7 +17,6 @@ import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
 import android.os.SystemClock
-import com.facebook.react.HeadlessJsTaskService
 import androidx.core.app.NotificationCompat
 
 /**
@@ -49,8 +48,7 @@ class KioskWatchdogService : Service() {
         private const val FOREGROUND_LOOKBACK_MS = 24 * 60 * 60 * 1000L // #282
         private const val SYSTEM_UI_PACKAGE = "com.android.systemui" // #268
 
-        /** Matches the JS heartbeat interval in CloudSyncService. */
-        private const val CLOUD_HEARTBEAT_INTERVAL_MS = 30_000L
+        
 
         /**
          * #234: the service runs in one of two modes, persisted because START_STICKY
@@ -93,7 +91,7 @@ class KioskWatchdogService : Service() {
 
         /** True when something in the app needs the process alive while backgrounded. */
         private fun needsKeepAlive(context: Context): Boolean =
-            readFlag(context, "@kiosk_mqtt_enabled") || readFlag(context, "@cloud_enrolled")
+            false
 
         /** #376: at most one restore this often, so a crash at start-up cannot become a loop. */
         internal const val RESTORE_MIN_INTERVAL_MS = 5 * 60_000L
@@ -173,7 +171,6 @@ class KioskWatchdogService : Service() {
     /** #234: true when this instance only holds the process up (no relaunching). */
     private var keepAliveOnly = false
     private var lastRelaunchTime = 0L
-    private var lastCloudHeartbeatMs = 0L
     private var screenOnReceiver: BroadcastReceiver? = null
 
     private val checkRunnable = object : Runnable {
@@ -285,7 +282,6 @@ class KioskWatchdogService : Service() {
     private fun checkAndRelaunch() {
         // Runs in both modes: an enrolled device in Lock Mode with an external app in front
         // is just as backgrounded as one without it, and its heartbeat stops the same way.
-        maybeRunCloudHeartbeat()
 
         // #234: keep-alive mode never relaunches anything. FreeKiosk is a normal app here,
         // the user is free to leave it, and dragging it back to the foreground every 10s
@@ -384,35 +380,8 @@ class KioskWatchdogService : Service() {
      * We only skip relaunch when the process importance is IMPORTANCE_FOREGROUND,
      * meaning our activity is actually visible to the user.
      */
-    /**
-     * Drive the cloud heartbeat while the app is backgrounded.
-     *
-     * React Native stops dispatching JS timers on host pause (JavaTimerManager.onHostPause
-     * clears the Choreographer callback), so CloudSyncService's 30s interval stops the
-     * moment an external app takes the foreground and the device is reported offline two
-     * minutes later. Starting a headless task re-arms those timers for the duration of the
-     * task, which is enough for one heartbeat and the command poll it triggers.
-     *
-     * Deliberately a no-op in the foreground: the JS interval is running there, and the
-     * task itself refuses to start (allowedInForeground = false).
-     */
-    private fun maybeRunCloudHeartbeat() {
-        if (!readFlag(this, "@cloud_enrolled")) return
-        if (isMainActivityRunning()) return
+    
 
-        val now = SystemClock.elapsedRealtime()
-        if (now - lastCloudHeartbeatMs < CLOUD_HEARTBEAT_INTERVAL_MS) return
-        lastCloudHeartbeatMs = now
-
-        try {
-            startService(Intent(this, CloudHeartbeatTaskService::class.java))
-            // Keeps the CPU up for the hop between here and the task actually starting.
-            HeadlessJsTaskService.acquireWakeLockNow(this)
-        } catch (e: Exception) {
-            // Background-start restrictions, or no React context yet. The next tick retries.
-            DebugLog.errorProduction(TAG, "Cannot start cloud heartbeat task: ${e.message}")
-        }
-    }
 
     private fun isMainActivityRunning(): Boolean {
         return try {

@@ -88,7 +88,7 @@ const PinScreen: React.FC<PinScreenProps> = ({ navigation, route }) => {
         const returnMode = await StorageService.getReturnMode();
         const returnButtonPosition = await StorageService.getReturnButtonPosition();
         const autoRelaunch = await StorageService.getAutoRelaunchApp();
-        
+
         // Start OverlayService BEFORE launching the external app
         const { OverlayServiceModule } = NativeModules;
         const nfcEnabled = await StorageService.getAllowNotifications();
@@ -102,7 +102,7 @@ const PinScreen: React.FC<PinScreenProps> = ({ navigation, route }) => {
           nfcEnabled
         );
         console.log('[PinScreen] OverlayService started with auto-relaunch monitoring');
-        
+
         await AppLauncherModule.launchExternalApp(externalAppPackage);
       } catch (error) {
         console.error('[PinScreen] Failed to relaunch external app:', error);

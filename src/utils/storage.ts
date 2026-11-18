@@ -11,7 +11,6 @@ import {
 import { ManagedApp } from '../types/managedApps';
 import { MultiAppAppearance, normalizeMultiAppAppearance, parseMultiAppAppearance } from '../types/multiAppAppearance';
 import { MediaItem, MediaFitMode } from '../types/mediaPlayer';
-import { saveSecureApiKey, getSecureApiKey, clearSecureApiKey, clearSecureMqttPassword } from './secureStorage';
 
 export const KEYS = {
   URL: '@kiosk_url',
@@ -24,7 +23,6 @@ export const KEYS = {
   KIOSK_ENABLED: '@kiosk_enabled',
   AUTO_LAUNCH: '@kiosk_auto_launch',
   SCREEN_LOCK_COMPAT: '@kiosk_screen_lock_compat',
-  ALLOW_REMOTE_SCREENSHOT: '@kiosk_allow_remote_screenshot',
   ALLOW_HARDWARE_SCREENSHOT: '@kiosk_allow_hardware_screenshot',
   ALLOW_USB_DEBUG_DIALOG: '@kiosk_allow_usb_debug_dialog',
   DEFAULT_LAUNCHER: '@kiosk_default_launcher',
@@ -82,17 +80,7 @@ export const KEYS = {
   URL_PLANNER_ENABLED: '@kiosk_url_planner_enabled',
   URL_PLANNER_EVENTS: '@kiosk_url_planner_events',
   // REST API (Home Assistant integration)
-  REST_API_ENABLED: '@kiosk_rest_api_enabled',
-  REST_API_PORT: '@kiosk_rest_api_port',
-  REST_API_KEY: '@kiosk_rest_api_key',
-  REST_API_ALLOW_CONTROL: '@kiosk_rest_api_allow_control',
   // Live MJPEG camera stream (GET /api/camera/stream)
-  CAMERA_STREAM_ENABLED: '@kiosk_camera_stream_enabled',
-  CAMERA_STREAM_CAMERA: '@kiosk_camera_stream_camera',
-  CAMERA_STREAM_FPS: '@kiosk_camera_stream_fps',
-  CAMERA_STREAM_QUALITY: '@kiosk_camera_stream_quality',
-  CAMERA_STREAM_WIDTH: '@kiosk_camera_stream_width',
-  CAMERA_STREAM_ROTATE: '@kiosk_camera_stream_rotate',
   // Power Button setting
   ALLOW_POWER_BUTTON: '@kiosk_allow_power_button',
   // Block factory reset in system Settings (Device Owner user restriction) (#201)
@@ -179,27 +167,7 @@ export const KEYS = {
   PAUSE_WEB_MEDIA_WHEN_HIDDEN: '@kiosk_pause_web_media_when_hidden',
   PAUSE_PAGE_WHEN_SCREEN_OFF: '@kiosk_pause_page_screen_off', // #215
   // MQTT (Home Assistant integration)
-  MQTT_ENABLED: '@kiosk_mqtt_enabled',
-  MQTT_BROKER_URL: '@kiosk_mqtt_broker_url',
-  MQTT_PORT: '@kiosk_mqtt_port',
-  MQTT_USERNAME: '@kiosk_mqtt_username',
-  MQTT_CLIENT_ID: '@kiosk_mqtt_client_id',
-  MQTT_BASE_TOPIC: '@kiosk_mqtt_base_topic',
-  MQTT_DISCOVERY_PREFIX: '@kiosk_mqtt_discovery_prefix',
-  MQTT_STATUS_INTERVAL: '@kiosk_mqtt_status_interval',
-  MQTT_ALLOW_CONTROL: '@kiosk_mqtt_allow_control',
-  MQTT_DEVICE_NAME: '@kiosk_mqtt_device_name',
-  MQTT_MOTION_ALWAYS_ON: '@kiosk_mqtt_motion_always_on',
   // MQTT image publishing (screenshot / camera snapshots)
-  MQTT_SCREENSHOT_ENABLED: '@kiosk_mqtt_screenshot_enabled',
-  MQTT_SCREENSHOT_AUTO: '@kiosk_mqtt_screenshot_auto',
-  MQTT_SCREENSHOT_INTERVAL: '@kiosk_mqtt_screenshot_interval',
-  MQTT_SCREENSHOT_QUALITY: '@kiosk_mqtt_screenshot_quality',
-  MQTT_SCREENSHOT_MAX_WIDTH: '@kiosk_mqtt_screenshot_max_width',
-  MQTT_CAMERA_ENABLED: '@kiosk_mqtt_camera_enabled',
-  MQTT_CAMERA_AUTO: '@kiosk_mqtt_camera_auto',
-  MQTT_CAMERA_INTERVAL: '@kiosk_mqtt_camera_interval',
-  MQTT_CAMERA_QUALITY: '@kiosk_mqtt_camera_quality',
   // Beta Updates
   BETA_UPDATES_ENABLED: '@kiosk_beta_updates_enabled',
   // Managed Apps (multi-app mode, background apps, accessibility whitelist)
@@ -246,26 +214,18 @@ export const KEYS = {
   // HTTP Basic Auth
   HTTP_BASIC_AUTH_USERNAME: '@kiosk_http_basic_auth_username',
   // Cloud sync metadata (local tracking only, never synced)
-  CONFIG_UPDATED_AT: '@cloud_config_updated_at',
-  CONFIG_VERSION: '@cloud_config_version',
-  LAST_SENT_CONFIG_HASH: '@cloud_last_sent_hash',
   // Full raw config last received from the cloud. Used to preserve fields this app
   // version doesn't model yet, so unknown settings survive an export round-trip
   // (prevents an older app from stripping newer settings when it echoes to the cloud).
-  RAW_CLOUD_CONFIG: '@cloud_raw_config',
   // Command results that could not be POSTed back to the cloud (network down at the
   // moment of reporting). Retried on the next poll: without this the server keeps the
   // command in 'sent' forever, since it only ever hands out 'pending' ones.
-  CLOUD_PENDING_REPORTS: '@cloud_pending_reports',
   // The command currently being executed, persisted before dispatch so a command that
   // kills the process (reboot, self-update) can still be reported after the restart.
-  CLOUD_INFLIGHT_COMMAND: '@cloud_inflight_command',
   // Mirrors "this device is enrolled" as a plain boolean, because the credentials
   // themselves live encrypted in the Keychain and KioskWatchdogService reads its flags
   // straight out of the AsyncStorage SQLite file, with no JS bridge available.
-  CLOUD_ENROLLED: '@cloud_enrolled',
   // Set once the user closes the "manage your tablets from the cloud" banner in Settings.
-  CLOUD_PROMO_DISMISSED: '@cloud_promo_dismissed',
 };
 
 const isPlainObject = (v: unknown): v is Record<string, unknown> =>
@@ -456,26 +416,6 @@ export const StorageService = {
 
   // REMOTE SCREENSHOT (#229) - opt-in; default false so the Device Owner screen-capture
   // policy (#172) is never lifted unless the admin asked for it.
-  saveAllowRemoteScreenshot: async (value: boolean): Promise<void> => {
-    try {
-      await AsyncStorage.setItem(KEYS.ALLOW_REMOTE_SCREENSHOT, JSON.stringify(value));
-    } catch (error) {
-      console.error('Error saving allow remote screenshot:', error);
-    }
-  },
-
-  getAllowRemoteScreenshot: async (): Promise<boolean> => {
-    try {
-      const value = await AsyncStorage.getItem(KEYS.ALLOW_REMOTE_SCREENSHOT);
-      return value ? JSON.parse(value) : false;
-    } catch (error) {
-      console.error('Error getting allow remote screenshot:', error);
-      return false;
-    }
-  },
-
-  // HARDWARE SCREENSHOT (#277) - opt-in; default false so Lock Mode keeps blocking
-  // Power+Volume Down (#172) unless the admin asked for it.
   saveAllowHardwareScreenshot: async (value: boolean): Promise<void> => {
     try {
       await AsyncStorage.setItem(KEYS.ALLOW_HARDWARE_SCREENSHOT, JSON.stringify(value));
@@ -610,10 +550,6 @@ export const StorageService = {
         KEYS.URL_PLANNER_ENABLED,
         KEYS.URL_PLANNER_EVENTS,
         // REST API
-        KEYS.REST_API_ENABLED,
-        KEYS.REST_API_PORT,
-        KEYS.REST_API_KEY,
-        KEYS.REST_API_ALLOW_CONTROL,
         // Power Button
         KEYS.ALLOW_POWER_BUTTON,
         KEYS.ALLOW_HARDWARE_SCREENSHOT,
@@ -622,15 +558,8 @@ export const StorageService = {
         KEYS.BLOCK_FACTORY_RESET,
         KEYS.DEFAULT_LAUNCHER,
         KEYS.INTERCOM_MODE,
-        KEYS.ALLOW_REMOTE_SCREENSHOT,
         KEYS.SCREENSAVER_PROXIMITY_ENABLED,
         KEYS.SCREENSAVER_MOTION_REQUIRE_FACE,
-        KEYS.CAMERA_STREAM_ENABLED,
-        KEYS.CAMERA_STREAM_CAMERA,
-        KEYS.CAMERA_STREAM_FPS,
-        KEYS.CAMERA_STREAM_QUALITY,
-        KEYS.CAMERA_STREAM_WIDTH,
-        KEYS.CAMERA_STREAM_ROTATE,
         KEYS.PRINT_PAPER_SIZE,
         KEYS.DISABLE_USER_ZOOM,
         KEYS.PAUSE_WEB_MEDIA_WHEN_HIDDEN,
@@ -720,27 +649,7 @@ export const StorageService = {
         // Custom User Agent
         KEYS.CUSTOM_USER_AGENT,
         // MQTT
-        KEYS.MQTT_ENABLED,
-        KEYS.MQTT_BROKER_URL,
-        KEYS.MQTT_PORT,
-        KEYS.MQTT_USERNAME,
-        KEYS.MQTT_CLIENT_ID,
-        KEYS.MQTT_BASE_TOPIC,
-        KEYS.MQTT_DISCOVERY_PREFIX,
-        KEYS.MQTT_STATUS_INTERVAL,
-        KEYS.MQTT_ALLOW_CONTROL,
-        KEYS.MQTT_DEVICE_NAME,
-        KEYS.MQTT_MOTION_ALWAYS_ON,
         // MQTT image publishing
-        KEYS.MQTT_SCREENSHOT_ENABLED,
-        KEYS.MQTT_SCREENSHOT_AUTO,
-        KEYS.MQTT_SCREENSHOT_INTERVAL,
-        KEYS.MQTT_SCREENSHOT_QUALITY,
-        KEYS.MQTT_SCREENSHOT_MAX_WIDTH,
-        KEYS.MQTT_CAMERA_ENABLED,
-        KEYS.MQTT_CAMERA_AUTO,
-        KEYS.MQTT_CAMERA_INTERVAL,
-        KEYS.MQTT_CAMERA_QUALITY,
         // Dashboard
         KEYS.DASHBOARD_MODE_ENABLED,
         KEYS.DASHBOARD_TILES,
@@ -770,8 +679,6 @@ export const StorageService = {
         KEYS.MOTION_DELAY,
       ]);
       // Also clear secure API key and MQTT password from Keychain
-      await clearSecureApiKey();
-      await clearSecureMqttPassword();
     } catch (error) {
       console.error('Error clearing all storage keys:', error);
     }
@@ -1811,194 +1718,6 @@ export const StorageService = {
 
   // ============ REST API (Home Assistant) ============
   
-  saveRestApiEnabled: async (value: boolean): Promise<void> => {
-    try {
-      await AsyncStorage.setItem(KEYS.REST_API_ENABLED, JSON.stringify(value));
-    } catch (error) {
-      console.error('Error saving REST API enabled:', error);
-    }
-  },
-
-  getRestApiEnabled: async (): Promise<boolean> => {
-    try {
-      const value = await AsyncStorage.getItem(KEYS.REST_API_ENABLED);
-      return value ? JSON.parse(value) : false;
-    } catch (error) {
-      console.error('Error getting REST API enabled:', error);
-      return false;
-    }
-  },
-
-  saveRestApiPort: async (port: number): Promise<void> => {
-    try {
-      await AsyncStorage.setItem(KEYS.REST_API_PORT, port.toString());
-    } catch (error) {
-      console.error('Error saving REST API port:', error);
-    }
-  },
-
-  getRestApiPort: async (): Promise<number> => {
-    try {
-      const value = await AsyncStorage.getItem(KEYS.REST_API_PORT);
-      const port = value ? parseInt(value, 10) : 8080;
-      return isNaN(port) ? 8080 : port;
-    } catch (error) {
-      console.error('Error getting REST API port:', error);
-      return 8080;
-    }
-  },
-
-  saveRestApiKey: async (key: string): Promise<void> => {
-    try {
-      await saveSecureApiKey(key);
-    } catch (error) {
-      console.error('Error saving REST API key:', error);
-    }
-  },
-
-  getRestApiKey: async (): Promise<string> => {
-    try {
-      return await getSecureApiKey();
-    } catch (error) {
-      console.error('Error getting REST API key:', error);
-      return '';
-    }
-  },
-
-  saveRestApiAllowControl: async (value: boolean): Promise<void> => {
-    try {
-      await AsyncStorage.setItem(KEYS.REST_API_ALLOW_CONTROL, JSON.stringify(value));
-    } catch (error) {
-      console.error('Error saving REST API allow control:', error);
-    }
-  },
-
-  getRestApiAllowControl: async (): Promise<boolean> => {
-    try {
-      const value = await AsyncStorage.getItem(KEYS.REST_API_ALLOW_CONTROL);
-      return value ? JSON.parse(value) : true;
-    } catch (error) {
-      console.error('Error getting REST API allow control:', error);
-      return true;
-    }
-  },
-
-  // LIVE CAMERA STREAM (MJPEG)
-  saveCameraStreamEnabled: async (value: boolean): Promise<void> => {
-    try {
-      await AsyncStorage.setItem(KEYS.CAMERA_STREAM_ENABLED, JSON.stringify(value));
-    } catch (error) {
-      console.error('Error saving camera stream enabled:', error);
-    }
-  },
-
-  getCameraStreamEnabled: async (): Promise<boolean> => {
-    try {
-      const value = await AsyncStorage.getItem(KEYS.CAMERA_STREAM_ENABLED);
-      return value ? JSON.parse(value) : false;
-    } catch (error) {
-      console.error('Error getting camera stream enabled:', error);
-      return false;
-    }
-  },
-
-  saveCameraStreamCamera: async (camera: 'front' | 'back'): Promise<void> => {
-    try {
-      await AsyncStorage.setItem(KEYS.CAMERA_STREAM_CAMERA, camera);
-    } catch (error) {
-      console.error('Error saving camera stream camera:', error);
-    }
-  },
-
-  getCameraStreamCamera: async (): Promise<'front' | 'back'> => {
-    try {
-      const value = await AsyncStorage.getItem(KEYS.CAMERA_STREAM_CAMERA);
-      return value === 'back' ? 'back' : 'front';
-    } catch (error) {
-      console.error('Error getting camera stream camera:', error);
-      return 'front';
-    }
-  },
-
-  saveCameraStreamFps: async (fps: number): Promise<void> => {
-    try {
-      await AsyncStorage.setItem(KEYS.CAMERA_STREAM_FPS, fps.toString());
-    } catch (error) {
-      console.error('Error saving camera stream fps:', error);
-    }
-  },
-
-  getCameraStreamFps: async (): Promise<number> => {
-    try {
-      const value = await AsyncStorage.getItem(KEYS.CAMERA_STREAM_FPS);
-      const fps = value ? parseInt(value, 10) : 10;
-      return isNaN(fps) ? 10 : Math.min(30, Math.max(1, fps));
-    } catch (error) {
-      console.error('Error getting camera stream fps:', error);
-      return 10;
-    }
-  },
-
-  saveCameraStreamQuality: async (quality: number): Promise<void> => {
-    try {
-      await AsyncStorage.setItem(KEYS.CAMERA_STREAM_QUALITY, quality.toString());
-    } catch (error) {
-      console.error('Error saving camera stream quality:', error);
-    }
-  },
-
-  getCameraStreamQuality: async (): Promise<number> => {
-    try {
-      const value = await AsyncStorage.getItem(KEYS.CAMERA_STREAM_QUALITY);
-      const quality = value ? parseInt(value, 10) : 60;
-      return isNaN(quality) ? 60 : Math.min(100, Math.max(1, quality));
-    } catch (error) {
-      console.error('Error getting camera stream quality:', error);
-      return 60;
-    }
-  },
-
-  saveCameraStreamWidth: async (width: number): Promise<void> => {
-    try {
-      await AsyncStorage.setItem(KEYS.CAMERA_STREAM_WIDTH, width.toString());
-    } catch (error) {
-      console.error('Error saving camera stream width:', error);
-    }
-  },
-
-  getCameraStreamWidth: async (): Promise<number> => {
-    try {
-      const value = await AsyncStorage.getItem(KEYS.CAMERA_STREAM_WIDTH);
-      const width = value ? parseInt(value, 10) : 1280;
-      return isNaN(width) ? 1280 : Math.min(3840, Math.max(160, width));
-    } catch (error) {
-      console.error('Error getting camera stream width:', error);
-      return 1280;
-    }
-  },
-
-  /** Extra clockwise rotation in degrees, or -1 to derive it from the sensor. */
-  saveCameraStreamRotate: async (rotate: number): Promise<void> => {
-    try {
-      await AsyncStorage.setItem(KEYS.CAMERA_STREAM_ROTATE, rotate.toString());
-    } catch (error) {
-      console.error('Error saving camera stream rotation:', error);
-    }
-  },
-
-  getCameraStreamRotate: async (): Promise<number> => {
-    try {
-      const value = await AsyncStorage.getItem(KEYS.CAMERA_STREAM_ROTATE);
-      const rotate = value ? parseInt(value, 10) : -1;
-      if (isNaN(rotate)) return -1;
-      return [0, 90, 180, 270].includes(rotate) ? rotate : -1;
-    } catch (error) {
-      console.error('Error getting camera stream rotation:', error);
-      return -1;
-    }
-  },
-
-  // POWER BUTTON
   saveAllowPowerButton: async (value: boolean): Promise<void> => {
     try {
       await AsyncStorage.setItem(KEYS.ALLOW_POWER_BUTTON, JSON.stringify(value));
@@ -3044,376 +2763,6 @@ export const StorageService = {
 
   // ============ MQTT (Home Assistant) ============
 
-  saveMqttEnabled: async (value: boolean): Promise<void> => {
-    try {
-      await AsyncStorage.setItem(KEYS.MQTT_ENABLED, JSON.stringify(value));
-    } catch (error) {
-      console.error('Error saving MQTT enabled:', error);
-    }
-  },
-
-  getMqttEnabled: async (): Promise<boolean> => {
-    try {
-      const value = await AsyncStorage.getItem(KEYS.MQTT_ENABLED);
-      return value ? JSON.parse(value) : false;
-    } catch (error) {
-      console.error('Error getting MQTT enabled:', error);
-      return false;
-    }
-  },
-
-  saveMqttBrokerUrl: async (url: string): Promise<void> => {
-    try {
-      await AsyncStorage.setItem(KEYS.MQTT_BROKER_URL, url);
-    } catch (error) {
-      console.error('Error saving MQTT broker URL:', error);
-    }
-  },
-
-  getMqttBrokerUrl: async (): Promise<string> => {
-    try {
-      const value = await AsyncStorage.getItem(KEYS.MQTT_BROKER_URL);
-      return value || '';
-    } catch (error) {
-      console.error('Error getting MQTT broker URL:', error);
-      return '';
-    }
-  },
-
-  saveMqttPort: async (port: number): Promise<void> => {
-    try {
-      await AsyncStorage.setItem(KEYS.MQTT_PORT, port.toString());
-    } catch (error) {
-      console.error('Error saving MQTT port:', error);
-    }
-  },
-
-  getMqttPort: async (): Promise<number> => {
-    try {
-      const value = await AsyncStorage.getItem(KEYS.MQTT_PORT);
-      const port = value ? parseInt(value, 10) : 1883;
-      return isNaN(port) ? 1883 : port;
-    } catch (error) {
-      console.error('Error getting MQTT port:', error);
-      return 1883;
-    }
-  },
-
-  saveMqttUsername: async (username: string): Promise<void> => {
-    try {
-      await AsyncStorage.setItem(KEYS.MQTT_USERNAME, username);
-    } catch (error) {
-      console.error('Error saving MQTT username:', error);
-    }
-  },
-
-  getMqttUsername: async (): Promise<string> => {
-    try {
-      const value = await AsyncStorage.getItem(KEYS.MQTT_USERNAME);
-      return value || '';
-    } catch (error) {
-      console.error('Error getting MQTT username:', error);
-      return '';
-    }
-  },
-
-  saveMqttClientId: async (clientId: string): Promise<void> => {
-    try {
-      await AsyncStorage.setItem(KEYS.MQTT_CLIENT_ID, clientId);
-    } catch (error) {
-      console.error('Error saving MQTT client ID:', error);
-    }
-  },
-
-  getMqttClientId: async (): Promise<string> => {
-    try {
-      const value = await AsyncStorage.getItem(KEYS.MQTT_CLIENT_ID);
-      return value || '';
-    } catch (error) {
-      console.error('Error getting MQTT client ID:', error);
-      return '';
-    }
-  },
-
-  saveMqttBaseTopic: async (topic: string): Promise<void> => {
-    try {
-      await AsyncStorage.setItem(KEYS.MQTT_BASE_TOPIC, topic);
-    } catch (error) {
-      console.error('Error saving MQTT base topic:', error);
-    }
-  },
-
-  getMqttBaseTopic: async (): Promise<string> => {
-    try {
-      const value = await AsyncStorage.getItem(KEYS.MQTT_BASE_TOPIC);
-      return value || 'freekiosk';
-    } catch (error) {
-      console.error('Error getting MQTT base topic:', error);
-      return 'freekiosk';
-    }
-  },
-
-  saveMqttDiscoveryPrefix: async (prefix: string): Promise<void> => {
-    try {
-      await AsyncStorage.setItem(KEYS.MQTT_DISCOVERY_PREFIX, prefix);
-    } catch (error) {
-      console.error('Error saving MQTT discovery prefix:', error);
-    }
-  },
-
-  getMqttDiscoveryPrefix: async (): Promise<string> => {
-    try {
-      const value = await AsyncStorage.getItem(KEYS.MQTT_DISCOVERY_PREFIX);
-      return value || 'homeassistant';
-    } catch (error) {
-      console.error('Error getting MQTT discovery prefix:', error);
-      return 'homeassistant';
-    }
-  },
-
-  saveMqttStatusInterval: async (seconds: number): Promise<void> => {
-    try {
-      await AsyncStorage.setItem(KEYS.MQTT_STATUS_INTERVAL, seconds.toString());
-    } catch (error) {
-      console.error('Error saving MQTT status interval:', error);
-    }
-  },
-
-  getMqttStatusInterval: async (): Promise<number> => {
-    try {
-      const value = await AsyncStorage.getItem(KEYS.MQTT_STATUS_INTERVAL);
-      const interval = value ? parseInt(value, 10) : 30;
-      return isNaN(interval) ? 30 : Math.max(5, interval);
-    } catch (error) {
-      console.error('Error getting MQTT status interval:', error);
-      return 30;
-    }
-  },
-
-  saveMqttAllowControl: async (value: boolean): Promise<void> => {
-    try {
-      await AsyncStorage.setItem(KEYS.MQTT_ALLOW_CONTROL, JSON.stringify(value));
-    } catch (error) {
-      console.error('Error saving MQTT allow control:', error);
-    }
-  },
-
-  getMqttAllowControl: async (): Promise<boolean> => {
-    try {
-      const value = await AsyncStorage.getItem(KEYS.MQTT_ALLOW_CONTROL);
-      return value ? JSON.parse(value) : true;
-    } catch (error) {
-      console.error('Error getting MQTT allow control:', error);
-      return true;
-    }
-  },
-
-  saveMqttDeviceName: async (name: string): Promise<void> => {
-    try {
-      await AsyncStorage.setItem(KEYS.MQTT_DEVICE_NAME, name);
-    } catch (error) {
-      console.error('Error saving MQTT device name:', error);
-    }
-  },
-
-  getMqttDeviceName: async (): Promise<string> => {
-    try {
-      const value = await AsyncStorage.getItem(KEYS.MQTT_DEVICE_NAME);
-      return value || '';
-    } catch (error) {
-      console.error('Error getting MQTT device name:', error);
-      return '';
-    }
-  },
-
-  saveMqttMotionAlwaysOn: async (value: boolean): Promise<void> => {
-    try {
-      await AsyncStorage.setItem(KEYS.MQTT_MOTION_ALWAYS_ON, JSON.stringify(value));
-    } catch (error) {
-      console.error('Error saving MQTT motion always on:', error);
-    }
-  },
-
-  getMqttMotionAlwaysOn: async (): Promise<boolean> => {
-    try {
-      const value = await AsyncStorage.getItem(KEYS.MQTT_MOTION_ALWAYS_ON);
-      return value ? JSON.parse(value) : false;
-    } catch (error) {
-      console.error('Error getting MQTT motion always on:', error);
-      return false;
-    }
-  },
-
-  // MQTT IMAGE PUBLISHING (screenshot / camera snapshots)
-  saveMqttScreenshotEnabled: async (value: boolean): Promise<void> => {
-    try {
-      await AsyncStorage.setItem(KEYS.MQTT_SCREENSHOT_ENABLED, JSON.stringify(value));
-    } catch (error) {
-      console.error('Error saving MQTT screenshot enabled:', error);
-    }
-  },
-
-  getMqttScreenshotEnabled: async (): Promise<boolean> => {
-    try {
-      const value = await AsyncStorage.getItem(KEYS.MQTT_SCREENSHOT_ENABLED);
-      return value ? JSON.parse(value) : false;
-    } catch (error) {
-      console.error('Error getting MQTT screenshot enabled:', error);
-      return false;
-    }
-  },
-
-  saveMqttScreenshotAuto: async (value: boolean): Promise<void> => {
-    try {
-      await AsyncStorage.setItem(KEYS.MQTT_SCREENSHOT_AUTO, JSON.stringify(value));
-    } catch (error) {
-      console.error('Error saving MQTT screenshot auto-publish:', error);
-    }
-  },
-
-  getMqttScreenshotAuto: async (): Promise<boolean> => {
-    try {
-      const value = await AsyncStorage.getItem(KEYS.MQTT_SCREENSHOT_AUTO);
-      return value ? JSON.parse(value) : false;
-    } catch (error) {
-      console.error('Error getting MQTT screenshot auto-publish:', error);
-      return false;
-    }
-  },
-
-  saveMqttScreenshotInterval: async (seconds: number): Promise<void> => {
-    try {
-      await AsyncStorage.setItem(KEYS.MQTT_SCREENSHOT_INTERVAL, seconds.toString());
-    } catch (error) {
-      console.error('Error saving MQTT screenshot interval:', error);
-    }
-  },
-
-  getMqttScreenshotInterval: async (): Promise<number> => {
-    try {
-      const value = await AsyncStorage.getItem(KEYS.MQTT_SCREENSHOT_INTERVAL);
-      const interval = value ? parseInt(value, 10) : 60;
-      return isNaN(interval) ? 60 : Math.min(3600, Math.max(5, interval));
-    } catch (error) {
-      console.error('Error getting MQTT screenshot interval:', error);
-      return 60;
-    }
-  },
-
-  saveMqttScreenshotQuality: async (quality: number): Promise<void> => {
-    try {
-      await AsyncStorage.setItem(KEYS.MQTT_SCREENSHOT_QUALITY, quality.toString());
-    } catch (error) {
-      console.error('Error saving MQTT screenshot quality:', error);
-    }
-  },
-
-  getMqttScreenshotQuality: async (): Promise<number> => {
-    try {
-      const value = await AsyncStorage.getItem(KEYS.MQTT_SCREENSHOT_QUALITY);
-      const quality = value ? parseInt(value, 10) : 70;
-      return isNaN(quality) ? 70 : Math.min(100, Math.max(1, quality));
-    } catch (error) {
-      console.error('Error getting MQTT screenshot quality:', error);
-      return 70;
-    }
-  },
-
-  saveMqttScreenshotMaxWidth: async (width: number): Promise<void> => {
-    try {
-      await AsyncStorage.setItem(KEYS.MQTT_SCREENSHOT_MAX_WIDTH, width.toString());
-    } catch (error) {
-      console.error('Error saving MQTT screenshot max width:', error);
-    }
-  },
-
-  getMqttScreenshotMaxWidth: async (): Promise<number> => {
-    try {
-      const value = await AsyncStorage.getItem(KEYS.MQTT_SCREENSHOT_MAX_WIDTH);
-      const width = value ? parseInt(value, 10) : 1280;
-      // 0 means "keep native resolution"
-      return isNaN(width) ? 1280 : Math.max(0, width);
-    } catch (error) {
-      console.error('Error getting MQTT screenshot max width:', error);
-      return 1280;
-    }
-  },
-
-  saveMqttCameraEnabled: async (value: boolean): Promise<void> => {
-    try {
-      await AsyncStorage.setItem(KEYS.MQTT_CAMERA_ENABLED, JSON.stringify(value));
-    } catch (error) {
-      console.error('Error saving MQTT camera enabled:', error);
-    }
-  },
-
-  getMqttCameraEnabled: async (): Promise<boolean> => {
-    try {
-      const value = await AsyncStorage.getItem(KEYS.MQTT_CAMERA_ENABLED);
-      return value ? JSON.parse(value) : false;
-    } catch (error) {
-      console.error('Error getting MQTT camera enabled:', error);
-      return false;
-    }
-  },
-
-  saveMqttCameraAuto: async (value: boolean): Promise<void> => {
-    try {
-      await AsyncStorage.setItem(KEYS.MQTT_CAMERA_AUTO, JSON.stringify(value));
-    } catch (error) {
-      console.error('Error saving MQTT camera auto-publish:', error);
-    }
-  },
-
-  getMqttCameraAuto: async (): Promise<boolean> => {
-    try {
-      const value = await AsyncStorage.getItem(KEYS.MQTT_CAMERA_AUTO);
-      return value ? JSON.parse(value) : false;
-    } catch (error) {
-      console.error('Error getting MQTT camera auto-publish:', error);
-      return false;
-    }
-  },
-
-  saveMqttCameraInterval: async (seconds: number): Promise<void> => {
-    try {
-      await AsyncStorage.setItem(KEYS.MQTT_CAMERA_INTERVAL, seconds.toString());
-    } catch (error) {
-      console.error('Error saving MQTT camera interval:', error);
-    }
-  },
-
-  getMqttCameraInterval: async (): Promise<number> => {
-    try {
-      const value = await AsyncStorage.getItem(KEYS.MQTT_CAMERA_INTERVAL);
-      const interval = value ? parseInt(value, 10) : 300;
-      return isNaN(interval) ? 300 : Math.min(3600, Math.max(5, interval));
-    } catch (error) {
-      console.error('Error getting MQTT camera interval:', error);
-      return 300;
-    }
-  },
-
-  saveMqttCameraQuality: async (quality: number): Promise<void> => {
-    try {
-      await AsyncStorage.setItem(KEYS.MQTT_CAMERA_QUALITY, quality.toString());
-    } catch (error) {
-      console.error('Error saving MQTT camera quality:', error);
-    }
-  },
-
-  getMqttCameraQuality: async (): Promise<number> => {
-    try {
-      const value = await AsyncStorage.getItem(KEYS.MQTT_CAMERA_QUALITY);
-      const quality = value ? parseInt(value, 10) : 70;
-      return isNaN(quality) ? 70 : Math.min(100, Math.max(1, quality));
-    } catch (error) {
-      console.error('Error getting MQTT camera quality:', error);
-      return 70;
-    }
-  },
-
-  // BETA UPDATES
   saveBetaUpdatesEnabled: async (value: boolean): Promise<void> => {
     try {
       await AsyncStorage.setItem(KEYS.BETA_UPDATES_ENABLED, JSON.stringify(value));
@@ -3854,99 +3203,6 @@ export const StorageService = {
   /** Expose KEYS for external multiGet consumers */
   KEYS,
 
-  // ============ CLOUD SYNC METADATA ============
-
-  getConfigUpdatedAt: async (): Promise<string | null> => {
-    try { return await AsyncStorage.getItem(KEYS.CONFIG_UPDATED_AT); }
-    catch { return null; }
-  },
-
-  saveConfigUpdatedAt: async (ts: string): Promise<void> => {
-    try { await AsyncStorage.setItem(KEYS.CONFIG_UPDATED_AT, ts); }
-    catch (error) { console.error('Error saving config_updated_at:', error); }
-  },
-
-  getConfigVersion: async (): Promise<number> => {
-    try {
-      const v = await AsyncStorage.getItem(KEYS.CONFIG_VERSION);
-      return v ? parseInt(v, 10) : 0;
-    } catch { return 0; }
-  },
-
-  saveConfigVersion: async (version: number): Promise<void> => {
-    try { await AsyncStorage.setItem(KEYS.CONFIG_VERSION, version.toString()); }
-    catch (error) { console.error('Error saving config version:', error); }
-  },
-
-  getLastSentConfigHash: async (): Promise<string | null> => {
-    try { return await AsyncStorage.getItem(KEYS.LAST_SENT_CONFIG_HASH); }
-    catch { return null; }
-  },
-
-  saveLastSentConfigHash: async (hash: string): Promise<void> => {
-    try { await AsyncStorage.setItem(KEYS.LAST_SENT_CONFIG_HASH, hash); }
-    catch (error) { console.error('Error saving last sent config hash:', error); }
-  },
-
-  resetSyncMetadata: async (): Promise<void> => {
-    try {
-      await AsyncStorage.multiRemove([
-        KEYS.CONFIG_UPDATED_AT,
-        KEYS.CONFIG_VERSION,
-        KEYS.LAST_SENT_CONFIG_HASH,
-      ]);
-    } catch (error) { console.error('Error resetting sync metadata:', error); }
-  },
-
-  /**
-   * Native-readable mirror of the enrolment state. Written as JSON so it matches the
-   * "true"/"false" the watchdog's readFlag() compares against.
-   */
-  saveCloudEnrolled: async (value: boolean): Promise<void> => {
-    try { await AsyncStorage.setItem(KEYS.CLOUD_ENROLLED, JSON.stringify(value)); }
-    catch (error) { console.error('Error saving cloud enrolled flag:', error); }
-  },
-
-  isCloudPromoDismissed: async (): Promise<boolean> => {
-    try { return (await AsyncStorage.getItem(KEYS.CLOUD_PROMO_DISMISSED)) === 'true'; }
-    catch (error) { console.error('Error reading cloud promo flag:', error); return false; }
-  },
-
-  dismissCloudPromo: async (): Promise<void> => {
-    try { await AsyncStorage.setItem(KEYS.CLOUD_PROMO_DISMISSED, 'true'); }
-    catch (error) { console.error('Error saving cloud promo flag:', error); }
-  },
-
-  // ============ CLOUD COMMAND DELIVERY ============
-
-  getPendingReports: async (): Promise<unknown[]> => {
-    try {
-      const raw = await AsyncStorage.getItem(KEYS.CLOUD_PENDING_REPORTS);
-      const parsed = raw ? JSON.parse(raw) : [];
-      return Array.isArray(parsed) ? parsed : [];
-    } catch { return []; }
-  },
-
-  savePendingReports: async (reports: unknown[]): Promise<void> => {
-    try { await AsyncStorage.setItem(KEYS.CLOUD_PENDING_REPORTS, JSON.stringify(reports)); }
-    catch (error) { console.error('Error saving pending cloud reports:', error); }
-  },
-
-  getInflightCommand: async (): Promise<Record<string, unknown> | null> => {
-    try {
-      const raw = await AsyncStorage.getItem(KEYS.CLOUD_INFLIGHT_COMMAND);
-      const parsed = raw ? JSON.parse(raw) : null;
-      return isPlainObject(parsed) ? parsed : null;
-    } catch { return null; }
-  },
-
-  saveInflightCommand: async (cmd: Record<string, unknown> | null): Promise<void> => {
-    try {
-      if (cmd === null) await AsyncStorage.removeItem(KEYS.CLOUD_INFLIGHT_COMMAND);
-      else await AsyncStorage.setItem(KEYS.CLOUD_INFLIGHT_COMMAND, JSON.stringify(cmd));
-    } catch (error) { console.error('Error saving in-flight cloud command:', error); }
-  },
-
   // ============ CONFIG EXPORT / IMPORT ============
 
   exportConfig: async (): Promise<Record<string, unknown>> => {
@@ -4143,7 +3399,6 @@ export const StorageService = {
         blockFactoryReset: bool(KEYS.BLOCK_FACTORY_RESET),
         allowHardwareScreenshot: bool(KEYS.ALLOW_HARDWARE_SCREENSHOT),
         allowUsbDebugDialog: bool(KEYS.ALLOW_USB_DEBUG_DIALOG),
-        allowRemoteScreenshot: bool(KEYS.ALLOW_REMOTE_SCREENSHOT),
         defaultLauncher: bool(KEYS.DEFAULT_LAUNCHER),
         screenLockCompat: bool(KEYS.SCREEN_LOCK_COMPAT),
         lockscreen: {
@@ -4158,58 +3413,12 @@ export const StorageService = {
         },
       },
       advanced: {
-        restApi: {
-          enabled: bool(KEYS.REST_API_ENABLED),
-          port: num(KEYS.REST_API_PORT, 8080),
-          allowControl: bool(KEYS.REST_API_ALLOW_CONTROL, true),
-        },
-        cameraStream: {
-          enabled: bool(KEYS.CAMERA_STREAM_ENABLED),
-          camera: str(KEYS.CAMERA_STREAM_CAMERA, 'front'),
-          fps: num(KEYS.CAMERA_STREAM_FPS, 10),
-          quality: num(KEYS.CAMERA_STREAM_QUALITY, 60),
-          width: num(KEYS.CAMERA_STREAM_WIDTH, 1280),
-          rotate: num(KEYS.CAMERA_STREAM_ROTATE, -1),
-        },
-        mqtt: {
-          enabled: bool(KEYS.MQTT_ENABLED),
-          brokerUrl: str(KEYS.MQTT_BROKER_URL),
-          port: num(KEYS.MQTT_PORT, 1883),
-          username: str(KEYS.MQTT_USERNAME),
-          clientId: str(KEYS.MQTT_CLIENT_ID),
-          baseTopic: str(KEYS.MQTT_BASE_TOPIC, 'freekiosk'),
-          discoveryPrefix: str(KEYS.MQTT_DISCOVERY_PREFIX, 'homeassistant'),
-          statusInterval: num(KEYS.MQTT_STATUS_INTERVAL, 30),
-          allowControl: bool(KEYS.MQTT_ALLOW_CONTROL, true),
-          deviceName: str(KEYS.MQTT_DEVICE_NAME),
-          motionAlwaysOn: bool(KEYS.MQTT_MOTION_ALWAYS_ON),
-          screenshot: {
-            enabled: bool(KEYS.MQTT_SCREENSHOT_ENABLED),
-            auto: bool(KEYS.MQTT_SCREENSHOT_AUTO),
-            interval: num(KEYS.MQTT_SCREENSHOT_INTERVAL, 60),
-            quality: num(KEYS.MQTT_SCREENSHOT_QUALITY, 70),
-            maxWidth: num(KEYS.MQTT_SCREENSHOT_MAX_WIDTH, 1280),
-          },
-          camera: {
-            enabled: bool(KEYS.MQTT_CAMERA_ENABLED),
-            auto: bool(KEYS.MQTT_CAMERA_AUTO),
-            interval: num(KEYS.MQTT_CAMERA_INTERVAL, 300),
-            quality: num(KEYS.MQTT_CAMERA_QUALITY, 70),
-          },
-        },
+
+
+
       },
     };
 
-    // Preserve fields a newer app/cloud sent that this version doesn't model: overlay the
-    // current (structured) config on top of the last raw config received, so unknown keys
-    // survive the round-trip instead of being dropped and echoed back as a downgrade.
-    const rawStr = s.get(KEYS.RAW_CLOUD_CONFIG) as string | null | undefined;
-    if (rawStr) {
-      try {
-        const raw = JSON.parse(rawStr);
-        if (isPlainObject(raw)) return deepMerge(raw, structured) as Record<string, unknown>;
-      } catch { /* malformed raw: fall through to the structured config */ }
-    }
     return structured;
   },
 
@@ -4222,7 +3431,6 @@ export const StorageService = {
 
     // Remember the full raw config so exportConfig can re-emit any fields this app
     // version doesn't model (forward-compatible round-trip; see deepMerge).
-    set(KEYS.RAW_CLOUD_CONFIG, config);
 
     const g = config.general as Record<string, unknown> | undefined;
     const d = config.display as Record<string, unknown> | undefined;
@@ -4428,7 +3636,6 @@ export const StorageService = {
       set(KEYS.BLOCK_FACTORY_RESET, sec.blockFactoryReset);
       set(KEYS.ALLOW_HARDWARE_SCREENSHOT, sec.allowHardwareScreenshot);
       set(KEYS.ALLOW_USB_DEBUG_DIALOG, sec.allowUsbDebugDialog);
-      set(KEYS.ALLOW_REMOTE_SCREENSHOT, sec.allowRemoteScreenshot);
       set(KEYS.DEFAULT_LAUNCHER, sec.defaultLauncher);
       set(KEYS.SCREEN_LOCK_COMPAT, sec.screenLockCompat);
       const ls = sec.lockscreen as Record<string, unknown> | undefined;
@@ -4445,50 +3652,6 @@ export const StorageService = {
     }
 
     if (adv) {
-      const ra = adv.restApi as Record<string, unknown> | undefined;
-      if (ra) {
-        set(KEYS.REST_API_ENABLED, ra.enabled);
-        set(KEYS.REST_API_PORT, ra.port);
-        set(KEYS.REST_API_ALLOW_CONTROL, ra.allowControl);
-      }
-      const cs = adv.cameraStream as Record<string, unknown> | undefined;
-      if (cs) {
-        set(KEYS.CAMERA_STREAM_ENABLED, cs.enabled);
-        set(KEYS.CAMERA_STREAM_CAMERA, cs.camera);
-        set(KEYS.CAMERA_STREAM_FPS, cs.fps);
-        set(KEYS.CAMERA_STREAM_QUALITY, cs.quality);
-        set(KEYS.CAMERA_STREAM_WIDTH, cs.width);
-        set(KEYS.CAMERA_STREAM_ROTATE, cs.rotate);
-      }
-      const mq = adv.mqtt as Record<string, unknown> | undefined;
-      if (mq) {
-        set(KEYS.MQTT_ENABLED, mq.enabled);
-        set(KEYS.MQTT_BROKER_URL, mq.brokerUrl);
-        set(KEYS.MQTT_PORT, mq.port);
-        set(KEYS.MQTT_USERNAME, mq.username);
-        set(KEYS.MQTT_CLIENT_ID, mq.clientId);
-        set(KEYS.MQTT_BASE_TOPIC, mq.baseTopic);
-        set(KEYS.MQTT_DISCOVERY_PREFIX, mq.discoveryPrefix);
-        set(KEYS.MQTT_STATUS_INTERVAL, mq.statusInterval);
-        set(KEYS.MQTT_ALLOW_CONTROL, mq.allowControl);
-        set(KEYS.MQTT_DEVICE_NAME, mq.deviceName);
-        set(KEYS.MQTT_MOTION_ALWAYS_ON, mq.motionAlwaysOn);
-        const ms = mq.screenshot as Record<string, unknown> | undefined;
-        if (ms) {
-          set(KEYS.MQTT_SCREENSHOT_ENABLED, ms.enabled);
-          set(KEYS.MQTT_SCREENSHOT_AUTO, ms.auto);
-          set(KEYS.MQTT_SCREENSHOT_INTERVAL, ms.interval);
-          set(KEYS.MQTT_SCREENSHOT_QUALITY, ms.quality);
-          set(KEYS.MQTT_SCREENSHOT_MAX_WIDTH, ms.maxWidth);
-        }
-        const mc = mq.camera as Record<string, unknown> | undefined;
-        if (mc) {
-          set(KEYS.MQTT_CAMERA_ENABLED, mc.enabled);
-          set(KEYS.MQTT_CAMERA_AUTO, mc.auto);
-          set(KEYS.MQTT_CAMERA_INTERVAL, mc.interval);
-          set(KEYS.MQTT_CAMERA_QUALITY, mc.quality);
-        }
-      }
     }
 
     if (pairs.length > 0) {

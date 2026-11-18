@@ -30,7 +30,6 @@ import type { MediaItem, MediaFitMode } from '../../../types/mediaPlayer';
 import { generateMediaItemId, detectMediaType, isLocalMedia, getMediaDisplayName } from '../../../types/mediaPlayer';
 import { useFilePickerAvailable } from '../../../utils/useFilePickerAvailable';
 import MediaCacheStatus from '../../../components/settings/MediaCacheStatus';
-import SignageManagedNotice from '../../../components/settings/SignageManagedNotice';
 import FilePickerModule from '../../../utils/FilePickerModule';
 import type { PickedFile } from '../../../utils/FilePickerModule';
 import { useTranslation } from 'react-i18next';
@@ -44,34 +43,34 @@ interface GeneralTabProps {
   // Display mode
   displayMode: 'webview' | 'external_app' | 'media_player';
   onDisplayModeChange: (mode: 'webview' | 'external_app' | 'media_player') => void;
-  
+
   // WebView settings
   url: string;
   onUrlChange: (url: string) => void;
-  
+
   // External app settings
   externalAppPackage: string;
   onExternalAppPackageChange: (pkg: string) => void;
   onPickApp: () => void;
   loadingApps: boolean;
-  
+
   // External app sub-mode (single vs multi)
   multiAppAppearance: MultiAppAppearance;
   onMultiAppAppearanceChange: (value: MultiAppAppearance) => void;
   externalAppMode: 'single' | 'multi';
   onExternalAppModeChange: (mode: 'single' | 'multi') => void;
-  
+
   // Managed apps (multi-app mode)
   managedApps: ManagedApp[];
   onManagedAppsChange: (apps: ManagedApp[]) => void;
-  
+
   // Permissions
   hasOverlayPermission: boolean;
   onRequestOverlayPermission: () => void;
   hasUsageStatsPermission: boolean;
   onRequestUsageStatsPermission: () => void;
   isDeviceOwner: boolean;
-  
+
   // PIN
   pin: string;
   onPinChange: (pin: string) => void;
@@ -82,7 +81,7 @@ interface GeneralTabProps {
   onPinMaxAttemptsBlur: () => void;
   pinMode: 'numeric' | 'alphanumeric';
   onPinModeChange: (mode: 'numeric' | 'alphanumeric') => void;
-  
+
   // Dashboard mode (webview only)
   dashboardModeEnabled: boolean;
   onDashboardModeEnabledChange: (value: boolean) => void;
@@ -94,11 +93,11 @@ interface GeneralTabProps {
   onHideErrorUrlChange: (value: boolean) => void;
   alwaysLoadFromNetwork: boolean;
   onAlwaysLoadFromNetworkChange: (value: boolean) => void;
-  
+
   // PDF Viewer (webview only)
   pdfViewerEnabled: boolean;
   onPdfViewerEnabledChange: (value: boolean) => void;
-  
+
   // Printing (webview only)
   windowPrintEnabled: boolean;
   onWindowPrintEnabledChange: (value: boolean) => void;
@@ -116,7 +115,7 @@ interface GeneralTabProps {
   onEscPosFeedLinesChange: (value: number) => void;
   printOrigins: string[] | null;
   onPrintOriginsChange: (value: string[] | null) => void;
-  
+
   // URL Rotation (webview only)
   urlRotationEnabled: boolean;
   onUrlRotationEnabledChange: (value: boolean) => void;
@@ -128,7 +127,7 @@ interface GeneralTabProps {
   onUrlRotationPauseOnTouchChange: (value: boolean) => void;
   urlRotationResumeDelay: string;
   onUrlRotationResumeDelayChange: (value: string) => void;
-  
+
   // URL Planner (webview only)
   urlPlannerEnabled: boolean;
   onUrlPlannerEnabledChange: (value: boolean) => void;
@@ -137,7 +136,7 @@ interface GeneralTabProps {
   onAddRecurringEvent: () => void;
   onAddOneTimeEvent: () => void;
   onEditEvent: (event: ScheduledEvent) => void;
-  
+
   // WebView Back Button (webview only)
   webViewBackButtonEnabled: boolean;
   onWebViewBackButtonEnabledChange: (value: boolean) => void;
@@ -166,7 +165,7 @@ interface GeneralTabProps {
   onInactivityReturnClearCacheChange: (value: boolean) => void;
   inactivityReturnScrollTop: boolean;
   onInactivityReturnScrollTopChange: (value: boolean) => void;
-  
+
   // Media Player settings
   mediaPlayerItems: MediaItem[];
   onMediaPlayerItemsChange: (items: MediaItem[]) => void;
@@ -196,7 +195,7 @@ interface GeneralTabProps {
   onMediaPlayerUnattendedChange: (value: boolean) => void;
   onPickMediaFromDevice: (type: 'video' | 'image' | 'any') => void;
   pickingMedia: boolean;
-  
+
   // HTTP Basic Auth (webview only)
   basicAuthUsername: string;
   onBasicAuthUsernameChange: (value: string) => void;
@@ -401,13 +400,12 @@ const GeneralTab: React.FC<GeneralTabProps> = ({
               : t('general.howToUse.webview')}
         </Text>
       </SettingsSection>
-      
+
       {/* ===== MEDIA PLAYER SETTINGS ===== */}
       {displayMode === 'media_player' && (
         <>
           {/* Media Items / Playlist */}
           <SettingsSection title={t('general.mediaPlaylist.title')} icon="play-circle-outline">
-            <SignageManagedNotice />
             <SettingsInfoBox variant="info">
               <Text style={styles.infoText}>
                 {t('general.mediaPlaylist.info')}
@@ -449,7 +447,7 @@ const GeneralTab: React.FC<GeneralTabProps> = ({
               </TouchableOpacity>
             </View>
             )}
-            
+
             {mediaPlayerItems.map((item, index) => (
               <View key={item.id} style={styles.mediaItemCard}>
                 <View style={styles.mediaItemHeader}>
@@ -479,7 +477,7 @@ const GeneralTab: React.FC<GeneralTabProps> = ({
                     <Icon name="close" size={18} color={Colors.error} />
                   </TouchableOpacity>
                 </View>
-                
+
                 {item.isLocal ? (
                   <View style={styles.localFileInfo}>
                     <Text style={styles.localFileName} numberOfLines={1}>
@@ -677,7 +675,7 @@ const GeneralTab: React.FC<GeneralTabProps> = ({
           </SettingsSection>
         </>
       )}
-      
+
       {/* URL Input (WebView mode) */}
       {displayMode === 'webview' && (
         <SettingsSection title={t('general.urlSection.title')} icon="link-variant">
@@ -844,9 +842,9 @@ const GeneralTab: React.FC<GeneralTabProps> = ({
                   {t('general.urlPlanner.priorityInfo')}
                 </Text>
               </SettingsInfoBox>
-              
+
               <View style={styles.rotationSpacer} />
-              
+
               <ScheduleEventList
                 events={urlPlannerEvents}
                 onEventsChange={onUrlPlannerEventsChange}
@@ -858,7 +856,7 @@ const GeneralTab: React.FC<GeneralTabProps> = ({
           )}
         </SettingsSection>
       )}
-      
+
       {/* External App Sub-Mode Selection */}
       {displayMode === 'external_app' && (
         <>
@@ -987,7 +985,7 @@ const GeneralTab: React.FC<GeneralTabProps> = ({
           </SettingsSection>
         </>
       )}
-      
+
       {/* Password Configuration */}
       <SettingsSection title={t('general.password.title')} icon="pin">
         <SettingsSwitch
@@ -1130,7 +1128,7 @@ const GeneralTab: React.FC<GeneralTabProps> = ({
           )}
         </SettingsSection>
       )}
-      
+
       {/* Printing - WebView only */}
       {displayMode === 'webview' && (
         <SettingsSection title={t('general.printing.title')} icon="printer">

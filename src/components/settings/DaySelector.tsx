@@ -33,7 +33,7 @@ const DaySelector: React.FC<DaySelectorProps> = ({
 
   const toggleDay = (dayIndex: number) => {
     if (disabled) return;
-    
+
     if (selectedDays.includes(dayIndex)) {
       onDaysChange(selectedDays.filter(d => d !== dayIndex));
     } else {
@@ -59,7 +59,7 @@ const DaySelector: React.FC<DaySelectorProps> = ({
   return (
     <View style={styles.container}>
       <Text style={[styles.label, disabled && styles.labelDisabled]}>{t('components.daySelector.days')}</Text>
-      
+
       <View style={styles.daysRow}>
         {DAYS.map(day => {
           const isSelected = selectedDays.includes(day.index);

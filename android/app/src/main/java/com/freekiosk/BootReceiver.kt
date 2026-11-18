@@ -287,8 +287,6 @@ class BootReceiver : BroadcastReceiver() {
     /** True when FreeKiosk is expected to keep running without anyone touching the device. */
     private fun shouldRunUnattended(context: Context): Boolean =
         isKioskEnabled(context) ||
-            readFlag(context, "@cloud_enrolled") ||
-            readFlag(context, "@kiosk_mqtt_enabled") ||
             readString(context, "@kiosk_display_mode") == "external_app"
 
     /** Read a boolean AsyncStorage flag without going through the JS bridge. */

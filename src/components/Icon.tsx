@@ -253,7 +253,7 @@ export const IconMap = {
   tabDisplay: 'monitor' as IconName,
   tabSecurity: 'shield-lock' as IconName,
   tabAdvanced: 'cog' as IconName,
-  
+
   // General Tab
   displayMode: 'cellphone' as IconName,
   website: 'web' as IconName,
@@ -266,7 +266,7 @@ export const IconMap = {
   pinCode: 'pin' as IconName,
   autoReload: 'refresh' as IconName,
   backToKiosk: 'arrow-u-left-top' as IconName,
-  
+
   // Display Tab
   brightness: 'brightness-6' as IconName,
   brightnessAuto: 'brightness-auto' as IconName,
@@ -275,7 +275,7 @@ export const IconMap = {
   motionDetection: 'motion-sensor' as IconName,
   statusBar: 'chart-bar' as IconName,
   keyboard: 'keyboard-outline' as IconName,
-  
+
   // Security Tab
   lockMode: 'lock' as IconName,
   autoLaunch: 'rocket-launch' as IconName,
@@ -285,7 +285,7 @@ export const IconMap = {
   testMode: 'test-tube' as IconName,
   fastMode: 'flash' as IconName,
   delayMode: 'timer' as IconName,
-  
+
   // Advanced Tab
   updates: 'update' as IconName,
   download: 'download' as IconName,
@@ -295,19 +295,19 @@ export const IconMap = {
   reload: 'refresh' as IconName,
   warning: 'alert' as IconName,
   exit: 'exit-to-app' as IconName,
-  
+
   // Planner
   recurring: 'calendar-repeat' as IconName,
   oneTime: 'calendar-today' as IconName,
   empty: 'calendar' as IconName,
-  
+
   // Actions
   play: 'play' as IconName,
   pause: 'pause' as IconName,
   edit: 'pencil' as IconName,
   delete: 'delete-outline' as IconName,
   add: 'plus-circle-outline' as IconName,
-  
+
   // Status
   enabled: 'checkbox-marked' as IconName,
   disabled: 'checkbox-blank-outline' as IconName,

@@ -80,16 +80,16 @@ const ScheduleEventCard: React.FC<ScheduleEventCardProps> = ({
             </View>
           )}
         </View>
-        
+
         <Text style={[styles.schedule, !event.enabled && styles.textDisabled]}>
           {getScheduleText()}
         </Text>
-        
+
         <Text style={[styles.url, !event.enabled && styles.textDisabled]} numberOfLines={1}>
           {truncateUrl(event.url)}
         </Text>
       </TouchableOpacity>
-      
+
       <View style={styles.actions}>
         <TouchableOpacity
           style={[styles.actionButton, styles.toggleButton]}
@@ -97,14 +97,14 @@ const ScheduleEventCard: React.FC<ScheduleEventCardProps> = ({
         >
           <Icon name={event.enabled ? 'pause' : 'play'} size={18} color={event.enabled ? Colors.warning : Colors.success} />
         </TouchableOpacity>
-        
+
         <TouchableOpacity
           style={[styles.actionButton, styles.editButton]}
           onPress={() => onEdit(event)}
         >
           <Icon name="pencil" size={18} color={Colors.primary} />
         </TouchableOpacity>
-        
+
         <TouchableOpacity
           style={[styles.actionButton, styles.deleteButton]}
           onPress={() => onDelete(event)}

@@ -25,15 +25,15 @@ import { useTranslation } from 'react-i18next';
 
 interface DisplayTabProps {
   displayMode: 'webview' | 'external_app' | 'media_player';
-  
+
   // Brightness management (allow system to manage)
   brightnessManagementEnabled: boolean;
   onBrightnessManagementEnabledChange: (value: boolean) => void;
-  
+
   // Default brightness
   defaultBrightness: number;
   onDefaultBrightnessChange: (value: number) => void;
-  
+
   // Auto-brightness
   autoBrightnessEnabled: boolean;
   onAutoBrightnessEnabledChange: (value: boolean) => void;
@@ -45,7 +45,7 @@ interface DisplayTabProps {
   onAutoBrightnessOffsetChange: (value: number) => void;
   currentLightLevel: number;
   hasLightSensor: boolean;
-  
+
   // Status bar
   statusBarEnabled: boolean;
   onStatusBarEnabledChange: (value: boolean) => void;
@@ -53,7 +53,7 @@ interface DisplayTabProps {
   onStatusBarOnOverlayChange: (value: boolean) => void;
   statusBarOnReturn: boolean;
   onStatusBarOnReturnChange: (value: boolean) => void;
-  
+
   // Status bar items
   showBattery: boolean;
   onShowBatteryChange: (value: boolean) => void;
@@ -67,13 +67,13 @@ interface DisplayTabProps {
   onShowTimeChange: (value: boolean) => void;
   statusBarTheme: 'dark' | 'light';
   onStatusBarThemeChange: (value: string) => void;
-  
+
   // Keyboard mode
   keyboardMode: string;
   onKeyboardModeChange: (value: string) => void;
   screenOrientation: string;
   onScreenOrientationChange: (value: string) => void;
-  
+
   // WebView Zoom Level
   zoomLevel: number;
   onZoomLevelChange: (value: number) => void;
@@ -85,7 +85,7 @@ interface DisplayTabProps {
   onDisableOverscrollChange: (value: boolean) => void;
   pullToRefresh: boolean;
   onPullToRefreshChange: (value: boolean) => void;
-  
+
   // Custom User Agent
   customUserAgent: string;
   onCustomUserAgentChange: (value: string) => void;
@@ -134,7 +134,7 @@ interface DisplayTabProps {
   proximityEnabled: boolean;
   onProximityEnabledChange: (value: boolean) => void;
   availableCameras: Array<{position: 'front' | 'back', id: string}>;
-  
+
   // Screen Sleep Scheduler
   screenSchedulerEnabled: boolean;
   onScreenSchedulerEnabledChange: (value: boolean) => void;
@@ -144,7 +144,7 @@ interface DisplayTabProps {
   onScreenSchedulerWakeOnTouchChange: (value: boolean) => void;
   onAddScheduleRule: () => void;
   onEditScheduleRule: (rule: ScreenScheduleRule) => void;
-  
+
   // Keep Screen On
   keepScreenOn: boolean;
   onKeepScreenOnChange: (value: boolean) => void;
@@ -414,7 +414,7 @@ const DisplayTab: React.FC<DisplayTabProps> = ({
           )}
         </SettingsSection>
       )}
-      
+
       {/* Screen Always On - WebView mode only (external app mode: system manages screen) */}
       {displayMode !== 'external_app' && (
       <SettingsSection title={t('display.screenAlwaysOn.title')} icon="monitor">
@@ -450,7 +450,7 @@ const DisplayTab: React.FC<DisplayTabProps> = ({
         )}
       </SettingsSection>
       )}
-      
+
       {/* Screensaver - available in all display modes (keepScreenOn required for webview/media_player) */}
       {(displayMode === 'external_app' || keepScreenOn) && (
         <SettingsSection title={t('display.screensaver.title')} icon="weather-night">
@@ -766,7 +766,7 @@ const DisplayTab: React.FC<DisplayTabProps> = ({
           )}
         </SettingsSection>
       )}
-      
+
       {/* Screen Sleep Scheduler */}
       <SettingsSection title={t('display.screenSchedule.title')} icon="power-sleep">
         <SettingsSwitch
@@ -868,7 +868,7 @@ const DisplayTab: React.FC<DisplayTabProps> = ({
           </>
         )}
       </SettingsSection>
-      
+
       {/* Status Bar */}
       <SettingsSection title={t('display.statusBar.title')} icon="chart-bar">
         <SettingsSwitch
@@ -980,7 +980,7 @@ const DisplayTab: React.FC<DisplayTabProps> = ({
           </View>
         )}
       </SettingsSection>
-      
+
       {/* Web Page Zoom - Only in WebView mode */}
       {displayMode === 'webview' && (
         <SettingsSection title={t('display.zoom.title')} icon="magnify">

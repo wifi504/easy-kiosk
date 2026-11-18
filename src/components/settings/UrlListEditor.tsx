@@ -43,40 +43,40 @@ const UrlListEditor: React.FC<UrlListEditorProps> = ({
   const validateUrl = (url: string): boolean => {
     const trimmed = url.trim().toLowerCase();
     if (!trimmed) return false;
-    
+
     if (patternMode) {
       // Pattern mode: just needs some content, wildcards are OK
       return trimmed.length >= 2;
     }
-    
+
     // Basic validation - must name a host (a dot is not needed: myserver:1124, #385)
     if (!hasUsableHost(trimmed)) return false;
-    
+
     // Reject dangerous protocols
     if (trimmed.startsWith('file://') || 
         trimmed.startsWith('javascript:') || 
         trimmed.startsWith('data:')) {
       return false;
     }
-    
+
     return true;
   };
 
   const normalizeUrl = (url: string): string => {
     let trimmed = url.trim();
-    
+
     if (patternMode) {
       // Pattern mode: keep as-is (preserve wildcards)
       return trimmed;
     }
-    
+
     const lower = trimmed.toLowerCase();
-    
+
     // Add https:// if no protocol
     if (!lower.startsWith('http://') && !lower.startsWith('https://')) {
       trimmed = 'https://' + trimmed;
     }
-    
+
     return trimmed;
   };
 
@@ -143,7 +143,7 @@ const UrlListEditor: React.FC<UrlListEditorProps> = ({
                   {url.replace(/^https?:\/\//, '')}
                 </Text>
               </View>
-              
+
               <View style={styles.urlActions}>
                 {/* Move buttons */}
                 <TouchableOpacity
@@ -153,7 +153,7 @@ const UrlListEditor: React.FC<UrlListEditorProps> = ({
                 >
                   <Text style={styles.actionButtonText}>▲</Text>
                 </TouchableOpacity>
-                
+
                 <TouchableOpacity
                   style={[styles.actionButton, index === urls.length - 1 && styles.actionButtonDisabled]}
                   onPress={() => handleMoveDown(index)}
@@ -161,7 +161,7 @@ const UrlListEditor: React.FC<UrlListEditorProps> = ({
                 >
                   <Text style={styles.actionButtonText}>▼</Text>
                 </TouchableOpacity>
-                
+
                 {/* Delete button */}
                 <TouchableOpacity
                   style={[styles.actionButton, styles.deleteButton]}
@@ -203,7 +203,7 @@ const UrlListEditor: React.FC<UrlListEditorProps> = ({
             <Text style={styles.addButtonText}>+</Text>
           </TouchableOpacity>
         </View>
-        
+
         <Text style={styles.countText}>
           {maxUrls > 0
             ? t('components.urlListEditor.countWithMax', { count: urls.length, max: maxUrls, unit: patternMode ? t('components.urlListEditor.patterns') : t('components.urlListEditor.urls') })

@@ -37,7 +37,7 @@ jest.mock('react-native-webview', () => {
 });
 
 const { NativeModules } = require('react-native');
-NativeModules.HttpServerModule = {
+NativeModules.DeviceUtilitiesModule = {
   executeNativeCommand: jest.fn(),
   captureScreenshotBase64: jest.fn(),
 };

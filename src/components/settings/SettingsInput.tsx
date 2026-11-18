@@ -62,7 +62,7 @@ const SettingsInput: React.FC<SettingsInputProps> = ({
         {icon && <Icon name={icon} size={18} color={disabled ? Colors.textDisabled : Colors.textSecondary} style={styles.icon} />}
         <Text style={[styles.label, disabled && styles.labelDisabled]}>{label}</Text>
       </View>
-      
+
       <TextInput
         style={[
           styles.input,
@@ -94,7 +94,7 @@ const SettingsInput: React.FC<SettingsInputProps> = ({
         importantForAutofill="no"
         autoComplete="off"
       />
-      
+
       {error && <Text style={styles.error}>{error}</Text>}
       {hint && !error && <Text style={[styles.hint, disabled && styles.hintDisabled]}>{hint}</Text>}
     </View>

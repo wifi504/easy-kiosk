@@ -110,7 +110,7 @@ const RecurringEventEditor: React.FC<RecurringEventEditorProps> = ({
     }
 
     const normalizedUrl = normalizeUrl(url);
-    
+
     const savedEvent: ScheduledEvent = {
       id: event?.id || generateEventId(),
       type: 'recurring',

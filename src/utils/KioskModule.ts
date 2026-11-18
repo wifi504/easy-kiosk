@@ -41,8 +41,6 @@ interface KioskModuleInterface {
   getPendingAdbConfig(): Promise<Record<string, string> | null>;
   clearPendingAdbConfig(): Promise<boolean>;
   // Pending cloud enrollment left by Device Owner provisioning (setup-wizard QR)
-  getPendingCloudEnrollment(): Promise<{ enroll_token: string; cloud_url: string; org_id: string } | null>;
-  clearPendingCloudEnrollment(): Promise<boolean>;
   // Start the keep-alive foreground service when a feature needs the process to survive
   // being backgrounded (MQTT, or an enrolled device). No-op otherwise.
   ensureKeepAliveWatchdog(): Promise<boolean>;
@@ -69,8 +67,6 @@ interface KioskModuleInterface {
   resumeWebView(tag: number): Promise<boolean>;
   // Cloud sync keep-alive: CPU + WiFi lock so the heartbeat/poll loop survives screen-off
   // (otherwise the device drops off the cloud and can't be woken remotely).
-  acquireCloudWakeLock(): Promise<boolean>;
-  releaseCloudWakeLock(): Promise<boolean>;
   // Exempt from Doze/battery optimization (silent on Android 14+ Device Owner, else a
   // one-time system dialog). No-op in Play builds where the permission is stripped.
   requestIgnoreBatteryOptimizations(): Promise<boolean>;

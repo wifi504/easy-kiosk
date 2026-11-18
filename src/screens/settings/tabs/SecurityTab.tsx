@@ -23,11 +23,11 @@ interface SecurityTabProps {
   displayMode: 'webview' | 'external_app' | 'media_player';
   isDeviceOwner: boolean;
   navigation?: any; // Navigation prop for sub-screens
-  
+
   // Lock mode
   kioskEnabled: boolean;
   onKioskEnabledChange: (value: boolean) => void;
-  
+
   // Power button
   allowPowerButton: boolean;
   onAllowPowerButtonChange: (value: boolean) => void;
@@ -43,15 +43,15 @@ interface SecurityTabProps {
   onAllowHardwareScreenshotChange: (value: boolean) => void;
   allowUsbDebugDialog: boolean;
   onAllowUsbDebugDialogChange: (value: boolean) => void;
-  
+
   // Notifications (NFC support)
   allowNotifications: boolean;
   onAllowNotificationsChange: (value: boolean) => void;
-  
+
   // System Info (audio fix for Samsung)
   allowSystemInfo: boolean;
   onAllowSystemInfoChange: (value: boolean) => void;
-  
+
   // Return to Settings
   returnMode: string; // 'tap_anywhere' | 'button'
   onReturnModeChange: (value: string) => void;
@@ -65,7 +65,7 @@ interface SecurityTabProps {
   onOverlayButtonVisibleChange: (value: boolean) => void;
   volumeUp5TapEnabled: boolean;
   onVolumeUp5TapEnabledChange: (value: boolean) => void;
-  
+
   // Auto launch
   autoLaunchEnabled: boolean;
   onAutoLaunchChange: (value: boolean) => void;
@@ -78,7 +78,7 @@ interface SecurityTabProps {
   // Default launcher / persistent Home (#199)
   defaultLauncherEnabled: boolean;
   onDefaultLauncherChange: (value: boolean) => void;
-  
+
   // External app specific
   autoRelaunchApp: boolean;
   onAutoRelaunchAppChange: (value: boolean) => void;
@@ -86,7 +86,7 @@ interface SecurityTabProps {
   onBackButtonModeChange: (value: string) => void;
   backButtonTimerDelay: string;
   onBackButtonTimerDelayChange: (value: string) => void;
-  
+
   // URL Filtering
   urlFilterEnabled: boolean;
   onUrlFilterEnabledChange: (value: boolean) => void;
@@ -328,7 +328,7 @@ const SecurityTab: React.FC<SecurityTabProps> = ({
           </>
         )}
       </SettingsSection>
-      
+
       {/* Auto Launch */}
       <SettingsSection title={t('security.autoLaunch.title')} icon="rocket-launch">
         <SettingsSwitch
@@ -400,7 +400,7 @@ const SecurityTab: React.FC<SecurityTabProps> = ({
           </SettingsInfoBox>
         )}
       </SettingsSection>
-      
+
       {/* Return to Settings: taps and the volume keys. A TV has neither (Back x5, see the info box at the bottom) */}
       {!Platform.isTV && (
       <SettingsSection title={t('security.returnToSettings.title')} icon="gesture-tap">
@@ -507,7 +507,7 @@ const SecurityTab: React.FC<SecurityTabProps> = ({
         </SettingsInfoBox>
       </SettingsSection>
       )}
-      
+
       {/* Touch Blocking Overlays - Works without Device Owner but less secure. Nothing to block on a TV: no touch */}
       {!Platform.isTV && (
       <SettingsSection title={t('security.touchBlocking.title')} icon="gesture-tap-button">
@@ -615,7 +615,7 @@ const SecurityTab: React.FC<SecurityTabProps> = ({
           )}
         </SettingsSection>
       )}
-      
+
       {/* External App Specific Settings */}
       {displayMode === 'external_app' && (
         <>
@@ -676,7 +676,7 @@ const SecurityTab: React.FC<SecurityTabProps> = ({
           </SettingsSection>
         </>
       )}
-      
+
       {/* Lock Screen Controls */}
       <SettingsSection title={t('security.lockScreenControls.title')} icon="lock">
         <SettingsSwitch

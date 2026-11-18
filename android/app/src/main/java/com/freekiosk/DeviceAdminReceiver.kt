@@ -30,61 +30,6 @@ class DeviceAdminReceiver : android.app.admin.DeviceAdminReceiver() {
     companion object {
         private const val TAG = "FKDeviceAdmin"
 
-        // Shared with KioskModule.getPendingCloudEnrollment().
-        const val PREFS = "FreeKioskCloudEnrollment"
-        const val KEY_HAS_PENDING = "has_pending"
-        const val KEY_TOKEN = "enroll_token"
-        const val KEY_CLOUD_URL = "cloud_url"
-        const val KEY_ORG_ID = "org_id"
-
-        /**
-         * Persist { enroll_token, cloud_url, org_id } from a provisioning intent so
-         * the JS layer can auto-enroll on first launch. Returns true if a token was
-         * stored. Shared by both provisioning paths: this receiver's
-         * PROFILE_PROVISIONING_COMPLETE (< API 31) and PolicyComplianceActivity.
-         *
-         * The admin extras are read WITHOUT assuming their concrete type. The
-         * one-arg getParcelableExtra is deprecated and its inferred generic
-         * compiles to an unchecked cast, so a Bundle where we expected a
-         * PersistableBundle throws ClassCastException. Thrown from inside
-         * PolicyComplianceActivity.onCreate that kills the activity before it can
-         * hand RESULT_OK back to the setup wizard, and the whole provisioning fails
-         * with "Couldn't set up device" — a tablet lost to a type mismatch.
-         */
-        fun persistPendingEnrollment(context: Context, intent: Intent): Boolean {
-            @Suppress("DEPRECATION")
-            val raw = intent.extras?.get(
-                DevicePolicyManager.EXTRA_PROVISIONING_ADMIN_EXTRAS_BUNDLE
-            )
-            val read: (String) -> String? = when (raw) {
-                is PersistableBundle -> { key -> raw.getString(key) }
-                is Bundle -> { key -> raw.getString(key) }
-                else -> {
-                    Log.w(
-                        TAG,
-                        "No usable admin extras in the provisioning intent " +
-                            "(got ${raw?.javaClass?.simpleName ?: "null"})."
-                    )
-                    return false
-                }
-            }
-
-            val token = read(KEY_TOKEN)
-            if (token.isNullOrBlank()) {
-                Log.w(TAG, "Admin extras carried no enrollment token; no auto-enrollment.")
-                return false
-            }
-
-            context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
-                .putBoolean(KEY_HAS_PENDING, true)
-                .putString(KEY_TOKEN, token)
-                .putString(KEY_CLOUD_URL, read(KEY_CLOUD_URL) ?: "")
-                .putString(KEY_ORG_ID, read(KEY_ORG_ID) ?: "")
-                .commit()
-            Log.i(TAG, "Pending cloud enrollment stored; the app will enroll on first launch.")
-            return true
-        }
-
         /**
          * Pin FreeKiosk as the persistent Home launcher (Device Owner only).
          * Called during provisioning so the "choose launcher" prompt never shows:
@@ -127,7 +72,6 @@ class DeviceAdminReceiver : android.app.admin.DeviceAdminReceiver() {
 
     override fun onProfileProvisioningComplete(context: Context, intent: Intent) {
         super.onProfileProvisioningComplete(context, intent)
-        persistPendingEnrollment(context, intent)
         // Older Android provisioning path (< API 31). Pin the launcher now so the
         // picker never appears when the device reaches home.
         pinHomeLauncher(context)

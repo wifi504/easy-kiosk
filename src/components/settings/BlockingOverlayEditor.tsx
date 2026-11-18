@@ -175,7 +175,7 @@ const BlockingOverlayEditor: React.FC<BlockingOverlayEditorProps> = ({
                   thumbTintColor={Colors.primary}
                 />
               </View>
-              
+
               <View style={styles.sliderRow}>
                 <Text style={styles.sliderLabel}>{t('components.blockingOverlayEditor.end', { value: xEnd.toFixed(0) })}</Text>
                 <Slider
@@ -210,7 +210,7 @@ const BlockingOverlayEditor: React.FC<BlockingOverlayEditorProps> = ({
                   thumbTintColor={Colors.primary}
                 />
               </View>
-              
+
               <View style={styles.sliderRow}>
                 <Text style={styles.sliderLabel}>{t('components.blockingOverlayEditor.end', { value: yEnd.toFixed(0) })}</Text>
                 <Slider

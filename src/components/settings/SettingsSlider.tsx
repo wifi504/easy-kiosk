@@ -121,9 +121,9 @@ const SettingsSlider: React.FC<SettingsSliderProps> = ({
         {icon && <Icon name={icon} size={18} color={disabled ? Colors.textDisabled : Colors.textSecondary} style={styles.icon} />}
         <Text style={[styles.label, disabled && styles.labelDisabled]}>{label}</Text>
       </View>
-      
+
       {hint && <Text style={[styles.hint, disabled && styles.hintDisabled]}>{hint}</Text>}
-      
+
       {presets && presets.length > 0 && (
         <View style={styles.presetsContainer}>
           {presets.map((preset) => (
@@ -148,7 +148,7 @@ const SettingsSlider: React.FC<SettingsSliderProps> = ({
           ))}
         </View>
       )}
-      
+
       <View style={styles.sliderContainer}>
         <Text style={[styles.value, disabled && styles.valueDisabled]}>{displayValue}</Text>
         <Slider

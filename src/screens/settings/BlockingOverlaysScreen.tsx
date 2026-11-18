@@ -101,7 +101,7 @@ const BlockingOverlaysScreen: React.FC<{ navigation: any }> = ({ navigation }) =
   const handleSaveRegion = async (region: BlockingRegion) => {
     let newRegions: BlockingRegion[];
     const existingIndex = regions.findIndex((r) => r.id === region.id);
-    
+
     if (existingIndex >= 0) {
       // Update existing
       newRegions = [...regions];

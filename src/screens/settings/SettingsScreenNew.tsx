@@ -20,8 +20,6 @@ import {
   BackHandler,
   DeviceEventEmitter,
 } from 'react-native';
-import { CLOUD_ENABLED } from '../../config/features';
-import { CONFIG_UPDATED_EVENT } from '../../utils/CloudSyncService';
 import CookieManager from '@react-native-cookies/cookies';
 import { Camera } from 'react-native-vision-camera';
 import { StorageService } from '../../utils/storage';
@@ -35,7 +33,7 @@ import OverlayPermissionModule from '../../utils/OverlayPermissionModule';
 import LauncherModule from '../../utils/LauncherModule';
 import UpdateModule, { ENABLE_SELF_UPDATE } from '../../utils/UpdateModule';
 import AutoBrightnessModule from '../../utils/AutoBrightnessModule';
-import { httpServer } from '../../utils/HttpServerModule';
+import { deviceUtilities } from '../../utils/DeviceUtilitiesModule';
 import { hasSettingsAccess, revokeSettingsAccess } from '../../utils/authState';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../navigation/AppNavigator';
@@ -49,7 +47,7 @@ import {
   AdvancedTab,
   DashboardTab,
 } from './tabs';
-import { RecurringEventEditor, OneTimeEventEditor, CloudPromoBanner } from '../../components/settings';
+import { RecurringEventEditor, OneTimeEventEditor } from '../../components/settings';
 import ScreenScheduleRuleEditor from '../../components/settings/ScreenScheduleRuleEditor';
 import { ScheduledEvent } from '../../types/planner';
 import { ScreenScheduleRule } from '../../types/screenScheduler';
@@ -88,7 +86,7 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation, route })
     const requested = route?.params?.initialTab;
     return TABS.some((tab) => tab.id === requested) ? (requested as string) : 'general';
   });
-  
+
   // All state from original SettingsScreen
   const [url, setUrl] = useState<string>('');
   const [pin, setPin] = useState<string>('');
@@ -169,21 +167,21 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation, route })
   const [returnTapTimeout, setReturnTapTimeout] = useState<string>('1500');
   const [returnButtonPosition, setReturnButtonPosition] = useState<string>('bottom-right');
   const [volumeUp5TapEnabled, setVolumeUp5TapEnabled] = useState<boolean>(true);
-  
+
   // URL Rotation states
   const [urlRotationEnabled, setUrlRotationEnabled] = useState<boolean>(false);
   const [urlRotationList, setUrlRotationList] = useState<string[]>([]);
   const [urlRotationInterval, setUrlRotationInterval] = useState<string>('30');
   const [urlRotationPauseOnTouch, setUrlRotationPauseOnTouch] = useState<boolean>(false);
   const [urlRotationResumeDelay, setUrlRotationResumeDelay] = useState<string>('60');
-  
+
   // URL Planner states
   const [urlPlannerEnabled, setUrlPlannerEnabled] = useState<boolean>(false);
   const [urlPlannerEvents, setUrlPlannerEvents] = useState<any[]>([]);
   const [showRecurringEditor, setShowRecurringEditor] = useState<boolean>(false);
   const [showOneTimeEditor, setShowOneTimeEditor] = useState<boolean>(false);
   const [editingEvent, setEditingEvent] = useState<any | null>(null);
-  
+
   // WebView Back Button states
   const [webViewBackButtonEnabled, setWebViewBackButtonEnabled] = useState<boolean>(false);
   const [webViewBackButtonXPercent, setWebViewBackButtonXPercent] = useState<string>('2');
@@ -198,10 +196,10 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation, route })
   const [autoBrightnessOffset, setAutoBrightnessOffset] = useState<number>(0.0);
   const [currentLightLevel, setCurrentLightLevel] = useState<number>(0);
   const [hasLightSensor, setHasLightSensor] = useState<boolean>(true);
-  
+
   // Brightness Management (allow system to manage)
   const [brightnessManagementEnabled, setBrightnessManagementEnabled] = useState<boolean>(true);
-  
+
   // Screen Sleep Scheduler states
   const [screenSchedulerEnabled, setScreenSchedulerEnabled] = useState<boolean>(false);
   const [screenSchedulerRules, setScreenSchedulerRules] = useState<ScreenScheduleRule[]>([]);
@@ -210,14 +208,14 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation, route })
   const [autoWakeOnScreenOff, setAutoWakeOnScreenOff] = useState<boolean>(false);
   const [showScheduleRuleEditor, setShowScheduleRuleEditor] = useState<boolean>(false);
   const [editingScheduleRule, setEditingScheduleRule] = useState<ScreenScheduleRule | null>(null);
-  
+
   // Inactivity Return to Home states
   const [inactivityReturnEnabled, setInactivityReturnEnabled] = useState<boolean>(false);
   const [inactivityReturnDelay, setInactivityReturnDelay] = useState<string>('60');
   const [inactivityReturnResetOnNav, setInactivityReturnResetOnNav] = useState<boolean>(true);
   const [inactivityReturnClearCache, setInactivityReturnClearCache] = useState<boolean>(false);
   const [inactivityReturnScrollTop, setInactivityReturnScrollTop] = useState<boolean>(true);
-  
+
   // URL Filtering states
   const [urlFilterEnabled, setUrlFilterEnabled] = useState<boolean>(false);
   const [urlFilterMode, setUrlFilterMode] = useState<string>('blacklist');
@@ -237,7 +235,7 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation, route })
 
   // PDF Viewer state
   const [pdfViewerEnabled, setPdfViewerEnabled] = useState<boolean>(false);
-  
+
   // Printing state
   const [windowPrintEnabled, setWindowPrintEnabled] = useState<boolean>(false);
   const [printPaperSize, setPrintPaperSize] = useState<string>('A4');
@@ -247,7 +245,7 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation, route })
   const [escPosCut, setEscPosCut] = useState<boolean>(false);
   const [escPosFeedLines, setEscPosFeedLines] = useState<number>(0);
   const [printOrigins, setPrintOrigins] = useState<string[] | null>(null);
-  
+
   // WebView Zoom Level
   const [zoomLevel, setZoomLevel] = useState<number>(100);
   const [zoomMode, setZoomMode] = useState<string>('standard');
@@ -263,7 +261,7 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation, route })
   const [intercomModeEnabled, setIntercomModeEnabled] = useState<boolean>(false);
   const [basicAuthUsername, setBasicAuthUsername] = useState<string>('');
   const [basicAuthPassword, setBasicAuthPassword] = useState<string>('');
-  
+
   // Media Player states
   const [mediaPlayerItems, setMediaPlayerItems] = useState<MediaItem[]>([]);
   // Every copied local file the playlist held during this visit. Those no longer in the
@@ -303,12 +301,11 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation, route })
   const [currentVersion, setCurrentVersion] = useState<string>('');
   const [betaUpdatesEnabled, setBetaUpdatesEnabled] = useState<boolean>(false);
 
-  // Camera2 fallback — uses Camera2 API directly via HttpServerModule to enumerate cameras.
   // This is needed for devices where CameraX/ProcessCameraProvider fails entirely
   // (e.g. MediaTek LEGACY front-only cameras where CameraValidator rejects the device).
   const fetchCamera2Fallback = useCallback(async () => {
     try {
-      const camera2Devices = await httpServer.getCamera2Devices();
+      const camera2Devices = await deviceUtilities.getCamera2Devices();
       if (camera2Devices && camera2Devices.length > 0) {
         const cameras = camera2Devices
           .filter((d: any) => d.position === 'front' || d.position === 'back')
@@ -367,21 +364,7 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation, route })
   // Reloading in their back would throw away whatever they are typing, since this screen
   // does not track unsaved edits, so ask. Keeping the edits and saving them later is a
   // local edit like any other, and the regular sync takes it from there.
-  useEffect(() => {
-    if (!CLOUD_ENABLED) return;
-    const sub = DeviceEventEmitter.addListener(CONFIG_UPDATED_EVENT, () => {
-      Alert.alert(
-        t('screens.settingsMain.configUpdatedTitle'),
-        t('screens.settingsMain.configUpdatedMessage'),
-        [
-          { text: t('screens.settingsMain.keepMyEdits'), style: 'cancel' },
-          { text: t('screens.settingsMain.reloadConfig'), onPress: () => { loadSettings(); } },
-        ],
-      );
-    });
-    return () => sub.remove();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+
 
   // Block Android back gesture/button on Settings screen to prevent PIN bypass (#93)
   useEffect(() => {
@@ -444,12 +427,12 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation, route })
   }, [fetchCamera2Fallback]);
 
   // ============ LOAD FUNCTIONS ============
-  
+
   const checkLightSensor = async () => {
     try {
       const sensorAvailable = await AutoBrightnessModule.hasLightSensor();
       setHasLightSensor(sensorAvailable);
-      
+
       // Get current light level for display
       if (sensorAvailable) {
         const lightInfo = await AutoBrightnessModule.getCurrentLightLevel();
@@ -460,7 +443,7 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation, route })
       setHasLightSensor(false);
     }
   };
-  
+
   const loadCurrentVersion = async () => {
     try {
       const versionInfo = await UpdateModule.getCurrentVersion();
@@ -550,7 +533,7 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation, route })
     const savedScreensaverKeepExternalApp = await StorageService.getScreensaverKeepExternalApp();
     const savedScreensaverFadeSeconds = await StorageService.getScreensaverFadeSeconds();
     const hasPinConfigured = await hasSecurePin();
-    
+
     setIsPinConfigured(hasPinConfigured);
     if (savedUrl) setUrl(savedUrl);
     if (hasPinConfigured) setPin('');
@@ -631,12 +614,12 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation, route })
     const savedReturnTapTimeout = await StorageService.getReturnTapTimeout();
     const savedReturnButtonPosition = await StorageService.getReturnButtonPosition();
     const savedVolumeUp5TapEnabled = await StorageService.getVolumeUp5TapEnabled();
-    
+
     // URL Rotation settings
     const savedUrlRotationEnabled = await StorageService.getUrlRotationEnabled();
     const savedUrlRotationList = await StorageService.getUrlRotationList();
     const savedUrlRotationInterval = await StorageService.getUrlRotationInterval();
-    
+
     // URL Planner settings
     const savedUrlPlannerEnabled = await StorageService.getUrlPlannerEnabled();
     const savedUrlPlannerEvents = await StorageService.getUrlPlannerEvents();
@@ -672,7 +655,7 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation, route })
     // Managed apps
     const savedManagedApps = await StorageService.getManagedApps();
     setManagedApps(savedManagedApps);
-    
+
     // External app sub-mode
     const savedExternalAppMode = await StorageService.getExternalAppMode();
     setExternalAppMode(savedExternalAppMode);
@@ -1236,32 +1219,32 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation, route })
     // Split version and pre-release: "1.2.15-beta.1" → ["1.2.15", "beta.1"]
     const [core1, pre1] = v1.split('-', 2);
     const [core2, pre2] = v2.split('-', 2);
-    
+
     const parts1 = core1.split('.').map(Number);
     const parts2 = core2.split('.').map(Number);
-    
+
     // Compare numeric core first
     for (let i = 0; i < Math.max(parts1.length, parts2.length); i++) {
       const num1 = parts1[i] || 0;
       const num2 = parts2[i] || 0;
-      
+
       if (num1 > num2) return 1;
       if (num1 < num2) return -1;
     }
-    
+
     // Same core version — compare pre-release
     // No pre-release (stable) > any pre-release (beta)
     if (!pre1 && pre2) return 1;   // v1 is stable, v2 is beta → v1 wins
     if (pre1 && !pre2) return -1;  // v1 is beta, v2 is stable → v2 wins
     if (!pre1 && !pre2) return 0;  // both stable, same version
-    
+
     // Both have pre-release: compare beta numbers ("beta.1" vs "beta.2")
     const betaNum1 = parseInt(pre1!.replace(/[^0-9]/g, '') || '0', 10);
     const betaNum2 = parseInt(pre2!.replace(/[^0-9]/g, '') || '0', 10);
-    
+
     if (betaNum1 > betaNum2) return 1;
     if (betaNum1 < betaNum2) return -1;
-    
+
     return 0;
   };
 
@@ -1270,18 +1253,18 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation, route })
     setCheckingUpdate(true);
     setUpdateAvailable(false);
     setUpdateInfo(null);
-    
+
     try {
       const currentVersionInfo = await UpdateModule.getCurrentVersion();
       const latestUpdate = await UpdateModule.checkForUpdatesWithChannel(betaUpdatesEnabled);
       const currentVer = currentVersionInfo.versionName;
       const latestVer = latestUpdate.version;
-      
+
       console.log(`Version comparison: current=${currentVer}, latest=${latestVer}, beta=${betaUpdatesEnabled}`);
-      
+
       // Use semantic version comparison instead of simple string equality
       const versionComparison = compareVersions(latestVer, currentVer);
-      
+
       if (versionComparison > 0) {
         // Latest version is newer than current
         setUpdateAvailable(true);
@@ -1346,7 +1329,7 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation, route })
   const handleDownloadUpdate = async (update?: any) => {
     if (!ENABLE_SELF_UPDATE) return;
     const updateData = update || updateInfo;
-    
+
     if (!updateData || !updateData.downloadUrl) {
       Alert.alert(t('screens.settingsMain.error'), t('screens.settingsMain.downloadUrlUnavailable'));
       return;
@@ -1382,10 +1365,10 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation, route })
       // If check fails, continue with download anyway
       console.warn('Install permission check failed:', error);
     }
-    
+
     setDownloadProgress(null);
     setDownloading(true);
-    
+
     try {
       await UpdateModule.downloadAndInstall(updateData.downloadUrl, updateData.version);
       setDownloading(false);
@@ -1651,7 +1634,7 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation, route })
       } catch (error) {
         console.warn('[Settings] Could not persist brightness natively:', error);
       }
-      
+
       // Auto-brightness settings
       await StorageService.saveAutoBrightnessEnabled(autoBrightnessEnabled);
       await StorageService.saveAutoBrightnessMin(autoBrightnessMin);
@@ -1734,7 +1717,7 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation, route })
     await StorageService.saveReturnTapTimeout(isNaN(tapTimeout) ? 1500 : Math.max(500, Math.min(5000, tapTimeout)));
     await StorageService.saveReturnButtonPosition(returnButtonPosition);
     await StorageService.saveVolumeUp5TapEnabled(volumeUp5TapEnabled);
-    
+
     // Save Dashboard settings
     await StorageService.saveDashboardModeEnabled(dashboardModeEnabled);
 
@@ -1747,11 +1730,11 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation, route })
       await StorageService.saveUrlRotationPauseOnTouch(urlRotationPauseOnTouch);
       const resumeDelay = parseInt(urlRotationResumeDelay, 10);
       await StorageService.saveUrlRotationResumeDelay(isNaN(resumeDelay) ? 60 : Math.max(5, resumeDelay));
-      
+
       // Save URL Planner settings
       await StorageService.saveUrlPlannerEnabled(urlPlannerEnabled);
       await StorageService.saveUrlPlannerEvents(urlPlannerEvents);
-      
+
       // Save WebView Back Button settings
       await StorageService.saveWebViewBackButtonEnabled(webViewBackButtonEnabled);
       const xPercent = parseFloat(webViewBackButtonXPercent);
@@ -1843,7 +1826,7 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation, route })
         await OverlayServiceModule.setTestMode(backButtonMode === 'test');
         await OverlayServiceModule.setStatusBarEnabled(statusBarEnabled && statusBarOnOverlay);
         await OverlayServiceModule.setStatusBarItems(showBattery, showWifi, showBluetooth, showVolume, showTime);
-        
+
         // Restart OverlayService with new settings
         const finalTapCount = isNaN(tapCount) ? 5 : Math.max(2, Math.min(20, tapCount));
         const finalTapTimeout = isNaN(tapTimeout) ? 1500 : Math.max(500, Math.min(5000, tapTimeout));
@@ -1919,7 +1902,7 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation, route })
               try {
                 await AutoBrightnessModule.stopAutoBrightness();
               } catch {}
-              
+
               await StorageService.clearAll();
               await CertificateModuleTyped.clearAcceptedCertificates();
               await clearSecurePin();
@@ -1959,14 +1942,14 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation, route })
               setReturnTapCount('5');
               setReturnTapTimeout('1500');
               setReturnButtonPosition('bottom-right');
-              
+
               // Reset auto-brightness state
               setAutoBrightnessEnabled(false);
               setAutoBrightnessMin(0.1);
               setAutoBrightnessMax(1.0);
               setAutoBrightnessOffset(0.0);
               setBrightnessManagementEnabled(true);
-              
+
               // Reset screen scheduler state
               setScreenSchedulerEnabled(false);
               setScreenSchedulerRules([]);
@@ -2059,7 +2042,7 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation, route })
 
               setIsDeviceOwner(false);
               // Reset all state...
-              
+
               Alert.alert(
                 t('screens.settingsMain.success'),
                 t('screens.settingsMain.deviceOwnerRemovedMessage'),
@@ -2268,7 +2251,7 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation, route })
             onBackToKiosk={() => { revokeSettingsAccess(); navigation.reset({ index: 0, routes: [{ name: 'Kiosk' }] }); }}
           />
         );
-      
+
       case 'dashboard':
         return (
           <DashboardTab
@@ -2395,7 +2378,7 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation, route })
             }}
           />
         );
-      
+
       case 'security':
         return (
           <SecurityTab
@@ -2470,7 +2453,7 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation, route })
             lockscreenRotationLockAvailable={lockscreenRotationLockAvailable}
           />
         );
-      
+
       case 'advanced':
         return (
           <AdvancedTab
@@ -2498,7 +2481,7 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation, route })
             onRestoreComplete={loadSettings}
           />
         );
-      
+
       default:
         return null;
     }
@@ -2531,7 +2514,7 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation, route })
       {/* Header */}
       <View style={settingsStyles.header}>
         <Text style={settingsStyles.headerTitle}>{t('screens.settingsMain.title')}</Text>
-        
+
         {/* Device Owner Badge */}
         <View style={[
           settingsStyles.deviceOwnerBadge,
@@ -2551,7 +2534,7 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation, route })
             {isDeviceOwner ? t('screens.settingsMain.deviceOwnerActive') : t('screens.settingsMain.deviceOwnerInactive')}
           </Text>
         </View>
-        
+
         {/* Tab Bar */}
         <View style={settingsStyles.tabBar}>
           {TABS.map((tab) => (
@@ -2579,7 +2562,6 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation, route })
       </View>
 
       {/* Cloud banner: hidden once the tablet is enrolled or the banner is closed */}
-      <CloudPromoBanner onConnect={() => setActiveTab('advanced')} refreshKey={activeTab} />
 
       {/* Tab Content */}
       <ScrollView 
@@ -2588,7 +2570,7 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation, route })
         keyboardShouldPersistTaps="handled"
       >
         {renderTab()}
-        
+
         {/* Save Button - Always visible */}
         {activeTab !== 'advanced' && (
           <TouchableOpacity style={[styles.saveButton, styles.saveButtonRow]} onPress={handleSave}>

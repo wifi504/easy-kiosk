@@ -6,7 +6,7 @@ import {
 } from '../src/types/multiAppAppearance';
 
 const { NativeModules } = require('react-native');
-NativeModules.HttpServerModule = {
+NativeModules.DeviceUtilitiesModule = {
   executeNativeCommand: jest.fn(),
   captureScreenshotBase64: jest.fn(),
 };

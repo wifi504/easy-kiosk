@@ -7,11 +7,8 @@ const { KioskModule } = NativeModules;
 
 // Constants
 const PIN_SERVICE = 'freekiosk_pin';
-const API_KEY_SERVICE = 'freekiosk_api_key';
-const MQTT_PASSWORD_SERVICE = 'freekiosk_mqtt_password';
 const WIFI_PASSWORD_SERVICE_PREFIX = 'freekiosk_wifi_password:';
 const BASIC_AUTH_PASSWORD_SERVICE = 'freekiosk_basic_auth_password';
-const CLOUD_CREDENTIALS_SERVICE = 'freekiosk_cloud';
 const LEGACY_API_KEY = '@kiosk_rest_api_key'; // Legacy AsyncStorage key for migration
 const ATTEMPTS_KEY = '@kiosk_pin_attempts';
 const LOCKOUT_KEY = '@kiosk_pin_lockout';
@@ -703,34 +700,7 @@ async function clearLegacyPlaintextPin(): Promise<void> {
  * Save REST API key securely in Keychain
  * Migrates from AsyncStorage if exists (backward compatibility)
  */
-export async function saveSecureApiKey(apiKey: string): Promise<boolean> {
-  try {
-    if (!apiKey || apiKey.trim() === '') {
-      // Empty key - remove from both storages
-      await clearSecureApiKey();
-      return true;
-    }
 
-    // Store in Keychain
-    await Keychain.setGenericPassword(
-      'api_key',
-      apiKey,
-      {
-        service: API_KEY_SERVICE,
-        accessible: Keychain.ACCESSIBLE.WHEN_UNLOCKED,
-      }
-    );
-
-    // Clear legacy storage if exists (migration cleanup)
-    await clearLegacyApiKey();
-
-    console.log('[SecureStorage] API key saved to Keychain');
-    return true;
-  } catch (error) {
-    console.error('[SecureStorage] Error saving API key:', error);
-    return false;
-  }
-}
 
 /**
  * Get REST API key from secure storage
@@ -747,67 +717,20 @@ export async function saveSecureApiKey(apiKey: string): Promise<boolean> {
  * deliberately set a key. Nothing said so. Telling the two apart lets the caller fail
  * closed on a read failure while leaving a deliberately keyless setup alone.
  */
-export type SecureRead = { value: string; readFailed: boolean };
 
-export async function readSecureApiKey(): Promise<SecureRead> {
-  try {
-    // First, try to get from Keychain
-    const credentials = await Keychain.getGenericPassword({ service: API_KEY_SERVICE });
 
-    if (credentials && credentials.password) {
-      return { value: credentials.password, readFailed: false };
-    }
 
-    // If not in Keychain, check legacy AsyncStorage (migration)
-    const legacyKey = await checkLegacyApiKey();
-    if (legacyKey) {
-      console.log('[SecureStorage] Migrating API key from AsyncStorage to Keychain');
-      // Migrate to Keychain
-      await saveSecureApiKey(legacyKey);
-      // Return the migrated key
-      return { value: legacyKey, readFailed: false };
-    }
 
-    // No key found anywhere
-    return { value: '', readFailed: false };
-  } catch (error) {
-    console.error('[SecureStorage] Error getting API key:', error);
-    return { value: '', readFailed: true };
-  }
-}
-
-export async function getSecureApiKey(): Promise<string> {
-  return (await readSecureApiKey()).value;
-}
 
 /**
  * Clear REST API key from secure storage
  */
-export async function clearSecureApiKey(): Promise<void> {
-  try {
-    await Keychain.resetGenericPassword({ service: API_KEY_SERVICE });
-    await clearLegacyApiKey();
-    console.log('[SecureStorage] API key cleared');
-  } catch (error) {
-    console.error('[SecureStorage] Error clearing API key:', error);
-  }
-}
+
 
 /**
  * Check for legacy API key in AsyncStorage
  */
-async function checkLegacyApiKey(): Promise<string | null> {
-  try {
-    const legacyKey = await AsyncStorage.getItem(LEGACY_API_KEY);
-    if (legacyKey && legacyKey !== '') {
-      return legacyKey;
-    }
-    return null;
-  } catch (error) {
-    console.error('[SecureStorage] Error checking legacy API key:', error);
-    return null;
-  }
-}
+
 
 /**
  * Clear legacy API key from AsyncStorage
@@ -827,59 +750,17 @@ async function clearLegacyApiKey(): Promise<void> {
 /**
  * Save MQTT password securely in Keychain
  */
-export async function saveSecureMqttPassword(password: string): Promise<boolean> {
-  try {
-    if (!password || password.trim() === '') {
-      await clearSecureMqttPassword();
-      return true;
-    }
 
-    await Keychain.setGenericPassword(
-      'mqtt_password',
-      password,
-      {
-        service: MQTT_PASSWORD_SERVICE,
-        accessible: Keychain.ACCESSIBLE.WHEN_UNLOCKED,
-      }
-    );
-
-    console.log('[SecureStorage] MQTT password saved to Keychain');
-    return true;
-  } catch (error) {
-    console.error('[SecureStorage] Error saving MQTT password:', error);
-    return false;
-  }
-}
 
 /**
  * Get MQTT password from secure storage
  */
-export async function getSecureMqttPassword(): Promise<string> {
-  try {
-    const credentials = await Keychain.getGenericPassword({ service: MQTT_PASSWORD_SERVICE });
 
-    if (credentials && credentials.password) {
-      return credentials.password;
-    }
-
-    return '';
-  } catch (error) {
-    console.error('[SecureStorage] Error getting MQTT password:', error);
-    return '';
-  }
-}
 
 /**
  * Clear MQTT password from secure storage
  */
-export async function clearSecureMqttPassword(): Promise<void> {
-  try {
-    await Keychain.resetGenericPassword({ service: MQTT_PASSWORD_SERVICE });
-    console.log('[SecureStorage] MQTT password cleared');
-  } catch (error) {
-    console.error('[SecureStorage] Error clearing MQTT password:', error);
-  }
-}
+
 
 // ============================================
 // HTTP Basic Auth Password
@@ -924,12 +805,7 @@ export async function clearSecureBasicAuthPassword(): Promise<void> {
 // CLOUD CREDENTIALS
 // ============================================
 
-export interface CloudCredentials {
-  deviceId: string;
-  apiKey: string;
-  cloudUrl: string;
-  organizationName: string;
-}
+
 
 /**
  * True only when the Keystore took the credentials and gives the same value back (#321).
@@ -938,42 +814,11 @@ export interface CloudCredentials {
  * are never written anywhere else: a device API key in app storage is a bearer token
  * anyone with a backup or root can replay (the same rule as the MQTT password, #258).
  */
-export async function saveCloudCredentials(creds: CloudCredentials): Promise<boolean> {
-  const value = JSON.stringify(creds);
-  try {
-    await Keychain.setGenericPassword(
-      'cloud',
-      value,
-      { service: CLOUD_CREDENTIALS_SERVICE, accessible: Keychain.ACCESSIBLE.WHEN_UNLOCKED },
-    );
-    const stored = await Keychain.getGenericPassword({ service: CLOUD_CREDENTIALS_SERVICE });
-    if (stored && stored.password === value) return true;
-    console.error('[SecureStorage] Cloud credentials did not read back from the Keystore');
-    return false;
-  } catch (error) {
-    console.error('[SecureStorage] Error saving cloud credentials:', error);
-    return false;
-  }
-}
 
-export async function getCloudCredentials(): Promise<CloudCredentials | null> {
-  try {
-    const creds = await Keychain.getGenericPassword({ service: CLOUD_CREDENTIALS_SERVICE });
-    if (!creds) return null;
-    return JSON.parse(creds.password) as CloudCredentials;
-  } catch (error) {
-    console.error('[SecureStorage] Error getting cloud credentials:', error);
-    return null;
-  }
-}
 
-export async function clearCloudCredentials(): Promise<void> {
-  try {
-    await Keychain.resetGenericPassword({ service: CLOUD_CREDENTIALS_SERVICE });
-  } catch (error) {
-    console.error('[SecureStorage] Error clearing cloud credentials:', error);
-  }
-}
+
+
+
 
 // ============================================
 // SENSITIVE CONFIG EXPORT / IMPORT
@@ -981,21 +826,15 @@ export async function clearCloudCredentials(): Promise<void> {
 
 export interface SensitiveConfig {
   pin?: string | null;
-  mqttPassword?: string;
-  restApiKey?: string;
   httpBasicAuthPassword?: string;
 }
 
 export async function exportSensitiveConfig(): Promise<SensitiveConfig> {
-  const [mqttPassword, restApiKey, httpBasicAuthPassword] = await Promise.all([
-    getSecureMqttPassword(),
-    getSecureApiKey(),
+  const [httpBasicAuthPassword] = await Promise.all([
     getSecureBasicAuthPassword(),
   ]);
   return {
     pin: null, // Never exported — PIN is one-way (cloud → device only)
-    mqttPassword,
-    restApiKey,
     httpBasicAuthPassword,
   };
 }
@@ -1006,12 +845,8 @@ export async function importSensitiveConfig(sensitive: SensitiveConfig): Promise
   if (sensitive.pin && sensitive.pin.length > 0) {
     tasks.push(saveSecurePin(sensitive.pin));
   }
-  if (sensitive.mqttPassword !== undefined) {
-    tasks.push(saveSecureMqttPassword(sensitive.mqttPassword));
-  }
-  if (sensitive.restApiKey !== undefined) {
-    tasks.push(saveSecureApiKey(sensitive.restApiKey));
-  }
+
+
   if (sensitive.httpBasicAuthPassword !== undefined) {
     tasks.push(saveSecureBasicAuthPassword(sensitive.httpBasicAuthPassword));
   }

@@ -2,7 +2,7 @@
 
 ## 当前证据
 
-基线：上游 `release/2.1.0-beta.3`，本项目 `main`；不要重新添加 upstream remote 或复制上游其他分支。
+基线：上游 `release/2.1.0-beta.3`，本项目稳定分支为 `main`，开发验证使用 `dev`；不要重新添加 upstream remote 或复制上游其他分支。
 
 | 源码位置 | 现状与后续关注点 |
 | --- | --- |

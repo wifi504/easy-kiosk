@@ -103,7 +103,7 @@ const StatusBar: React.FC<StatusBarProps> = ({
 
     // Initial update
     updateStatusBar();
-    
+
     // Set up interval to update every 5 seconds
     const interval = setInterval(updateStatusBar, 5000);
 

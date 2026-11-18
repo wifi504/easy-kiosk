@@ -6,8 +6,6 @@ import com.facebook.react.ReactApplication
 import com.facebook.react.ReactHost
 import com.facebook.react.ReactNativeApplicationEntryPoint.loadReactNative
 import com.facebook.react.defaults.DefaultReactHost.getDefaultReactHost
-import com.freekiosk.api.HttpServerPackage
-import com.freekiosk.mqtt.MqttPackage
 import com.freekiosk.printing.SilentPrintPackage
 
 class MainApplication : Application(), ReactApplication {
@@ -27,10 +25,11 @@ class MainApplication : Application(), ReactApplication {
           add(OverlayServicePackage())
           add(SystemInfoPackage())
           add(UpdatePackage())
-          add(ManagedAppInstallerPackage())
           add(SoundPlayerPackage())
-          add(HttpServerPackage())
-          add(MqttPackage())
+          add(object : com.facebook.react.ReactPackage {
+            override fun createNativeModules(context: com.facebook.react.bridge.ReactApplicationContext): List<com.facebook.react.bridge.NativeModule> = listOf(DeviceUtilitiesModule(context))
+            override fun createViewManagers(context: com.facebook.react.bridge.ReactApplicationContext): List<com.facebook.react.uimanager.ViewManager<*, *>> = emptyList()
+          })
           add(BlockingOverlayPackage())
           add(AutoBrightnessPackage())
           add(PrintPackage())

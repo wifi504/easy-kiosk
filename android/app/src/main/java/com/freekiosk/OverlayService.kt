@@ -175,11 +175,7 @@ class OverlayService : Service() {
     private val CHANNEL_ID = "FreeKioskOverlay"
     private val NOTIFICATION_ID = 1001
     private val STATUS_UPDATE_INTERVAL = 15000L // Update every 15 seconds (was 5s, reduced for low-end device performance)
-    
-    // MQTT watchdog - periodic check to reconnect if MQTT dropped
-    private val mqttWatchdogHandler = Handler(Looper.getMainLooper())
-    private val MQTT_WATCHDOG_INTERVAL = 60000L // Check every 60 seconds
-    private var mqttWatchdogRunnable: Runnable? = null
+
 
     // Auto-relaunch monitoring
     private var lockedPackage: String? = null // Package name of the locked app to monitor
@@ -205,12 +201,6 @@ class OverlayService : Service() {
                     // Recréer l'overlay si nécessaire
                     if (overlayView == null) {
                         createOverlay()
-                    }
-                    // MQTT watchdog: check connection on screen wake
-                    try {
-                        com.freekiosk.mqtt.MqttModule.checkAndReconnect()
-                    } catch (e: Exception) {
-                        DebugLog.d("OverlayService", "MQTT watchdog check failed: ${e.message}")
                     }
                 }
                 Intent.ACTION_SCREEN_OFF -> {
@@ -274,8 +264,6 @@ class OverlayService : Service() {
         }
         registerReceiver(batteryReceiver, batteryFilter)
 
-        // Start MQTT watchdog — periodically checks MQTT health
-        startMqttWatchdog()
         
         // Créer l'overlay seulement si la permission est accordée
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M || Settings.canDrawOverlays(this)) {
@@ -1584,8 +1572,6 @@ class OverlayService : Service() {
             // #266: never leave a dimming window behind once the service is gone
             removeDimOverlay()
 
-            // Stop MQTT watchdog
-            stopMqttWatchdog()
 
             // Arrêter les mises à jour de la status bar
             stopStatusUpdates()
@@ -1629,27 +1615,9 @@ class OverlayService : Service() {
      * Runs every 60s inside the foreground service — survives Doze mode.
      * If MQTT was started but is disconnected, triggers a reconnect.
      */
-    private fun startMqttWatchdog() {
-        stopMqttWatchdog()
-        val runnable = object : Runnable {
-            override fun run() {
-                try {
-                    com.freekiosk.mqtt.MqttModule.checkAndReconnect()
-                } catch (e: Exception) {
-                    // MQTT not active or not configured, ignore
-                }
-                mqttWatchdogHandler.postDelayed(this, MQTT_WATCHDOG_INTERVAL)
-            }
-        }
-        mqttWatchdogRunnable = runnable
-        mqttWatchdogHandler.postDelayed(runnable, MQTT_WATCHDOG_INTERVAL)
-        DebugLog.d("OverlayService", "MQTT watchdog started (interval=${MQTT_WATCHDOG_INTERVAL}ms)")
-    }
 
-    private fun stopMqttWatchdog() {
-        mqttWatchdogRunnable?.let { mqttWatchdogHandler.removeCallbacks(it) }
-        mqttWatchdogRunnable = null
-    }
+
+
 
     private fun destroyOverlay() {
         try {

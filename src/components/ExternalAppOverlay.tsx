@@ -82,7 +82,7 @@ const ExternalAppOverlay: React.FC<ExternalAppOverlayProps> = ({
 
   const [appLabels, setAppLabels] = useState<Record<string, string>>({});
   const [appIcons, setAppIcons] = useState<Record<string, string>>({});
-  
+
   // Return to settings — same mechanism as WebView (tap_anywhere / button)
   const gridTapCountRef = useRef<number>(0);
   const gridTapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -156,11 +156,11 @@ const ExternalAppOverlay: React.FC<ExternalAppOverlayProps> = ({
       default: return { bottom: 20, right: 20 };
     }
   }, [returnButtonPosition]);
-  
+
   // Only show multi-app grid when explicitly in multi mode
   const homeScreenApps = externalAppMode === 'multi' ? managedApps.filter(app => app.showOnHomeScreen) : [];
   const isMultiAppMode = externalAppMode === 'multi' && homeScreenApps.length > 0;
-  
+
   // Resolve app labels and icons for display
   useEffect(() => {
     const resolveLabelsAndIcons = async () => {
@@ -168,7 +168,7 @@ const ExternalAppOverlay: React.FC<ExternalAppOverlayProps> = ({
       const icons: Record<string, string> = {};
       const appsToResolve = isMultiAppMode ? homeScreenApps : 
         (externalAppPackage ? [{ packageName: externalAppPackage, displayName: '' }] : []);
-      
+
       await Promise.all(appsToResolve.map(async (app) => {
         try {
           const label = await AppLauncherModule.getPackageLabel(app.packageName);
@@ -199,7 +199,7 @@ const ExternalAppOverlay: React.FC<ExternalAppOverlayProps> = ({
     const label = appLabels[item.packageName] || item.displayName || item.packageName.split('.').pop() || '?';
     const initials = label.substring(0, 2).toUpperCase();
     const iconUri = appIcons[item.packageName];
-    
+
     return (
       <TouchableOpacity
         style={[styles.appIconContainer, { width: appTileWidth }]}
@@ -252,7 +252,7 @@ const ExternalAppOverlay: React.FC<ExternalAppOverlayProps> = ({
           contentContainerStyle={styles.appGrid}
           columnWrapperStyle={styles.appGridRow}
         />
-        
+
         {/* Test mode warning */}
         {backButtonMode === 'test' && (
           <View style={styles.testModeBar}>

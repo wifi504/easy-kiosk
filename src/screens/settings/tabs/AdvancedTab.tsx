@@ -12,18 +12,9 @@ import {
   SettingsInput,
   BackupRestoreSection,
 } from '../../../components/settings';
-import { ApiSettingsSection } from '../../../components/ApiSettingsSection';
-import { MqttSettingsSection } from '../../../components/MqttSettingsSection';
 import { CertificateInfo } from '../../../utils/CertificateModule';
 import AccessibilityModule from '../../../utils/AccessibilityModule';
-import { CloudSyncService } from '../../../utils/CloudSyncService';
-import { CLOUD_ENABLED } from '../../../config/features';
-import QrScannerModal from '../../../components/QrScannerModal';
-import PermissionWizard from '../../../components/PermissionWizard';
 import Icon from '../../../components/Icon';
-import { useNavigation } from '@react-navigation/native';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import type { RootStackParamList } from '../../../navigation/AppNavigator';
 import { Colors, Spacing, Typography } from '../../../theme';
 import { useTranslation } from 'react-i18next';
 
@@ -32,10 +23,10 @@ const { KioskModule } = NativeModules;
 interface AdvancedTabProps {
   displayMode: 'webview' | 'external_app' | 'media_player';
   isDeviceOwner: boolean;
-  
+
   // Play Store compliance: when false, the entire Updates section is hidden
   enableSelfUpdate: boolean;
-  
+
   // Version & updates
   currentVersion: string;
   checkingUpdate: boolean;
@@ -46,17 +37,17 @@ interface AdvancedTabProps {
   onBetaUpdatesChange: (value: boolean) => void;
   onCheckForUpdates: () => void;
   onDownloadUpdate: () => void;
-  
+
   // SSL Certificates
   certificates: CertificateInfo[];
   onRemoveCertificate: (fingerprint: string, url: string) => void;
-  
+
   // Actions
   onResetSettings: () => void;
   onExitKioskMode: () => void;
   onRemoveDeviceOwner: () => void;
   kioskEnabled: boolean;
-  
+
   // Backup/Restore
   onRestoreComplete?: () => void;
 }
@@ -86,20 +77,6 @@ const AdvancedTab: React.FC<AdvancedTabProps> = ({
   const [accessibilityEnabled, setAccessibilityEnabled] = useState(false);
   const [accessibilityRunning, setAccessibilityRunning] = useState(false);
 
-  // Cloud management state
-  const [isEnrolled, setIsEnrolled] = useState(false);
-  const [orgName, setOrgName] = useState<string | null>(null);
-  const [cloudUrl, setCloudUrl] = useState('https://cloud.freekiosk.app');
-  const [enrollToken, setEnrollToken] = useState('');
-  const [enrolling, setEnrolling] = useState(false);
-  const [unenrolling, setUnenrolling] = useState(false);
-  const [showScanner, setShowScanner] = useState(false);
-  const [showWizard, setShowWizard] = useState(false);
-  // When true, closing the wizard finishes enrollment by returning to the kiosk.
-  const [wizardAfterEnroll, setWizardAfterEnroll] = useState(false);
-
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-
   const checkAccessibilityStatus = useCallback(async () => {
     try {
       const enabled = await AccessibilityModule.isAccessibilityServiceEnabled();
@@ -120,107 +97,6 @@ const AdvancedTab: React.FC<AdvancedTabProps> = ({
     });
     return () => subscription.remove();
   }, [checkAccessibilityStatus]);
-
-  useEffect(() => {
-    if (!CLOUD_ENABLED) return;
-    CloudSyncService.getCredentials().then(creds => {
-      if (creds) {
-        setIsEnrolled(true);
-        setOrgName(creds.organizationName ?? null);
-      } else {
-        setIsEnrolled(false);
-        setOrgName(null);
-      }
-    });
-  }, []);
-
-  const handleEnroll = () => {
-    if (!cloudUrl.trim() || !enrollToken.trim()) {
-      Alert.alert(t('advanced.cloud.missingFieldsTitle'), t('advanced.cloud.missingFieldsMessage'));
-      return;
-    }
-    Alert.alert(
-      t('advanced.cloud.enrollConfirmTitle'),
-      t('advanced.cloud.enrollConfirmMessage'),
-      [
-        { text: t('advanced.cloud.cancel'), style: 'cancel' },
-        {
-          text: t('advanced.cloud.enroll'),
-          style: 'destructive',
-          onPress: async () => {
-            setEnrolling(true);
-            const PC = NativeModules.PlatformConstants as any;
-            const result = await CloudSyncService.enroll(cloudUrl.trim(), enrollToken.trim(), {
-              model: PC?.Model ?? '',
-              manufacturer: PC?.Manufacturer ?? '',
-              android_version: PC?.Release ?? '',
-              app_version: PC?.appVersion ?? '',
-              serial_number: '',
-            });
-            setEnrolling(false);
-            if (result.success) {
-              setIsEnrolled(true);
-              setOrgName(result.organizationName ?? null);
-              setCloudUrl('');
-              setEnrollToken('');
-              // Guide the user through permissions before returning to the kiosk.
-              // Closing the wizard triggers the navigation reset (see onClose).
-              setWizardAfterEnroll(true);
-              setShowWizard(true);
-            } else {
-              Alert.alert(t('advanced.cloud.enrollmentFailedTitle'), result.error ?? t('advanced.cloud.unknownError'));
-            }
-          },
-        },
-      ],
-    );
-  };
-
-  // Fill the enrollment fields from a scanned QR. The cloud dashboard encodes the bare
-  // token; we also tolerate a structured payload (JSON {url,token} or "url|token") so a
-  // future richer QR can fill the server URL too.
-  const handleScanned = (raw: string) => {
-    setShowScanner(false);
-    const data = raw.trim();
-    let url: string | undefined;
-    let token = data;
-    try {
-      const obj = JSON.parse(data);
-      if (obj && (obj.token || obj.url)) {
-        url = typeof obj.url === 'string' ? obj.url : undefined;
-        token = obj.token != null ? String(obj.token) : '';
-      }
-    } catch {
-      if (data.includes('|')) {
-        const [u, t] = data.split('|');
-        url = u;
-        token = t;
-      }
-    }
-    if (url) setCloudUrl(url);
-    if (token) setEnrollToken(token);
-  };
-
-  const handleUnenroll = () => {
-    Alert.alert(
-      t('advanced.cloud.leaveConfirmTitle'),
-      t('advanced.cloud.leaveConfirmMessage'),
-      [
-        { text: t('advanced.cloud.cancel'), style: 'cancel' },
-        {
-          text: t('advanced.cloud.unenroll'),
-          style: 'destructive',
-          onPress: async () => {
-            setUnenrolling(true);
-            await CloudSyncService.unenroll();
-            setUnenrolling(false);
-            setIsEnrolled(false);
-            setOrgName(null);
-          },
-        },
-      ],
-    );
-  };
 
   const handleOpenAccessibilitySettings = async () => {
     try {
@@ -252,91 +128,6 @@ const AdvancedTab: React.FC<AdvancedTabProps> = ({
   };
   return (
     <View>
-      {/* Cloud Management */}
-      {CLOUD_ENABLED && <SettingsSection title={t('advanced.cloud.title')} icon="sync">
-        {isEnrolled ? (
-          <>
-            <SettingsInfoBox variant="success" icon="cloud-check" title={t('advanced.cloud.enrolledTitle')}>
-              <Text style={styles.infoText}>
-                {t('advanced.cloud.enrolledInfo', { org: orgName ? t('advanced.cloud.enrolledInOrg', { org: orgName }) : '' })}
-              </Text>
-            </SettingsInfoBox>
-            <SettingsButton
-              title={t('advanced.cloud.setupPermissions')}
-              icon="shield-check"
-              variant="secondary"
-              onPress={() => { setWizardAfterEnroll(false); setShowWizard(true); }}
-            />
-            <SettingsButton
-              title={unenrolling ? t('advanced.cloud.unenrolling') : t('advanced.cloud.leaveCloud')}
-              icon="alert-circle"
-              variant="danger"
-              onPress={handleUnenroll}
-              disabled={unenrolling}
-              loading={unenrolling}
-            />
-          </>
-        ) : (
-          <>
-            <SettingsInfoBox variant="info" title={t('advanced.cloud.zeroTouchTitle')}>
-              <Text style={styles.infoText}>
-                {t('advanced.cloud.zeroTouchInfo')}
-              </Text>
-            </SettingsInfoBox>
-            <SettingsInput
-              label={t('advanced.cloud.cloudUrl')}
-              icon="server"
-              placeholder="https://cloud.freekiosk.app"
-              value={cloudUrl}
-              onChangeText={setCloudUrl}
-              keyboardType="url"
-            />
-            <SettingsInput
-              label={t('advanced.cloud.enrollmentToken')}
-              icon="key"
-              placeholder="A1B2C3"
-              value={enrollToken}
-              onChangeText={setEnrollToken}
-            />
-            {/* A TV has no camera to scan with: the URL and the token are typed */}
-            {!Platform.isTV && (
-              <SettingsButton
-                title={t('advanced.cloud.scanQr')}
-                icon="camera"
-                variant="secondary"
-                onPress={() => setShowScanner(true)}
-              />
-            )}
-            <SettingsButton
-              title={enrolling ? t('advanced.cloud.enrolling') : t('advanced.cloud.enrollDevice')}
-              icon="upload"
-              variant="primary"
-              onPress={handleEnroll}
-              disabled={enrolling}
-              loading={enrolling}
-            />
-            <QrScannerModal
-              visible={showScanner}
-              onClose={() => setShowScanner(false)}
-              onScanned={handleScanned}
-            />
-          </>
-        )}
-      </SettingsSection>}
-
-      <PermissionWizard
-        visible={showWizard}
-        onClose={() => {
-          setShowWizard(false);
-          if (wizardAfterEnroll) {
-            setWizardAfterEnroll(false);
-            // Settings were wiped to defaults at enrollment; return to the base
-            // KioskScreen with a fresh mount so the reset config takes effect.
-            navigation.reset({ index: 0, routes: [{ name: 'Kiosk' }] });
-          }
-        }}
-      />
-
       {/* App Updates - Hidden in Play Store builds (compliance: no in-app updates) */}
       {enableSelfUpdate && (
       <SettingsSection title={t('advanced.updates.title')} icon="update">
@@ -434,12 +225,10 @@ const AdvancedTab: React.FC<AdvancedTabProps> = ({
           )}
         </SettingsSection>
       )}
-      
+
       {/* REST API - Home Assistant Integration */}
-      <ApiSettingsSection />
 
       {/* MQTT - Home Assistant Integration */}
-      <MqttSettingsSection />
 
       {/* Accessibility Service - Hidden in Play Store builds (BIND_ACCESSIBILITY_SERVICE policy) */}
       {enableSelfUpdate && (

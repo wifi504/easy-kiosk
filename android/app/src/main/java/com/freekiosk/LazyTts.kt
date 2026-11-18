@@ -46,11 +46,7 @@ class PendingActions<T> {
     }
 }
 
-/**
- * Text-to-speech that binds the engine on first use. HttpServerModule and MqttModule each
- * bound one in their constructor, so every start connected two TTS engines that most kiosks
- * never use.
- */
+
 class LazyTts(private val context: Context, private val tag: String) {
     private var tts: TextToSpeech? = null
     private val ready = PendingActions<TextToSpeech>()

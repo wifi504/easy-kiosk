@@ -9,22 +9,18 @@ import { isNavGestureDirection, navAutoHideSeconds, nextTileIndex, NavGestureDir
 import { WebView } from 'react-native-webview';
 import MediaPlayerComponent from '../components/MediaPlayerComponent';
 import { defaultMediaCacheEnabled, defaultMediaUnattended, DEFAULT_MEDIA_CACHE_LIMIT_MB } from '../utils/MediaCache';
-import { SignagePlaylist } from '../utils/SignagePlaylist';
 import StatusBar from '../components/StatusBar';
 import MotionDetector from '../components/MotionDetector';
 import ProximityDetectionModule, { onProximityNear as onProximityNearEvent } from '../utils/ProximityDetectionModule';
 import ExternalAppOverlay from '../components/ExternalAppOverlay';
 import { DEFAULT_MULTI_APP_APPEARANCE, MultiAppAppearance, parseMultiAppAppearance } from '../types/multiAppAppearance';
 import { StorageService, toPrintOrigins, clampScreensaverFadeSeconds } from '../utils/storage';
-import { saveSecurePin, saveSecureMqttPassword, saveSecureApiKey, getSecureBasicAuthPassword } from '../utils/secureStorage';
+import { saveSecurePin, getSecureBasicAuthPassword } from '../utils/secureStorage';
 import KioskModule from '../utils/KioskModule';
 import AppLauncherModule from '../utils/AppLauncherModule';
 import OverlayServiceModule from '../utils/OverlayServiceModule';
 import BlockingOverlayModule from '../utils/BlockingOverlayModule';
 import AutoBrightnessModule from '../utils/AutoBrightnessModule';
-import { ApiService, MqttImageStream } from '../utils/ApiService';
-import { mqttClient } from '../utils/MqttModule';
-import DeviceControlService from '../services/DeviceControlService';
 import { ScheduledEvent, getActiveEvent } from '../types/planner';
 import {
   DashboardTile,
@@ -42,10 +38,8 @@ import RestartButton from '../components/RestartButton';
 import SessionResetButton from '../components/SessionResetButton';
 import { revokeSettingsAccess } from '../utils/authState';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
-import { CloudSyncService, CONFIG_UPDATED_EVENT, FORCE_UNENROLL_EVENT } from '../utils/CloudSyncService';
-import { CLOUD_ENABLED } from '../config/features';
 
-const { HttpServerModule } = NativeModules;
+const { DeviceUtilitiesModule } = NativeModules;
 
 type KioskScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Kiosk'>;
 
@@ -148,18 +142,18 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
   const bootAppsLaunchedRef = useRef<boolean>(false); // Boot apps launched once per app session (never on Settings/PIN return)
   const tapCountRef = useRef<number>(0);
   const tapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  
+
   // Managed Apps (multi-app mode, background apps, accessibility whitelist)
   const [managedApps, setManagedApps] = useState<import('../types/managedApps').ManagedApp[]>([]);
   const [externalAppMode, setExternalAppMode] = useState<'single' | 'multi'>('single');
   const [multiAppAppearance, setMultiAppAppearance] = useState<MultiAppAppearance>({ ...DEFAULT_MULTI_APP_APPEARANCE });
   const externalAppModeRef = useRef<'single' | 'multi'>('single');
-  
+
   // Spatial proximity detection for N-tap (WebView mode)
   const firstTapXRef = useRef<number>(0);
   const firstTapYRef = useRef<number>(0);
   const TAP_PROXIMITY_RADIUS = 80; // Taps must be within 80px of first tap
-  
+
   // Return button settings (WebView + Multi-app grid mode)
   // WebView: N-tap detection via onUserInteraction callback
   // Multi-app grid: N-tap detection handled directly by ExternalAppOverlay
@@ -168,11 +162,11 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
   const [returnTapTimeout, setReturnTapTimeout] = useState<number>(1500);
   const [returnMode, setReturnMode] = useState<string>('tap_anywhere');
   const [returnButtonPosition, setReturnButtonPosition] = useState<string>('bottom-right');
-  
+
   // URL Rotation states
   const [urlRotationEnabled, setUrlRotationEnabled] = useState<boolean>(false);
   const [urlRotationList, setUrlRotationList] = useState<string[]>([]);
-  
+
   // Auto-brightness states
   const [autoBrightnessEnabled, setAutoBrightnessEnabled] = useState<boolean>(false);
   const [autoBrightnessMin, setAutoBrightnessMin] = useState<number>(0.1);
@@ -205,7 +199,7 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
   const [urlRotationPauseOnTouch, setUrlRotationPauseOnTouch] = useState<boolean>(false);
   const [urlRotationResumeDelay, setUrlRotationResumeDelay] = useState<number>(60000);
   const lastPageTouchRef = useRef<number>(0);
-  
+
   // URL Planner states
   const [urlPlannerEnabled, setUrlPlannerEnabled] = useState<boolean>(false);
   const [urlPlannerEvents, setUrlPlannerEvents] = useState<ScheduledEvent[]>([]);
@@ -213,17 +207,17 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
   const activeScheduledEventRef = useRef<ScheduledEvent | null>(null);
   const urlPlannerTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [baseUrl, setBaseUrl] = useState<string>(''); // Original URL before planner/rotation
-  
+
   // Screen Sleep Scheduler states
   const [screenSchedulerEnabled, setScreenSchedulerEnabled] = useState<boolean>(false);
   const [screenSchedulerRules, setScreenSchedulerRules] = useState<ScreenScheduleRule[]>([]);
   const [screenSchedulerWakeOnTouch, setScreenSchedulerWakeOnTouch] = useState<boolean>(true);
   const [isScheduledSleep, setIsScheduledSleep] = useState<boolean>(false); // true when screen is OFF due to scheduler
   const screenSchedulerTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  
+
   // Keep Screen On setting
   const [keepScreenOn, setKeepScreenOn] = useState<boolean>(true);
-  
+
   // Inactivity Return to Home states
   const [inactivityReturnEnabled, setInactivityReturnEnabled] = useState<boolean>(false);
   const [inactivityReturnDelay, setInactivityReturnDelay] = useState<number>(60); // seconds
@@ -257,7 +251,7 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
   // remounts within a short window so a WebView that dies immediately on every
   // load doesn't get hammered into an infinite tight remount loop.
   const rendererGoneRef = useRef<{ last: number; count: number }>({ last: 0, count: 0 });
-  
+
   // JavaScript to execute in WebView (from API) - use object with counter to handle same code twice
   const [jsToExecute, setJsToExecute] = useState<string>('');
   const jsExecuteCounterRef = useRef<number>(0);
@@ -347,12 +341,8 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
   const [mediaPlayerCacheLimitMb, setMediaPlayerCacheLimitMb] = useState<number>(DEFAULT_MEDIA_CACHE_LIMIT_MB);
   // Digital signage: the other playlists of a schedule (kept in the cache ahead of their time),
   // whether the cloud gave a schedule, and which playlist plays now
-  const [signagePrefetch, setSignagePrefetch] = useState<MediaItem[]>([]);
-  const [signageScheduled, setSignageScheduled] = useState<boolean>(false);
-  const signageActiveIdRef = useRef<string | null>(null);
   // True while the screen plays a playlist FreeKiosk Cloud gave it. Nobody touches such a screen, so
   // "no touch for a while" says nothing about it: the screensaver must not cover the playlist.
-  const [signageManaged, setSignageManaged] = useState(false);
 
   // AppState listener - detects when the app returns to the foreground
   useEffect(() => {
@@ -377,13 +367,13 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
           console.log('[KioskScreen] AppState: skipping relaunch (screensaver active)');
           return;
         }
-        
+
         try {
           // CRITICAL: Read current mode from storage to avoid stale closure values
           // (user may have just switched from single→multi in settings)
           const currentExternalAppMode = await StorageService.getExternalAppMode();
           const currentDisplayMode = await StorageService.getDisplayMode();
-          
+
           // Multi-app mode: ALWAYS return to grid, never relaunch any specific app
           if (currentExternalAppMode === 'multi' && currentDisplayMode === 'external_app') {
             // Still clear voluntary return flag if set
@@ -396,29 +386,29 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
             setCountdownActive(false); // Cancel any active countdown
             return;
           }
-          
+
           // === Single app mode logic below ===
-          
+
           // 1. First check the native flag (5-tap voluntary return)
           const shouldBlock = await KioskModule.shouldBlockAutoRelaunch();
-          
+
           if (shouldBlock) {
             // Clear the flag after reading it
             await KioskModule.clearBlockAutoRelaunch();
             setIsAppLaunched(false);
             return;
           }
-          
+
           // 2. Then check the back button mode
           // IMPORTANT: Read directly from storage to get the current value
           const currentBackButtonMode = await StorageService.getBackButtonMode();
-          
+
           if (currentBackButtonMode === 'test') {
             // Mode test: pas de relance auto
             setIsAppLaunched(false);
             return;
           }
-          
+
           if (currentBackButtonMode === 'timer') {
             // Mode timer: afficher countdown puis relancer
             const timerDelay = await StorageService.getBackButtonTimerDelay();
@@ -427,7 +417,7 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
             setIsAppLaunched(false);
             return;
           }
-          
+
           // Mode immediate: relancer directement
           const currentPackage = await StorageService.getExternalAppPackage();
           if (currentDisplayMode === 'external_app' && currentPackage) {
@@ -467,53 +457,12 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
   // Keep the ref above in step with the state it mirrors.
   useEffect(() => { displayModeRef.current = displayMode; }, [displayMode]);
 
-  // Digital signage: with a schedule the clock decides which playlist plays. Look again every
-  // 30 seconds and swap the list only when the playlist changed (the player restarts from the
-  // first item on a new list). A new version from the cloud takes the reload path instead.
-  useEffect(() => {
-    if (displayMode !== 'media_player') return undefined;
-    const timer = setInterval(async () => {
-      const active = await SignagePlaylist.getActive();
-      if (!active || !active.scheduled || active.id === signageActiveIdRef.current) return;
-      signageActiveIdRef.current = active.id;
-      setMediaPlayerItems(active.items);
-    }, 30_000);
-    return () => clearInterval(timer);
-  }, [displayMode]);
-
-  /**
-   * The settings that only exist inside the WebView's injectedJavaScript.
-   *
-   * React Native runs injectedJavaScript once per page load, not when the prop
-   * changes, so a config pushed from the cloud updated storage and state while the
-   * rendered page kept the old zoom, the old pinch-to-zoom rule and the old keyboard
-   * mode. Everything handled natively or through a React prop applied immediately,
-   * which is why only *some* settings looked ignored. Reported by a beta tester who
-   * applied a profile to a second tablet and found the zoom and the numeric keyboard
-   * untouched.
-   *
-   * Remounting the WebView re-runs the script. It also reloads the page, so it is done
-   * only when one of these four actually changed rather than on every config push,
-   * which would reload the kiosk every time the cloud syncs.
-   */
-  const injectedWebViewSettingsRef = useRef<string>('');
-
-  const readInjectedWebViewSettings = useCallback(async (): Promise<string> => {
-    const [level, mode, disableZoom, keyboard] = await Promise.all([
-      StorageService.getWebViewZoomLevel(),
-      StorageService.getWebViewZoomMode(),
-      StorageService.getDisableUserZoom(),
-      StorageService.getKeyboardMode(),
-    ]);
-    return JSON.stringify([level, mode, disableZoom, keyboard]);
-  }, []);
-
   // #156: end the current visitor's session. The native call wipes the WebView cache,
   // cookies and web storage and resolves once the cookies are really gone; only then does
   // the remount load the start URL, so the new page cannot read the old session.
   const handleResetSession = useCallback(async (): Promise<void> => {
     try {
-      await HttpServerModule?.clearWebViewSession?.();
+      await DeviceUtilitiesModule?.clearWebViewSession?.();
     } catch (error) {
       console.error('[KioskScreen] Session reset: native clear failed:', error);
     }
@@ -523,73 +472,6 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
     setUrl(baseUrl);
     setWebViewKey(prev => prev + 1);
   }, [baseUrl]);
-
-  // Cloud sync: start heartbeat loop on mount, reload settings on config push
-  useEffect(() => {
-    DeviceControlService.registerWebViewCallbacks(
-      () => webViewRef.current?.reload(),
-      (_u: string) => {},
-      () => currentWebViewUrlRef.current || url,
-    );
-    if (CLOUD_ENABLED) {
-      CloudSyncService.retain();
-      // Auto-enroll first if a Device Owner provisioning QR left us a token,
-      // then start the heartbeat loop.
-      (async () => {
-        await CloudSyncService.consumePendingProvisioningEnrollment();
-        CloudSyncService.start();
-      })();
-    }
-
-    // Seed the signature so the first push compares against what is on screen now,
-    // not against an empty string that would remount for nothing.
-    readInjectedWebViewSettings()
-      .then(value => { injectedWebViewSettingsRef.current = value; })
-      .catch(() => {});
-
-    const onConfigUpdated = CLOUD_ENABLED
-      ? DeviceEventEmitter.addListener(CONFIG_UPDATED_EVENT, async () => {
-          const previousMode = displayModeRef.current;
-          const previousInjected = injectedWebViewSettingsRef.current;
-          await loadSettings();
-
-          // Storage already holds the pushed values by the time this event fires, so
-          // this reads the new ones and compares them with what the mounted page was
-          // built from. See injectedWebViewSettingsRef.
-          const nextInjected = await readInjectedWebViewSettings();
-          injectedWebViewSettingsRef.current = nextInjected;
-          if (previousInjected && previousInjected !== nextInjected) {
-            console.log('[KioskScreen] Injected WebView settings changed, remounting');
-            setWebViewKey(k => k + 1);
-          }
-
-          // A pushed config that leaves external_app mode needs us back in front. The
-          // launched app owns the screen and lives in its own task, so loadSettings()
-          // alone only moves our state: the device then reports the new mode to the
-          // cloud while still showing the other app, i.e. the dashboard is told
-          // something that is not true. Same treatment the REST/MQTT setMode path got
-          // in #209, including the guard so onResume does not relaunch what we just left.
-          const nextMode = await StorageService.getDisplayMode();
-          if (previousMode === 'external_app' && nextMode !== 'external_app') {
-            await KioskModule.setBlockAutoRelaunch(true).catch(() => {});
-            await KioskModule.bringToFront().catch(() => {});
-          }
-        })
-      : null;
-
-    const onForceUnenroll = CLOUD_ENABLED
-      ? DeviceEventEmitter.addListener(FORCE_UNENROLL_EVENT, () => { loadSettings(); })
-      : null;
-
-    return () => {
-      onConfigUpdated?.remove();
-      onForceUnenroll?.remove();
-      if (CLOUD_ENABLED) {
-        CloudSyncService.release();
-      }
-    };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   // Auto-brightness: pause when screensaver activates, resume when it deactivates
   useEffect(() => {
@@ -636,7 +518,7 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
         }
       }
     };
-    
+
     handleAutoBrightnessForScreensaver();
     // applyScreensaverBrightness is recreated every render; screensaverBrightness and
     // screensaverFadeMs cover what it reads
@@ -723,378 +605,6 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
     }
   }, [isFocused, isScreensaverActive, isPreCheckingMotion, defaultBrightness, autoBrightnessEnabled, autoBrightnessMin, autoBrightnessMax, autoBrightnessOffset, autoBrightnessInterval]);
 
-  // API Service initialization - connect REST API to app controls
-  useEffect(() => {
-    const initApiService = async () => {
-      await ApiService.initialize({
-        onSetBrightness: async (value: number) => {
-          try {
-            // Skip if brightness management is disabled
-            if (!brightnessManagementRef.current) {
-              console.log('[API] Brightness management disabled, ignoring setBrightness');
-              return;
-            }
-            // If auto-brightness is enabled, disable it first
-            if (brightnessStateRef.current.autoBrightnessEnabled) {
-              await AutoBrightnessModule.stopAutoBrightness();
-              setAutoBrightnessEnabled(false);
-              await StorageService.saveAutoBrightnessEnabled(false);
-              console.log('[API] Auto-brightness disabled (manual brightness set)');
-            }
-            
-            // API sends 0-100, RNBrightness needs 0-1
-            const normalizedValue = value / 100;
-            // #242: setDefaultBrightness, not setBrightnessLevel. This is a lasting
-            // choice, so it has to reach the SharedPreferences mirror the wake paths
-            // read and, where possible, Settings.System, or the next wake loses it.
-            const systemWrite = await RNBrightness.setDefaultBrightness(normalizedValue);
-            setDefaultBrightness(normalizedValue);
-            setEffectiveBrightness(normalizedValue);
-            // Persist to storage so Settings shows updated value
-            await StorageService.saveDefaultBrightness(normalizedValue);
-            console.log('[API] Brightness set to', value, systemWrite ? '(persisted system-wide)' : '(window override only)');
-          } catch (error) {
-            console.error('[API] Error setting brightness:', error);
-          }
-        },
-        onScreensaverOn: async () => {
-          setScreensaverEnabled(true);
-          await StorageService.saveScreensaverEnabled(true);
-          // #232: the Home Assistant switch mirrors screen.screensaverActive, and
-          // screensaverOff deactivates a running screensaver, so ON has to show it now.
-          // Enabling the setting alone only re-armed the inactivity timer, so the screen
-          // went dark after the configured timeout instead of immediately, and the HA
-          // toggle snapped back to OFF in the meantime.
-          // Honoured even when keepScreenOn is off: an explicit remote command is not the
-          // automatic inactivity path that the system's own sleep timer supersedes.
-          Keyboard.dismiss();
-          setIsScreensaverActive(true);
-          console.log('[API] Screensaver ACTIVATED');
-        },
-        onScreensaverOff: async () => {
-          setScreensaverEnabled(false);
-          await StorageService.saveScreensaverEnabled(false);
-          // If screensaver is currently active, deactivate it too
-          setIsScreensaverActive(false);
-          resetTimerRef.current();
-          console.log('[API] Screensaver setting DISABLED');
-        },
-        onScreenOn: () => {
-          console.log('[API] Screen ON');
-          // Deactivate screensaver overlay immediately — covers both the case where the
-          // screen was physically locked (onScreenStateChanged will also fire) and the case
-          // where only the screensaver overlay was active (screen physically on, no lock event).
-          setIsScreensaverActive(false);
-          resetTimerRef.current();
-          KioskModule.turnScreenOn()
-            .catch((e: any) => console.warn('[API] turnScreenOn failed:', e));
-        },
-        onScreenOff: () => {
-          console.log('[API] Screen OFF');
-          KioskModule.turnScreenOff()
-            .catch((e: any) => console.warn('[API] turnScreenOff failed:', e));
-        },
-        onWake: () => {
-          setIsScreensaverActive(false);
-          resetTimerRef.current();
-          console.log('[API] Wake');
-        },
-        onReload: () => {
-          setWebViewKey(prev => prev + 1);
-          console.log('[API] Reload triggered');
-        },
-        onSetUrl: async (newUrl: string) => {
-          setUrl(newUrl);
-          setBaseUrl(newUrl); // Update baseUrl so InactivityReturn uses the new URL as home
-          // #231: in dashboard mode the grid is rendered INSTEAD of the WebView, and
-          // loadSettings() forces the grid back on every focus, including the return from
-          // the PIN screen. A remote URL then updated the state, and Home Assistant showed
-          // it, while nothing on screen could display it: the WebView was not mounted at
-          // all. Leaving the grid is part of honouring the command.
-          setDashboardShowGrid(false);
-          setWebViewKey(prev => prev + 1);
-          // Persist to storage so Settings shows updated value
-          await StorageService.saveUrl(newUrl);
-          console.log('[API] URL set to', newUrl);
-        },
-        onTts: (text: string) => {
-          // TTS is handled natively by HttpServerModule TextToSpeech
-          console.log('[API] TTS request (handled natively):', text);
-        },
-        onSetVolume: async (value: number) => {
-          try {
-            // API sends 0-100, native module handles it
-            if (HttpServerModule?.setVolume) {
-              await HttpServerModule.setVolume(value);
-            }
-            console.log('[API] Volume set to', value);
-          } catch (error) {
-            console.error('[API] Error setting volume:', error);
-          }
-        },
-        onRotationStart: () => {
-          setUrlRotationEnabled(true);
-          StorageService.saveUrlRotationEnabled(true);
-          console.log('[API] URL Rotation started');
-        },
-        onRotationStop: () => {
-          setUrlRotationEnabled(false);
-          StorageService.saveUrlRotationEnabled(false);
-          console.log('[API] URL Rotation stopped');
-        },
-        onToast: async (text: string) => {
-          try {
-            if (HttpServerModule?.showToast) {
-              await HttpServerModule.showToast(text);
-            }
-            console.log('[API] Toast:', text);
-          } catch (error) {
-            console.error('[API] Error showing toast:', error);
-          }
-        },
-        onLaunchApp: async (packageName: string) => {
-          try {
-            await AppLauncherModule.launchExternalApp(packageName);
-            console.log('[API] Launched app:', packageName);
-          } catch (error) {
-            console.error('[API] Error launching app:', error);
-          }
-        },
-        onExecuteJs: (code: string) => {
-          // Append a unique comment to ensure React state change even if same code is sent twice
-          jsExecuteCounterRef.current += 1;
-          const uniqueCode = `${code}\n/* __fk_exec_${jsExecuteCounterRef.current}__ */`;
-          setJsToExecute(uniqueCode);
-          console.log('[API] Execute JS:', code.substring(0, 50));
-        },
-        onReboot: async () => {
-          try {
-            await KioskModule.reboot();
-            console.log('[API] Reboot requested');
-          } catch (error) {
-            console.error('[API] Error rebooting:', error);
-          }
-        },
-        onClearCache: () => {
-          // Native side clears WebView cache/cookies/storage
-          // JS side forces a full WebView reload by remounting
-          if (webViewRef.current) {
-            webViewRef.current.clearCache();
-          }
-          setWebViewKey(prev => prev + 1);
-          console.log('[API] Cache cleared (native + WebView remount)');
-        },
-        onRemoteKey: async (key: string) => {
-          try {
-            await KioskModule.sendRemoteKey(key);
-            console.log('[API] Remote key:', key);
-          } catch (error) {
-            console.error('[API] Error sending remote key:', error);
-          }
-        },
-        onAutoBrightnessEnable: async (min: number, max: number, offset?: number) => {
-          try {
-            // Skip if brightness management is disabled
-            if (!brightnessManagementRef.current) {
-              console.log('[API] Brightness management disabled, ignoring autoBrightnessEnable');
-              return;
-            }
-            // Convert from API 0-100 to internal 0-1
-            const minNormalized = min / 100;
-            const maxNormalized = max / 100;
-            // Use API offset if provided, otherwise keep current setting
-            const current = brightnessStateRef.current;
-            const offsetNormalized = offset !== undefined ? offset / 100 : current.autoBrightnessOffset;
-            
-            setAutoBrightnessMin(minNormalized);
-            setAutoBrightnessMax(maxNormalized);
-            if (offset !== undefined) {
-              setAutoBrightnessOffset(offsetNormalized);
-            }
-            setAutoBrightnessEnabled(true);
-            
-            // Save current manual brightness before enabling
-            await StorageService.saveAutoBrightnessSavedManual(current.defaultBrightness);
-            
-            // Start auto-brightness
-            await AutoBrightnessModule.startAutoBrightness(
-              minNormalized,
-              maxNormalized,
-              current.autoBrightnessInterval,
-              offsetNormalized
-            );
-            
-            // Save settings
-            await StorageService.saveAutoBrightnessEnabled(true);
-            await StorageService.saveAutoBrightnessMin(minNormalized);
-            await StorageService.saveAutoBrightnessMax(maxNormalized);
-            if (offset !== undefined) {
-              await StorageService.saveAutoBrightnessOffset(offsetNormalized);
-            }
-            
-            console.log('[API] Auto-brightness enabled (min:', min, '%, max:', max, '%, offset:', offset !== undefined ? offset : 'unchanged', '%)');
-          } catch (error) {
-            console.error('[API] Error enabling auto-brightness:', error);
-          }
-        },
-        onAutoBrightnessDisable: async () => {
-          try {
-            // Skip if brightness management is disabled
-            if (!brightnessManagementRef.current) {
-              console.log('[API] Brightness management disabled, ignoring autoBrightnessDisable');
-              return;
-            }
-            await AutoBrightnessModule.stopAutoBrightness();
-            setAutoBrightnessEnabled(false);
-
-            // Restore saved manual brightness
-            const savedBrightness = await StorageService.getAutoBrightnessSavedManual();
-            if (savedBrightness !== null) {
-              await setBrightnessLevel(savedBrightness);
-              setDefaultBrightness(savedBrightness);
-            }
-
-            await StorageService.saveAutoBrightnessEnabled(false);
-            console.log('[API] Auto-brightness disabled');
-          } catch (error) {
-            console.error('[API] Error disabling auto-brightness:', error);
-          }
-        },
-        onCameraStreamStateChanged: (streaming: boolean) => {
-          // Releases the camera for the stream, and picks detection back up afterwards
-          console.log('[API] Camera stream active:', streaming);
-          setCameraStreamActive(streaming);
-        },
-        onCameraStreamMotion: () => {
-          // Same wake path as the regular detector: while a stream holds the camera, movement
-          // is measured on its frames instead.
-          if (!streamMotionAllowedRef.current) return;
-          console.log('[API] Motion detected in camera stream');
-          onMotionDetectedRef.current?.();
-        },
-        onSetMotionAlwaysOn: async (value: boolean) => {
-          try {
-            setMotionAlwaysOn(value);
-            await StorageService.saveMqttMotionAlwaysOn(value);
-            console.log('[API] Motion always-on set to', value);
-          } catch (error) {
-            console.error('[API] Error setting motion always-on:', error);
-          }
-        },
-        // MQTT image publishing: the capture itself is done natively, we only persist the
-        // setting changed from Home Assistant so it survives an app restart.
-        onSetMqttImageAuto: async (stream: MqttImageStream, value: boolean) => {
-          try {
-            if (stream === 'screenshot') {
-              await StorageService.saveMqttScreenshotAuto(value);
-            } else {
-              await StorageService.saveMqttCameraAuto(value);
-            }
-            console.log(`[API] MQTT ${stream} auto-publish set to`, value);
-          } catch (error) {
-            console.error('[API] Error setting MQTT image auto-publish:', error);
-          }
-        },
-        onSetMqttImageInterval: async (stream: MqttImageStream, seconds: number) => {
-          try {
-            if (stream === 'screenshot') {
-              await StorageService.saveMqttScreenshotInterval(seconds);
-            } else {
-              await StorageService.saveMqttCameraInterval(seconds);
-            }
-            console.log(`[API] MQTT ${stream} publish interval set to`, seconds);
-          } catch (error) {
-            console.error('[API] Error setting MQTT image interval:', error);
-          }
-        },
-        onSetMode: async (mode: 'webview' | 'external_app' | 'media_player', target?: string) => {
-          if (isNavigatingToPinRef.current) {
-            console.log('[API] setMode ignored: navigateToPin in progress');
-            return;
-          }
-
-          // Persist the requested mode (and its target), then re-run loadSettings(): the
-          // same canonical setup path the app runs on every focus / return-from-settings.
-          // Delegating here means every transition between ANY modes (webview, external_app,
-          // media_player, including the dashboard and multi-app variants) is set up exactly
-          // as a normal launch would, without duplicating the per-mode logic. Side effect:
-          // the switch now persists across an app restart, like changing it in Settings.
-          if (mode === 'webview') {
-            await StorageService.saveDisplayMode('webview');
-            if (target) {
-              await StorageService.saveUrl(target);
-            }
-          } else if (mode === 'external_app') {
-            if (target) {
-              // Explicit package: single-app mode with that app.
-              const isInstalled = await AppLauncherModule.isAppInstalled(target);
-              if (!isInstalled) {
-                console.warn('[API] setMode: app not installed:', target);
-                return;
-              }
-              await StorageService.saveDisplayMode('external_app');
-              await StorageService.saveExternalAppPackage(target);
-              await StorageService.saveExternalAppMode('single');
-            } else {
-              // No package: restore the stored external-app config (e.g. multi-app grid).
-              await StorageService.saveDisplayMode('external_app');
-            }
-          } else if (mode === 'media_player') {
-            await StorageService.saveDisplayMode('media_player');
-          } else {
-            console.warn('[API] setMode: unknown mode:', mode);
-            return;
-          }
-
-          // In external_app mode FreeKiosk is backgrounded behind the launched app, so bring
-          // it forward first; loadSettings() then rebuilds the target mode (for external_app
-          // it re-launches the app over us). No-op when already in the foreground.
-          await KioskModule.bringToFront().catch(() => {});
-          await loadSettings();
-          console.log('[API] Switched to', mode, 'mode', target ?? '');
-        },
-      });
-      
-      // Settings sent over ADB must be in storage before the server and MQTT read them
-      await applyPendingAdbConfig();
-
-      // Auto-start the API server if enabled
-      await ApiService.autoStart();
-
-      // Auto-start MQTT client if enabled
-      try {
-        await ApiService.autoStartMqtt();
-      } catch (e) {
-        // Expected when MQTT is disabled or not configured
-        console.log('ApiService: MQTT auto-start skipped:', (e as Error).message);
-      }
-    };
-
-    initApiService();
-
-    // MQTT background reconnection: check connection when app comes back to foreground
-    const mqttAppStateSubscription = AppState.addEventListener('change', async (nextState) => {
-      if (nextState === 'active') {
-        try {
-          const connected = await mqttClient.isConnected();
-          if (!connected) {
-            console.log('[KioskScreen] App returned to foreground, MQTT disconnected — reconnecting...');
-            await ApiService.stopMqtt();
-            await ApiService.autoStartMqtt();
-          }
-        } catch (e) {
-          // MQTT not enabled or not configured, ignore
-        }
-      }
-    });
-
-    return () => {
-      mqttAppStateSubscription.remove();
-      ApiService.stopMqtt();
-      ApiService.destroy();
-    };
-  }, []);
-
   // Listen for screen state changes from native (power button pressed)
   useEffect(() => {
     // Check initial screen state (only on mount)
@@ -1103,7 +613,7 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
         if (KioskModule?.isScreenOn) {
           const isOn = await KioskModule.isScreenOn();
           console.log('[KioskScreen] Initial screen state:', isOn ? 'ON' : 'OFF');
-          ApiService.updateStatus({ screenOn: isOn });
+
         }
       } catch (error) {
         console.error('[KioskScreen] Error checking initial screen state:', error);
@@ -1121,9 +631,7 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
           console.log('[KioskScreen] Screen state changed:', isScreenOn ? 'ON' : 'OFF');
 
           // Update API status with new screen state
-          ApiService.updateStatus({
-            screenOn: isScreenOn,
-          });
+
 
           // If screen turned on, deactivate screensaver
           if (isScreenOn && isScreensaverActiveRef.current) {
@@ -1138,63 +646,6 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
       screenStateListener.remove();
     };
   }, []);
-
-  // Listen for volume changes from hardware buttons
-  useEffect(() => {
-    // Check initial volume
-    const checkInitialVolume = async () => {
-      try {
-        if (HttpServerModule?.getVolume) {
-          const currentVolume = await HttpServerModule.getVolume();
-          console.log('[KioskScreen] Initial volume:', currentVolume);
-          ApiService.updateStatus({ volume: currentVolume });
-        }
-      } catch (error) {
-        console.error('[KioskScreen] Error checking initial volume:', error);
-      }
-    };
-    
-    checkInitialVolume();
-    
-    const volumeListener = DeviceEventEmitter.addListener(
-      'onVolumeChanged',
-      (volumePercent: number) => {
-        console.log('[KioskScreen] Volume changed to:', volumePercent);
-        
-        // Update API status with new volume
-        ApiService.updateStatus({
-          volume: volumePercent,
-        });
-      }
-    );
-
-    return () => {
-      volumeListener.remove();
-    };
-  }, []);
-
-  // Update API status when relevant state changes
-  useEffect(() => {
-    ApiService.updateStatus({
-      currentUrl: url,
-      brightness: Math.round(effectiveBrightness * 100),
-      screensaverActive: isScreensaverActive,
-      kioskMode: true, // Always in kiosk mode when this screen is active
-      canGoBack: false,
-      loading: false,
-      rotationEnabled: urlRotationEnabled,
-      rotationUrls: urlRotationList,
-      rotationInterval: Math.round(urlRotationInterval / 1000),
-      rotationCurrentIndex: currentUrlIndex,
-      autoBrightnessEnabled: autoBrightnessEnabled,
-      // Stored as 0-1, reported as 0-100 like brightness (the native modules read integers)
-      autoBrightnessMin: Math.round(autoBrightnessMin * 100),
-      autoBrightnessMax: Math.round(autoBrightnessMax * 100),
-      motionAlwaysOn: motionAlwaysOn,
-      // Used by the stream-based motion detection, which takes over while a stream runs
-      motionSensitivity: motionSensitivity,
-    });
-  }, [url, effectiveBrightness, isScreensaverActive, urlRotationEnabled, urlRotationList, urlRotationInterval, currentUrlIndex, autoBrightnessEnabled, autoBrightnessMin, autoBrightnessMax, motionAlwaysOn, motionSensitivity]);
 
   // #242: read back the brightness actually in effect, rather than reporting the target.
   // getBrightnessLevel() now answers with the window override when one is set and the
@@ -1267,7 +718,7 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
       try {
         await AsyncStorage.getItem('__force_init__');
       } catch (e) {}
-      
+
       // Clear navigating-to-pin guard BEFORE loadSettings so that returning from
       // PIN/Settings causes loadSettings to proceed with the external app launch.
       // The guard's purpose (preventing a duplicate launch mid-5-tap-flow) is already
@@ -1275,7 +726,7 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
       isNavigatingToPinRef.current = false;
 
       await loadSettings();
-      
+
       // Reload blocking overlays to ensure they stay active when returning from settings
       try {
         const blockingEnabled = await StorageService.getBlockingOverlaysEnabled();
@@ -1308,8 +759,7 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
       }
       setIsScheduledSleep(false); // Reset scheduled sleep when leaving kiosk screen
       isScheduledSleepRef.current = false;
-      ApiService.updateStatus({ scheduledSleep: false });
-      DeviceControlService.setScheduledSleep(false);
+
       // Cancel any pending scheduler alarms
       KioskModule.cancelScheduledScreenAlarms().catch(() => {});
       // Brightness is intentionally not restored here
@@ -1362,7 +812,7 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
     if (autoBrightnessEnabled) return;
     // Don't apply if brightness management is disabled
     if (!brightnessManagementEnabled) return;
-    
+
     if (!isScreensaverActive) {
       (async () => {
         try {
@@ -1469,7 +919,7 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
       clearTimeout(urlRotationTimerRef.current);
       urlRotationTimerRef.current = null;
     }
-    
+
     // Only enable rotation in webview mode with valid URLs
     // AND when planner is not active (planner has priority)
     if (
@@ -1484,7 +934,7 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
       if (urlRotationList.length > 0 && currentUrlIndex === 0) {
         setUrl(urlRotationList[0]);
       }
-      
+
       // A chain of timeouts rather than an interval: a tick that lands while someone is using
       // the page waits until the resume delay has passed, then a full interval (#235).
       const schedule = (delay: number) => {
@@ -1523,12 +973,12 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
       clearInterval(urlPlannerTimerRef.current);
       urlPlannerTimerRef.current = null;
     }
-    
+
     if (displayMode !== 'webview' || !urlPlannerEnabled || urlPlannerEvents.length === 0) {
       setActiveScheduledEvent(null);
       return;
     }
-    
+
     // Check for active event immediately
     const checkAndUpdateActiveEvent = () => {
       const activeEvent = getActiveEvent(urlPlannerEvents);
@@ -1558,13 +1008,13 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
         }
       }
     };
-    
+
     // Check immediately
     checkAndUpdateActiveEvent();
-    
+
     // Check every minute for schedule changes
     urlPlannerTimerRef.current = setInterval(checkAndUpdateActiveEvent, 60000);
-    
+
     return () => {
       if (urlPlannerTimerRef.current) {
         clearInterval(urlPlannerTimerRef.current);
@@ -1616,8 +1066,7 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
     clearTimer();
     setIsScheduledSleep(true);
     isScheduledSleepRef.current = true;
-    ApiService.updateStatus({ scheduledSleep: true });
-    DeviceControlService.setScheduledSleep(true);
+
 
     try {
       // Stop auto-brightness if active
@@ -1649,8 +1098,7 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
     console.log('[ScreenScheduler] Exiting scheduled sleep — waking screen');
     setIsScheduledSleep(false);
     isScheduledSleepRef.current = false;
-    ApiService.updateStatus({ scheduledSleep: false });
-    DeviceControlService.setScheduledSleep(false);
+
     resetTimer(); // Restart inactivity timer
 
     try {
@@ -1806,18 +1254,18 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
       () => {
         // Set guard SYNCHRONOUSLY to prevent race with loadSettings
         isNavigatingToPinRef.current = true;
-        
+
         // Cancel any pending relaunch timeout (from AppState "Immediate mode")
         if (appLaunchTimeoutRef.current) {
           clearTimeout(appLaunchTimeoutRef.current);
           appLaunchTimeoutRef.current = null;
         }
-        
+
         // Defer UI work to next tick to avoid CalledFromWrongThreadException
         setTimeout(() => {
           // Stop overlay service to prevent foreground monitor from relaunching
           OverlayServiceModule.stopOverlayService().catch(() => {});
-          
+
           // The native flag is already set by OverlayService.returnToFreeKiosk()
           navigation.navigate('Pin');
         }, 0);
@@ -1881,24 +1329,6 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
               } else {
                 failedSecrets.push('PIN');
                 console.error('[KioskScreen] PIN could NOT be saved to secure storage (see #258)');
-              }
-            } else if (key === '@kiosk_rest_api_key') {
-              // REST API key goes to the Keychain too (#325). Written to AsyncStorage it was
-              // read only while the Keychain held no key, so an ADB rotation was ignored and
-              // the new key stayed in plain text. saveSecureApiKey also clears that legacy copy.
-              if (await saveSecureApiKey(value)) {
-                console.log('[KioskScreen] REST API key saved to secure Keychain via pending ADB config');
-              } else {
-                failedSecrets.push('REST API key');
-                console.error('[KioskScreen] REST API key could NOT be saved to secure storage (see #258)');
-              }
-            } else if (key === '@mqtt_password_pending') {
-              // MQTT password must be saved to Keychain (not AsyncStorage)
-              if (await saveSecureMqttPassword(value)) {
-                console.log('[KioskScreen] MQTT password saved to secure Keychain via pending ADB config');
-              } else {
-                failedSecrets.push('MQTT password');
-                console.error('[KioskScreen] MQTT password could NOT be saved to secure storage (see #258)');
               }
             } else {
               entries.push([key, value]);
@@ -1968,7 +1398,7 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
       const savedInactivityEnabled = bool(K.SCREENSAVER_INACTIVITY_ENABLED, true);
       const savedInactivityDelay = num(K.SCREENSAVER_INACTIVITY_DELAY, 600000);
       const savedMotionEnabled = bool(K.SCREENSAVER_MOTION_ENABLED, false);
-      const savedMotionAlwaysOn = bool(K.MQTT_MOTION_ALWAYS_ON, false);
+      const savedMotionAlwaysOn = false;
       const savedMotionCameraPosition = (str(K.MOTION_CAMERA_POSITION) ?? 'front') as 'front' | 'back';
       const savedMotionSensitivity = (str(K.SCREENSAVER_MOTION_SENSITIVITY) ?? 'medium') as 'low' | 'medium' | 'high';
       const savedMotionRequireFace = bool(K.SCREENSAVER_MOTION_REQUIRE_FACE, false);
@@ -2019,7 +1449,7 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
       // native AudioRecordingCallback registration doesn't survive an app restart. No-op when off.
       try { NativeModules.AudioControlModule?.setIntercomMode(bool(K.INTERCOM_MODE, false)); } catch {}
       setScreensaverEnabled(savedScreensaverEnabled);
-      
+
       // Broadcast that settings are loaded (for ADB config waiting)
       try {
         await KioskModule.broadcastSettingsLoaded();
@@ -2091,14 +1521,14 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
       const savedManagedApps = await StorageService.getManagedApps();
       setManagedApps(savedManagedApps);
       console.log('[KioskScreen] Loaded managed apps:', savedManagedApps.length);
-      
+
       // Load external app sub-mode (single vs multi)
       const savedExternalAppMode = (str(K.EXTERNAL_APP_MODE) ?? 'single') as 'single' | 'multi';
       setExternalAppMode(savedExternalAppMode);
       setMultiAppAppearance(parseMultiAppAppearance(settings.get(K.MULTI_APP_APPEARANCE)));
       externalAppModeRef.current = savedExternalAppMode;
       console.log('[KioskScreen] External app mode:', savedExternalAppMode);
-      
+
       // Load return button settings (for WebView mode)
       // Default must be false (invisible) to match StorageService.getOverlayButtonVisible()
       // and the Settings toggle. A `true` default here made the return button reappear in
@@ -2114,7 +1544,7 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
       setReturnTapTimeout(savedReturnTapTimeout);
       setReturnMode(savedReturnMode);
       setReturnButtonPosition(savedReturnButtonPosition);
-      
+
       // Load URL Rotation settings
       const savedUrlRotationEnabled = bool(K.URL_ROTATION_ENABLED, false);
       const savedUrlRotationList = jsonParse(K.URL_ROTATION_LIST, []) as string[];
@@ -2124,13 +1554,13 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
       setUrlRotationInterval(savedUrlRotationInterval * 1000); // Convert seconds to ms
       setUrlRotationPauseOnTouch(bool(K.URL_ROTATION_PAUSE_ON_TOUCH, false));
       setUrlRotationResumeDelay(Math.max(5, num(K.URL_ROTATION_RESUME_DELAY, 60)) * 1000);
-      
+
       // Load URL Planner settings
       const savedUrlPlannerEnabled = bool(K.URL_PLANNER_ENABLED, false);
       const savedUrlPlannerEvents = jsonParse(K.URL_PLANNER_EVENTS, []) as ScheduledEvent[];
       setUrlPlannerEnabled(savedUrlPlannerEnabled);
       setUrlPlannerEvents(savedUrlPlannerEvents);
-      
+
       // Load Dashboard settings
       const savedDashboardMode = bool(K.DASHBOARD_MODE_ENABLED, false);
       const savedDashboardTiles = jsonParse(K.DASHBOARD_TILES, []) as DashboardTile[];
@@ -2164,7 +1594,7 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
 
       // Store base URL for when planner/rotation is not active
       if (savedUrl) setBaseUrl(savedUrl);
-      
+
       // Load WebView Back Button settings
       const savedWebViewBackButtonEnabled = bool(K.WEBVIEW_BACK_BUTTON_ENABLED, false);
       const savedWebViewBackButtonXPercent = num(K.WEBVIEW_BACK_BUTTON_X_PERCENT, 5);
@@ -2177,7 +1607,7 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
       const savedRestartButtonLongPressSeconds = num(K.RESTART_BUTTON_LONG_PRESS_SECONDS, 5);
       setRestartButtonEnabled(savedRestartButtonEnabled);
       setRestartButtonLongPressSeconds(savedRestartButtonLongPressSeconds);
-      
+
       // Load Auto-Brightness settings
       const savedAutoBrightnessEnabled = bool(K.AUTO_BRIGHTNESS_ENABLED, false);
       const savedAutoBrightnessMin = num(K.AUTO_BRIGHTNESS_MIN, 0.1);
@@ -2189,12 +1619,12 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
       setAutoBrightnessMax(savedAutoBrightnessMax);
       setAutoBrightnessOffset(savedAutoBrightnessOffset);
       setAutoBrightnessInterval(savedAutoBrightnessInterval);
-      
+
       // Load Brightness Management setting
       const savedBrightnessManagementEnabled = bool(K.BRIGHTNESS_MANAGEMENT_ENABLED, true);
       setBrightnessManagementEnabled(savedBrightnessManagementEnabled);
       brightnessManagementRef.current = savedBrightnessManagementEnabled;
-      
+
       // Load Screen Sleep Scheduler settings
       const savedScreenSchedulerEnabled = bool(K.SCREEN_SCHEDULER_ENABLED, false);
       const savedScreenSchedulerRules = jsonParse(K.SCREEN_SCHEDULER_RULES, []) as ScreenScheduleRule[];
@@ -2202,7 +1632,7 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
       setScreenSchedulerEnabled(savedScreenSchedulerEnabled);
       setScreenSchedulerRules(savedScreenSchedulerRules);
       setScreenSchedulerWakeOnTouch(savedScreenSchedulerWakeOnTouch);
-      
+
       // Load Keep Screen On setting
       const savedKeepScreenOn = bool(K.KEEP_SCREEN_ON, true);
       setKeepScreenOn(savedKeepScreenOn);
@@ -2234,7 +1664,7 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
       setInactivityReturnResetOnNav(savedInactivityReturnResetOnNav);
       setInactivityReturnClearCache(savedInactivityReturnClearCache);
       setInactivityReturnScrollTop(savedInactivityReturnScrollTop);
-      
+
       // Load URL Filtering settings
       const savedUrlFilterEnabled = bool(K.URL_FILTER_ENABLED, false);
       const savedUrlFilterMode = str(K.URL_FILTER_MODE) || 'blacklist';
@@ -2248,8 +1678,8 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
       // Load Lock Screen Quick Controls settings
       const savedEmergencyEnabled = bool(K.LOCKSCREEN_EMERGENCY_CALL_ENABLED, false);
       setLockscreenEmergencyEnabled(savedEmergencyEnabled);
-      
-      
+
+
       // Load Printing setting
       const savedWindowPrintEnabled = bool(K.WINDOW_PRINT_ENABLED, false);
       setWindowPrintEnabled(savedWindowPrintEnabled);
@@ -2261,7 +1691,7 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
       setEscPosCut(bool(K.ESC_POS_CUT, false));
       setEscPosFeedLines(num(K.ESC_POS_FEED_LINES, 0));
       setPrintOrigins(toPrintOrigins(jsonParse(K.PRINT_ORIGINS, null)));
-      
+
       // Load WebView Zoom Level
       const savedZoomLevel = num(K.WEBVIEW_ZOOM_LEVEL, 100);
       setZoomLevel(savedZoomLevel);
@@ -2287,14 +1717,10 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
       const savedBasicAuthPassword = savedBasicAuthUsername ? await getSecureBasicAuthPassword() : '';
       setBasicAuthUsername(savedBasicAuthUsername);
       setBasicAuthPassword(savedBasicAuthPassword);
-      
+
       // Load Media Player settings
       if (savedDisplayMode === 'media_player') {
-        // A playlist assigned by FreeKiosk Cloud replaces the list set on the device
-        const cloudPlaylist = await SignagePlaylist.getActive();
-        const mpItems = cloudPlaylist
-          ? cloudPlaylist.items
-          : (jsonParse(K.MEDIA_PLAYER_ITEMS, []) as MediaItem[]);
+        const mpItems = jsonParse(K.MEDIA_PLAYER_ITEMS, []) as MediaItem[];
         const mpAutoPlay = bool(K.MEDIA_PLAYER_AUTOPLAY, true);
         const mpLoop = bool(K.MEDIA_PLAYER_LOOP, true);
         const mpShuffle = bool(K.MEDIA_PLAYER_SHUFFLE, false);
@@ -2309,10 +1735,6 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
         const mpUnattended = bool(K.MEDIA_PLAYER_UNATTENDED, defaultMediaUnattended());
         const mpCacheLimitMb = num(K.MEDIA_PLAYER_CACHE_LIMIT_MB, DEFAULT_MEDIA_CACHE_LIMIT_MB);
         setMediaPlayerItems(mpItems);
-        setSignagePrefetch(cloudPlaylist?.prefetch ?? []);
-        setSignageScheduled(!!cloudPlaylist?.scheduled);
-        signageActiveIdRef.current = cloudPlaylist ? cloudPlaylist.id : null;
-        setSignageManaged(!!cloudPlaylist);
         setMediaPlayerAutoPlay(mpAutoPlay);
         setMediaPlayerLoop(mpLoop);
         setMediaPlayerShuffle(mpShuffle);
@@ -2343,7 +1765,7 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
           console.error('[KioskScreen] Failed to start auto-brightness:', error);
         }
       }
-      
+
       // If brightness management is disabled, reset to system brightness
       if (!savedBrightnessManagementEnabled) {
         try {
@@ -2353,16 +1775,16 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
           console.error('[KioskScreen] Failed to reset to system brightness:', error);
         }
       }
-      
+
       // Load and apply Blocking Overlays settings
       const savedBlockingOverlaysEnabled = await StorageService.getBlockingOverlaysEnabled();
       const savedBlockingOverlaysRegions = await StorageService.getBlockingOverlaysRegions();
-      
+
       let blockingOverlaysActive = false;
       if (savedBlockingOverlaysEnabled) {
         await BlockingOverlayModule.applyConfiguration(true, savedBlockingOverlaysRegions);
         blockingOverlaysActive = true;
-        
+
         // Recalculate overlays after a short delay to ensure screen dimensions are correct
         // This fixes issues at boot where dimensions might not be immediately available
         setTimeout(async () => {
@@ -2376,7 +1798,7 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
       } else {
         await BlockingOverlayModule.setEnabled(false);
       }
-      
+
       // WebView mode: 5-tap detection is handled via onUserInteraction callback
       // No need for native overlay, stop it if running
       if (savedDisplayMode === 'webview') {
@@ -2412,7 +1834,7 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
 
       // Launch external app if in external_app mode
       console.log('[KioskScreen] Checking external app launch: displayMode=' + savedDisplayMode + ', package=' + savedExternalAppPackage + ', mode=' + savedExternalAppMode);
-      
+
       // CRITICAL: If navigateToPin is in progress (5-tap), do NOT launch external app.
       // loadSettings runs async and can reach this point after the navigateToPin event
       // has already started navigating to the PIN screen.
@@ -2420,7 +1842,7 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
         console.log('[KioskScreen] Skipping external app launch (navigateToPin in progress)');
         return;
       }
-      
+
       // Start keep-alive background monitor for any mode that has keepAlive apps configured
       if (savedDisplayMode === 'webview') {
         try {
@@ -2551,7 +1973,6 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
     if (!(screensaverEnabled && inactivityEnabled)) return;
     // A playlist from the cloud is on: inactivity is its normal state, not a reason to cover it (a
     // sleep schedule, a command or the schedule's own blank screen still can)
-    if (signageManaged && displayMode === 'media_player') return;
     // #190 — No motion pre-check in External App mode: FreeKiosk is backgrounded there,
     // so the 10s pre-check setTimeout below is frozen by RN (the exact timer freeze the
     // native countdown works around) and the screensaver never activated. The camera
@@ -2572,7 +1993,7 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
       Keyboard.dismiss();
       setIsScreensaverActive(true);
     }
-  }, [isScheduledSleep, screensaverEnabled, inactivityEnabled, motionEnabled, displayMode, signageManaged]);
+  }, [isScheduledSleep, screensaverEnabled, inactivityEnabled, motionEnabled, displayMode]);
 
   const resetTimer = () => {
     clearTimer();
@@ -2765,7 +2186,7 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
 
   // Ref for 5-tap debounce (prevent multiple events per tap)
   const lastTapTimeRef = useRef<number>(0);
-  
+
   // Ref to track screensaver state for callbacks (avoid stale closures)
   const isScreensaverActiveRef = useRef(isScreensaverActive);
   useEffect(() => {
@@ -2819,7 +2240,7 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
       console.log('[KioskScreen] Waking from scheduled sleep via touch (temporary)');
       await exitScheduledSleep();
     }
-    
+
     // Toute interaction utilisateur sort du mode surveillance et relance le timer normal
     if (isPreCheckingMotionRef.current) {
       console.log('[KioskScreen] Interaction utilisateur - sortie mode surveillance');
@@ -2829,7 +2250,7 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
       }
       setIsPreCheckingMotion(false);
     }
-    
+
     resetTimer();
     if (isScreensaverActiveRef.current) {
       // #344: the touch that wakes the screensaver is not an interaction with the page,
@@ -2854,7 +2275,7 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
       const now = Date.now();
       const tapX = event.x ?? 0;
       const tapY = event.y ?? 0;
-      
+
       // tap_anywhere mode with spatial proximity - taps must be grouped together
       if (tapCountRef.current === 0) {
         // First tap - store position and time
@@ -2868,7 +2289,7 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
         const dx = tapX - firstTapXRef.current;
         const dy = tapY - firstTapYRef.current;
         const distance = Math.sqrt(dx * dx + dy * dy);
-        
+
         if (distance <= TAP_PROXIMITY_RADIUS) {
           // Within proximity, count the tap
           tapCountRef.current += 1;
@@ -2882,7 +2303,7 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
           tapCountRef.current = 1;
         }
       }
-      
+
       // If N taps reached, go to PIN screen
       if (tapCountRef.current >= returnTapCount) {
         console.log(`[${returnTapCount}-tap] ✅ ${returnTapCount} grouped taps reached! Going to PIN`);
@@ -2892,23 +2313,23 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
         }
         clearTimer();
         setIsScreensaverActive(false);
-        
+
         // If in scheduled sleep, exit it before navigating to PIN
         // (even if wake-on-touch is disabled, we MUST wake for settings access)
         if (isScheduledSleepRef.current) {
           console.log('[KioskScreen] Exiting scheduled sleep for PIN navigation');
           await exitScheduledSleep();
         }
-        
+
         navigation.navigate('Pin');
         return;
       }
-      
+
       // Timeout global : reset si plus de returnTapTimeout depuis le premier tap
       if (tapTimerRef.current) {
         clearTimeout(tapTimerRef.current);
       }
-      
+
       tapTimerRef.current = setTimeout(() => {
         const elapsed = Date.now() - lastTapTimeRef.current;
         console.log(`[${returnTapCount}-tap] ⏱ Timeout - ${elapsed}ms elapsed, resetting count`);
@@ -2924,14 +2345,14 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
       console.log('[KioskScreen] Tap ignored — screen is in scheduled sleep (wake on touch disabled)');
       return;
     }
-    
+
     // If waking from scheduled sleep via touch, actually exit sleep to restore brightness
     // The scheduler interval will re-enter sleep at the next 30s check if still in window
     if (isScheduledSleepRef.current && screenSchedulerWakeOnTouchRef.current) {
       console.log('[KioskScreen] Waking from scheduled sleep via screensaver tap (temporary)');
       await exitScheduledSleep();
     }
-    
+
     // Exit pre-check mode if active
     if (isPreCheckingMotionRef.current) {
       console.log('[KioskScreen] Screensaver tap — exiting motion pre-check');
@@ -2941,7 +2362,7 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
       }
       setIsPreCheckingMotion(false);
     }
-    
+
     setIsScreensaverActive(false);
     resetTimer();
     // Restore brightness immediately (auto-brightness is handled by its own useEffect)
@@ -2982,17 +2403,12 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
       return;
     }
 
-    // Report motion to API/MQTT
-    ApiService.updateStatus({ motionDetected: true });
-    // Auto-clear after 10 seconds
-    setTimeout(() => ApiService.updateStatus({ motionDetected: false }), 10000);
-
     // Don't wake on motion during scheduled sleep
     if (isScheduledSleepRef.current) {
       console.log('[KioskScreen] Motion ignored — screen is in scheduled sleep');
       return;
     }
-    
+
     // Case 1: Pre-check phase is running — someone is present, cancel and reset the full timer
     if (isPreCheckingMotionRef.current && !isScreensaverActiveRef.current) {
       console.log('[KioskScreen] Motion detected during pre-check — restarting full inactivity timer');
@@ -3224,15 +2640,15 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
 
   const handleReturnButtonTap = (): void => {
     const now = Date.now();
-    
+
     if (tapCountRef.current === 0) {
       lastTapTimeRef.current = now;
       console.log(`[${returnTapCount}-tap BUTTON] First tap`);
     }
-    
+
     tapCountRef.current += 1;
     console.log(`[${returnTapCount}-tap BUTTON] Count: ${tapCountRef.current}/${returnTapCount}`);
-    
+
     // If N taps reached, go to PIN screen
     if (tapCountRef.current >= returnTapCount) {
       console.log(`[${returnTapCount}-tap BUTTON] ✅ ${returnTapCount} taps reached! Going to PIN`);
@@ -3245,12 +2661,12 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
       navigation.navigate('Pin');
       return;
     }
-    
+
     // Timeout: reset if returnTapTimeout elapsed since first tap
     if (tapTimerRef.current) {
       clearTimeout(tapTimerRef.current);
     }
-    
+
     tapTimerRef.current = setTimeout(() => {
       console.log(`[${returnTapCount}-tap BUTTON] ⏱ Timeout - resetting count`);
       tapCountRef.current = 0;
@@ -3669,8 +3085,6 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
             muteVideo={mediaPlayerMute}
             cacheOffline={mediaPlayerCache}
             unattended={mediaPlayerUnattended}
-            prefetchItems={signagePrefetch}
-            emptyIsBlank={signageScheduled}
             cacheLimitMb={mediaPlayerCacheLimitMb}
             onUserInteraction={onUserInteraction}
           />

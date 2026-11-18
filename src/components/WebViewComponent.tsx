@@ -16,7 +16,7 @@ import {
   useColorScheme,
 } from 'react-native';
 
-const { HttpServerModule } = NativeModules;
+const { DeviceUtilitiesModule } = NativeModules;
 
 import KioskModule from '../utils/KioskModule';
 import UpdateModule from '../utils/UpdateModule';
@@ -31,16 +31,12 @@ import type { WebViewErrorEvent, ShouldStartLoadRequest, WebViewRenderProcessGon
 import { useNavigation } from '@react-navigation/native';
 import PrintModule from '../utils/PrintModule';
 import SilentPrintModule from '../utils/SilentPrintModule';
-import { CLOUD_ENABLED } from '../config/features';
-import { CloudSyncService, PROVISIONING_STATUS_EVENT } from '../utils/CloudSyncService';
-import type { ProvisioningStatus } from '../utils/CloudSyncService';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 import { useTranslation } from 'react-i18next';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
-const CLOUD_URL = 'https://cloud.freekiosk.app';
 
 interface WebViewComponentProps {
   url: string;
@@ -184,24 +180,6 @@ const WebViewComponent = forwardRef<WebViewComponentRef, WebViewComponentProps>(
   const isGoingBackRef = useRef<boolean>(false); // Prevent goBack loop for URL filter
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
-  // Zero-touch cloud enrolment state, shown on the welcome screen. A QR-provisioned tablet
-  // that is Device Owner but failed to enrol used to sit here in silence; see
-  // ProvisioningStatus in CloudSyncService.
-  const [provisioning, setProvisioning] = useState<ProvisioningStatus>(
-    () => (CLOUD_ENABLED ? CloudSyncService.getProvisioningStatus() : { state: 'none' }),
-  );
-  React.useEffect(() => {
-    if (!CLOUD_ENABLED) return;
-    const sub = DeviceEventEmitter.addListener(PROVISIONING_STATUS_EVENT, setProvisioning);
-    return () => sub.remove();
-  }, []);
-  // A tablet enrolled from Settings with no URL yet also lands on the welcome screen.
-  const [cloudEnrolled, setCloudEnrolled] = useState<boolean | null>(null);
-  React.useEffect(() => {
-    if (!CLOUD_ENABLED) return;
-    CloudSyncService.isEnrolled().then(setCloudEnrolled).catch(() => setCloudEnrolled(true));
-  }, []);
-  const showCloudPromo = CLOUD_ENABLED && cloudEnrolled === false && provisioning.state === 'none';
   const loadingTimeoutRef = useRef<any>(null);
   // Last top-frame (main document) URL requested — used to distinguish a fatal
   // main-page HTTP error from a harmless sub-resource error (favicon, analytics…).
@@ -269,7 +247,7 @@ const WebViewComponent = forwardRef<WebViewComponentRef, WebViewComponentProps>(
     // This allows form submits, JS buttons, hash/query changes on the SAME page
     const targetOriginPath = getOriginPath(targetUrl);
     const mainOriginPath = getOriginPath(url);
-    
+
     if (targetOriginPath === mainOriginPath) return false;
 
     if (urlFilterMode === 'blacklist') {
@@ -749,7 +727,7 @@ const WebViewComponent = forwardRef<WebViewComponentRef, WebViewComponentProps>(
         }));
       }
     }, true);
-    
+
     // A mouse click fires no touch event, so a mouse (USB or Bluetooth, typically on an
     // Android TV) would never count toward the tap sequence. pointerType tells the two
     // apart, so a touch is not counted twice.
@@ -1099,10 +1077,10 @@ const WebViewComponent = forwardRef<WebViewComponentRef, WebViewComponentProps>(
               }
             });
           }
-          
+
           // Appliquer immédiatement
           forceNumericKeyboard();
-          
+
           // Observer les changements du DOM
           const observer = new MutationObserver(forceNumericKeyboard);
           observer.observe(document.body, { childList: true, subtree: true });
@@ -1149,22 +1127,22 @@ const WebViewComponent = forwardRef<WebViewComponentRef, WebViewComponentProps>(
               const id = (input.id || '').toLowerCase();
               const placeholder = (input.placeholder || '').toLowerCase();
               const className = (input.className || '').toLowerCase();
-              
+
               // Détecter les champs numériques
               const isNumericType = type === 'number' || type === 'tel';
               const hasNumericPattern = input.pattern && /[0-9]/.test(input.pattern);
               const hasNumericName = /price|quantity|qty|amount|number|num|phone|tel|code|zip|postal|card/.test(name + id + placeholder + className);
-              
+
               if (isNumericType || hasNumericPattern || hasNumericName) {
                 input.setAttribute('inputmode', 'numeric');
                 input.setAttribute('pattern', '[0-9]*');
               }
             });
           }
-          
+
           // Appliquer immédiatement
           smartDetectNumeric();
-          
+
           // Observer les changements du DOM
           const observer = new MutationObserver(smartDetectNumeric);
           observer.observe(document.body, { childList: true, subtree: true });
@@ -1325,7 +1303,7 @@ const WebViewComponent = forwardRef<WebViewComponentRef, WebViewComponentProps>(
 
   const onMessageHandler = (event: any) => {
     const message = event.nativeEvent.data;
-    
+
     if (message === 'page-touch') {
       onPageTouch?.();
     } else if (pullToRefresh && message === `pull-refresh:${pullRefreshToken}`) {
@@ -1343,20 +1321,20 @@ const WebViewComponent = forwardRef<WebViewComponentRef, WebViewComponentProps>(
           onUserInteraction({ isTap: true, x: data.x, y: data.y });
         } else if (data.type === 'SPEECH_SYNTH_SPEAK') {
           // speechSynthesis polyfill: bridge to native Android TTS
-          if (HttpServerModule?.speak) {
-            HttpServerModule.speak(data.text || '', data.lang || '', data.voiceUri || '')
+          if (DeviceUtilitiesModule?.speak) {
+            DeviceUtilitiesModule.speak(data.text || '', data.lang || '', data.voiceUri || '')
               .catch((err: any) => console.error('[WebView] TTS speak failed:', err));
           }
         } else if (data.type === 'SPEECH_SYNTH_CANCEL') {
           // speechSynthesis polyfill: stop native TTS
-          if (HttpServerModule?.stopSpeaking) {
-            HttpServerModule.stopSpeaking()
+          if (DeviceUtilitiesModule?.stopSpeaking) {
+            DeviceUtilitiesModule.stopSpeaking()
               .catch((err: any) => console.error('[WebView] TTS cancel failed:', err));
           }
         } else if (data.type === 'SPEECH_SYNTH_GET_VOICES') {
           // speechSynthesis polyfill: query available TTS voices from native
-          if (HttpServerModule?.getTtsVoices) {
-            HttpServerModule.getTtsVoices()
+          if (DeviceUtilitiesModule?.getTtsVoices) {
+            DeviceUtilitiesModule.getTtsVoices()
               .then((voices: any[]) => {
                 const voicesJson = JSON.stringify(voices || []);
                 // Use JSON.stringify on the already-stringified JSON to properly escape
@@ -1403,11 +1381,11 @@ const WebViewComponent = forwardRef<WebViewComponentRef, WebViewComponentProps>(
     setErrorReason(loadErrorReason(event.nativeEvent));
     setError(true);
     setLoading(false);
-    
+
     // Load about:blank to clear the native Android error page
     // This is the ONLY way to prevent the native WebView error page from covering our overlay
     webViewRef.current?.injectJavaScript('window.location.href = "about:blank"; true;');
-    
+
     if (autoReload) {
       setTimeout(() => {
         setError(false);
@@ -1485,15 +1463,9 @@ const WebViewComponent = forwardRef<WebViewComponentRef, WebViewComponentProps>(
   };
 
   // The PIN screen forwards the tab, so Settings opens on Advanced, where Cloud lives.
-  const handleConnectCloud = (): void => {
-    navigation.navigate('Pin', { initialTab: 'advanced' });
-  };
 
-  const handleDiscoverCloud = (): void => {
-    Linking.openURL(CLOUD_URL).catch(err =>
-      console.error('[FreeKiosk] Failed to open Cloud URL:', err)
-    );
-  };
+
+
 
   const handleOpenGitHub = (): void => {
     Linking.openURL('https://github.com/rushb-fr/freekiosk').catch(err =>
@@ -1509,7 +1481,7 @@ const WebViewComponent = forwardRef<WebViewComponentRef, WebViewComponentProps>(
           showsVerticalScrollIndicator={false}
         >
           <Animated.View style={[styles.welcomeContent, { opacity: fadeAnim }]}>
-              
+
               {/* Logo / Icon */}
             <View style={styles.logoContainer}>
               <View style={styles.logoCircle}>
@@ -1544,18 +1516,6 @@ const WebViewComponent = forwardRef<WebViewComponentRef, WebViewComponentProps>(
             </View>
 
             {/* Cloud enrolment state for a QR-provisioned device */}
-            {provisioning.state !== 'none' && (
-              <View style={styles.provisioningBox}>
-                <Text style={styles.provisioningText}>
-                  {provisioning.state === 'enrolling'
-                    ? t('components.webView.provisioningEnrolling', { attempts: provisioning.attempts })
-                    : provisioning.state === 'retrying'
-                      ? t('components.webView.provisioningRetrying', { attempts: provisioning.attempts })
-                      : t('components.webView.provisioningFailed', { error: provisioning.error })}
-                </Text>
-              </View>
-            )}
-
             {/* Action Button */}
             <TouchableOpacity
               style={[styles.setupButton, styles.rowCenter]}
@@ -1567,33 +1527,6 @@ const WebViewComponent = forwardRef<WebViewComponentRef, WebViewComponentProps>(
                 {t('components.webView.startConfiguration')}
               </Text>
             </TouchableOpacity>
-
-            {/* FreeKiosk Cloud: not shown once enrolled or while a QR enrolment is running */}
-            {showCloudPromo && (
-              <View style={styles.cloudPromoBox} testID="welcome-cloud-promo">
-                <View style={styles.cloudPromoHeader}>
-                  <Icon name="cloud-cog" size={22} color="#fff" style={styles.buttonLeadingIcon} />
-                  <Text style={styles.cloudPromoTitle}>{t('components.webView.cloudTitle')}</Text>
-                </View>
-                <Text style={styles.cloudPromoText}>{t('components.webView.cloudText')}</Text>
-                <View style={styles.cloudPromoActions}>
-                  <TouchableOpacity
-                    style={styles.cloudPromoPrimary}
-                    onPress={handleConnectCloud}
-                    activeOpacity={0.8}
-                  >
-                    <Text style={styles.cloudPromoPrimaryText}>{t('components.webView.cloudConnect')}</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.cloudPromoSecondary}
-                    onPress={handleDiscoverCloud}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={styles.cloudPromoSecondaryText}>{t('components.webView.cloudDiscover')}</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            )}
 
             {/* Hint */}
             <View style={styles.hintContainer}>
@@ -1625,11 +1558,11 @@ const WebViewComponent = forwardRef<WebViewComponentRef, WebViewComponentProps>(
         nativeConfig={{ component: NativeWebViewWithRef as any }}
         source={{ uri: error ? 'about:blank' : url }}
         style={styles.webview}
-        
+
         // User Agent - Modern Chrome on Android to avoid WAF blocks (e.g. SiteGround)
         // Custom UA takes precedence if set, otherwise use a recent Chrome stable UA
         userAgent={customUserAgent?.trim() || defaultUserAgent()}
-        
+
         originWhitelist={pdfViewerEnabled ? ['http://*', 'https://*', 'file://*', 'content://*'] : ['http://*', 'https://*']}
         mixedContentMode="always"
         // Left undefined when off, so the library default ('always') applies as before.
@@ -1719,12 +1652,12 @@ const WebViewComponent = forwardRef<WebViewComponentRef, WebViewComponentProps>(
         onShouldStartLoadWithRequest={(request: ShouldStartLoadRequest) => {
           // Security: Block dangerous URL schemes
           const urlLower = request.url.toLowerCase();
-          
+
           // Allow file:// only for our bundled PDF viewer
           if (urlLower.startsWith('file:///android_asset/pdfjs/')) {
             return true;
           }
-          
+
           // content:// (#385) is the page picked with "Choose a local HTML file": a page may not
           // navigate to one, as it may not to file://.
           if (urlLower.startsWith('file://') ||
@@ -1733,7 +1666,7 @@ const WebViewComponent = forwardRef<WebViewComponentRef, WebViewComponentProps>(
             console.warn('[FreeKiosk] Blocked dangerous URL scheme:', request.url);
             return false;
           }
-          
+
           // data: URLs - allow when window.print() is enabled (some label/receipt sites
           // generate print content as data:text/html popups)
           if (urlLower.startsWith('data:')) {
@@ -1845,10 +1778,10 @@ const WebViewComponent = forwardRef<WebViewComponentRef, WebViewComponentProps>(
         incognito={false}
         sharedCookiesEnabled={true}
         thirdPartyCookiesEnabled={true}
-        
+
         // Storage settings for Pinia/Nuxt compatibility
         cacheMode="LOAD_DEFAULT"
-        
+
         // Allow popups/new windows - required for some login flows
         // Instead of opening a new window, we redirect in the same WebView
         setSupportMultipleWindows={true}
@@ -1903,7 +1836,7 @@ const WebViewComponent = forwardRef<WebViewComponentRef, WebViewComponentProps>(
         // On iOS this prop handles it natively.
         mediaCapturePermissionGrantType="grant"
       />
-      
+
       {loading && !error && (
         <View style={[styles.loadingContainer, darkLoading && styles.loadingContainerDark]}>
           <ActivityIndicator size="large" color={darkLoading ? '#8ab4ff' : '#2b7fff'} />

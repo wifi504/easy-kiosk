@@ -30,7 +30,6 @@ class PolicyComplianceActivity : Activity() {
         setResult(RESULT_OK)
 
         try {
-            DeviceAdminReceiver.persistPendingEnrollment(this, intent)
         } catch (e: Exception) {
             Log.e(TAG, "Could not store the pending enrollment: ${e.message}", e)
         }

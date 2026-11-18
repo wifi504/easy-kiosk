@@ -182,19 +182,6 @@ class MainActivity : ReactActivity() {
       "screensaver_enabled" to "@screensaver_enabled",
       "screensaver_delay" to "@screensaver_inactivity_delay",
       "screensaver_brightness" to "@screensaver_brightness",
-      "rest_api_enabled" to "@kiosk_rest_api_enabled",
-      "rest_api_port" to "@kiosk_rest_api_port",
-      "rest_api_key" to "@kiosk_rest_api_key",
-      "mqtt_enabled" to "@kiosk_mqtt_enabled",
-      "mqtt_broker_url" to "@kiosk_mqtt_broker_url",
-      "mqtt_port" to "@kiosk_mqtt_port",
-      "mqtt_username" to "@kiosk_mqtt_username",
-      "mqtt_client_id" to "@kiosk_mqtt_client_id",
-      "mqtt_base_topic" to "@kiosk_mqtt_base_topic",
-      "mqtt_discovery_prefix" to "@kiosk_mqtt_discovery_prefix",
-      "mqtt_status_interval" to "@kiosk_mqtt_status_interval",
-      "mqtt_allow_control" to "@kiosk_mqtt_allow_control",
-      "mqtt_device_name" to "@kiosk_mqtt_device_name",
       "dashboard_mode" to "@kiosk_dashboard_mode_enabled",
       "kiosk_enabled" to "@kiosk_enabled"
     )
@@ -202,20 +189,15 @@ class MainActivity : ReactActivity() {
     /** Keys handled by their own block, so they are recognized without being in the map. */
     val ADB_SPECIAL_KEYS = setOf(
       "pin", "url", "lock_package", "config", "managed_apps", "dashboard_tiles",
-      "mqtt_password", "auto_start", "auto_launch", "test_mode", "back_button_mode",
       "pin_mode", "external_app_mode", "status_bar",
       // Cloud enrollment over ADB. The dashboard's "Headless install (ADB)" snippet
       // has advertised --es cloud_token since the cloud shipped, but nothing read it.
-      "cloud_token", "cloud_url"
     )
 
     /** Where a cloud_token enrolls when the command does not say. */
-    const val DEFAULT_CLOUD_URL = "https://cloud.freekiosk.app"
 
     /** Never log these values: they are credentials, not settings. */
-    val ADB_SENSITIVE_KEYS = setOf(
-      "pin", "rest_api_key", "mqtt_password", "mqtt_username", "cloud_token"
-    )
+    val ADB_SENSITIVE_KEYS = setOf("pin")
 
     /** Extras Android or FreeKiosk itself puts on the intent; never a config mistake. */
     private val ADB_INTERNAL_EXTRAS = setOf("from_boot_lock", "profile")
@@ -862,7 +844,6 @@ class MainActivity : ReactActivity() {
     flushCookies()
     // Still visible here, so still allowed to start the camera service: this is the moment an
     // external app comes in front, and settings changed inside the app have no onResume.
-    syncCameraForegroundService()
   }
 
   override fun onResume() {
@@ -876,7 +857,6 @@ class MainActivity : ReactActivity() {
     cookieFlushHandler.postDelayed(cookieFlushRunnable, COOKIE_FLUSH_INTERVAL_MS)
 
     readExternalAppConfig()
-    syncCameraForegroundService()
     applyScreenOrientation()
     
     // Re-register screen state receiver in case it was lost
@@ -1846,17 +1826,8 @@ class MainActivity : ReactActivity() {
     }
   }
 
-  /**
-   * Runs CameraForegroundService while a remote camera feature is on: the REST API (photo and
-   * stream) or MQTT camera snapshots. Without it Android refuses the camera to FreeKiosk as soon
-   * as another app is in front. No-op in Play Store builds.
-   */
-  private fun syncCameraForegroundService() {
-    val wanted = getAsyncStorageValue("@kiosk_rest_api_enabled", "false") == "true" ||
-      (getAsyncStorageValue("@kiosk_mqtt_enabled", "false") == "true" &&
-        getAsyncStorageValue("@kiosk_mqtt_camera_enabled", "false") == "true")
-    CameraForegroundService.sync(this, wanted)
-  }
+  
+
 
   /**
    * Stop KioskWatchdogService and cancel its notification (#96 fix).
@@ -1901,7 +1872,6 @@ class MainActivity : ReactActivity() {
     val url = intent.getStringExtra("url")
     val pin = intent.getStringExtra("pin")
     val configJson = intent.getStringExtra("config") // Full JSON config
-    val mqttBroker = intent.getStringExtra("mqtt_broker_url")
 
     // Skip if no config parameters. Recognized keys are derived from ADB_SIMPLE_KEYS plus
     // the ones with their own handling, so adding a setting to the map is enough and this
@@ -2052,11 +2022,7 @@ class MainActivity : ReactActivity() {
       }
     }
 
-    intent.getStringExtra("mqtt_password")?.let {
-      // MQTT password goes to secure Keychain, not AsyncStorage
-      // Use a special pending key that KioskScreen will handle
-      editor.putString("@mqtt_password_pending", it)
-    }
+
 
     // Multi-app mode configuration
     intent.getStringExtra("external_app_mode")?.let {
@@ -2131,28 +2097,6 @@ class MainActivity : ReactActivity() {
       } else {
         showAdbToast("❌ ADB Config: Invalid dashboard_tiles JSON")
       }
-    }
-
-    // Cloud enrollment token: written to the *enrollment* store, not to the pending
-    // config, so it is consumed by the same code the setup-wizard QR feeds
-    // (CloudSyncService.consumePendingProvisioningEnrollment, via
-    // KioskModule.getPendingCloudEnrollment). Nothing to add on the JS side.
-    //
-    // cloud_url matters: the consumer bails out when it is empty, so a token on its
-    // own would silently do nothing. The snippet on the Add Device page only passes
-    // cloud_token, hence the default; --es cloud_url covers a self-hosted instance.
-    intent.getStringExtra("cloud_token")?.takeIf { it.isNotBlank() }?.let { token ->
-      val cloudUrl = intent.getStringExtra("cloud_url")
-        ?.takeIf { it.isNotBlank() }
-        ?.trimEnd('/')
-        ?: DEFAULT_CLOUD_URL
-      getSharedPreferences(DeviceAdminReceiver.PREFS, Context.MODE_PRIVATE).edit()
-        .putBoolean(DeviceAdminReceiver.KEY_HAS_PENDING, true)
-        .putString(DeviceAdminReceiver.KEY_TOKEN, token)
-        .putString(DeviceAdminReceiver.KEY_CLOUD_URL, cloudUrl)
-        .putString(DeviceAdminReceiver.KEY_ORG_ID, "")
-        .commit()
-      android.util.Log.i("FreeKiosk-ADB", "Cloud enrollment queued for $cloudUrl")
     }
 
     // Mark that there is pending config
@@ -2389,9 +2333,7 @@ class MainActivity : ReactActivity() {
     }
 
     // MQTT password requires special handling (goes to secure Keychain, not AsyncStorage)
-    if (config.has("mqtt_password")) {
-      editor.putString("@mqtt_password_pending", config.getString("mqtt_password"))
-    }
+
 
     // Managed apps: validate packages and resolve display names
     if (config.has("managed_apps")) {

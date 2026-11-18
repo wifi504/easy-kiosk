@@ -40,9 +40,8 @@ class KioskModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
 
     private var wakeLock: PowerManager.WakeLock? = null
     // Cloud sync keep-alive: CPU + WiFi locks so the RN JS heartbeat/poll loop keeps
-    // running when the screen is off (mirrors HttpServerModule's server locks).
+
     private var cloudCpuWakeLock: PowerManager.WakeLock? = null
-    private var cloudWifiLock: WifiManager.WifiLock? = null
 
     // #234: state for the temporary lock-task whitelist around the battery dialog.
     private val mainHandler = android.os.Handler(android.os.Looper.getMainLooper())
@@ -286,48 +285,10 @@ class KioskModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
     // JS thread, which the OS freezes once the CPU sleeps (screen off, Device Owner). Holding
     // a PARTIAL_WAKE_LOCK (CPU) + WifiLock (network) keeps that loop alive, so the device
     // stays reachable and a `wake`/`screenOn` command can still land to turn the screen back
-    // on. Acquired from CloudSyncService.start(), released on stop(). Idempotent.
-    @ReactMethod
-    fun acquireCloudWakeLock(promise: Promise) {
-        try {
-            // The Wi-Fi lock is optional: a box that is Ethernet-only has no Wi-Fi service, and
-            // that must not stop the CPU wake lock below from being taken.
-            if (cloudWifiLock?.isHeld != true) {
-                val wifiManager = reactApplicationContext.applicationContext
-                    .getSystemService(Context.WIFI_SERVICE) as? WifiManager
-                cloudWifiLock = wifiManager?.createWifiLock(
-                    WifiManager.WIFI_MODE_FULL_HIGH_PERF, "FreeKiosk:CloudSync"
-                )?.also { it.acquire() }
-            }
-            if (cloudCpuWakeLock?.isHeld != true) {
-                val powerManager = reactApplicationContext
-                    .getSystemService(Context.POWER_SERVICE) as PowerManager
-                cloudCpuWakeLock = powerManager.newWakeLock(
-                    PowerManager.PARTIAL_WAKE_LOCK, "FreeKiosk:CloudSyncCPU"
-                ).also { it.acquire() }
-            }
-            android.util.Log.d("KioskModule", "Cloud sync wake locks acquired")
-            promise.resolve(true)
-        } catch (e: Exception) {
-            android.util.Log.e("KioskModule", "Failed to acquire cloud wake locks: ${e.message}")
-            promise.resolve(false)
-        }
-    }
 
-    @ReactMethod
-    fun releaseCloudWakeLock(promise: Promise) {
-        try {
-            cloudCpuWakeLock?.let { if (it.isHeld) it.release() }
-            cloudCpuWakeLock = null
-            cloudWifiLock?.let { if (it.isHeld) it.release() }
-            cloudWifiLock = null
-            android.util.Log.d("KioskModule", "Cloud sync wake locks released")
-            promise.resolve(true)
-        } catch (e: Exception) {
-            android.util.Log.e("KioskModule", "Failed to release cloud wake locks: ${e.message}")
-            promise.resolve(false)
-        }
-    }
+
+
+
 
     // Exempt the app from Doze/battery optimization so the cloud loop holds up on
     // battery-powered devices (the PARTIAL_WAKE_LOCK keeps the CPU awake, but Doze can still
@@ -1469,46 +1430,12 @@ class KioskModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
      * setup-wizard QR). Returns { enroll_token, cloud_url, org_id } or null.
      * Consumed by KioskScreen on startup to auto-enroll.
      */
-    @ReactMethod
-    fun getPendingCloudEnrollment(promise: Promise) {
-        try {
-            val prefs = reactApplicationContext.getSharedPreferences(
-                DeviceAdminReceiver.PREFS, Context.MODE_PRIVATE
-            )
-            if (!prefs.getBoolean(DeviceAdminReceiver.KEY_HAS_PENDING, false)) {
-                promise.resolve(null)
-                return
-            }
-            val token = prefs.getString(DeviceAdminReceiver.KEY_TOKEN, null)
-            if (token.isNullOrBlank()) {
-                promise.resolve(null)
-                return
-            }
-            val result = com.facebook.react.bridge.Arguments.createMap()
-            result.putString("enroll_token", token)
-            result.putString("cloud_url", prefs.getString(DeviceAdminReceiver.KEY_CLOUD_URL, "") ?: "")
-            result.putString("org_id", prefs.getString(DeviceAdminReceiver.KEY_ORG_ID, "") ?: "")
-            promise.resolve(result)
-        } catch (e: Exception) {
-            promise.reject("ERROR", "Failed to get pending cloud enrollment: ${e.message}")
-        }
-    }
+
 
     /**
      * Clear the pending cloud enrollment after it has been consumed.
      */
-    @ReactMethod
-    fun clearPendingCloudEnrollment(promise: Promise) {
-        try {
-            val prefs = reactApplicationContext.getSharedPreferences(
-                DeviceAdminReceiver.PREFS, Context.MODE_PRIVATE
-            )
-            prefs.edit().clear().commit()
-            promise.resolve(true)
-        } catch (e: Exception) {
-            promise.reject("ERROR", "Failed to clear pending cloud enrollment: ${e.message}")
-        }
-    }
+
 
     /**
      * Broadcast that settings are loaded (called after ADB config restart)

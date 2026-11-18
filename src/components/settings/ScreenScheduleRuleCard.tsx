@@ -25,11 +25,11 @@ const ScreenScheduleRuleCard: React.FC<ScreenScheduleRuleCardProps> = ({
 }) => {
   const { t } = useTranslation();
   const daysText = getDaysDisplayString(rule.days);
-  
+
   // Display sleep window with midnight-crossing indicator
   const sleepCrossesMidnight = rule.sleepTime > rule.wakeTime;
   const timeDisplay = `${rule.sleepTime} → ${rule.wakeTime}`;
-  
+
   return (
     <View style={[styles.card, !rule.enabled && styles.cardDisabled]}>
       <View style={styles.header}>
@@ -50,7 +50,7 @@ const ScreenScheduleRuleCard: React.FC<ScreenScheduleRuleCardProps> = ({
           </Text>
         </TouchableOpacity>
       </View>
-      
+
       <View style={styles.details}>
         <View style={styles.detailRow}>
           <Icon name="clock-outline" size={16} color={rule.enabled ? Colors.textSecondary : Colors.textDisabled} />
@@ -65,7 +65,7 @@ const ScreenScheduleRuleCard: React.FC<ScreenScheduleRuleCardProps> = ({
           </Text>
         </View>
       </View>
-      
+
       <View style={styles.actions}>
         <TouchableOpacity style={styles.actionButton} onPress={() => onEdit(rule)}>
           <Icon name="pencil" size={18} color={Colors.primary} />

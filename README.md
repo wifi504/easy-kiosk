@@ -32,6 +32,6 @@
 
 ## 项目与许可
 
-本项目仓库：[wifi504/easy-kiosk](https://github.com/wifi504/easy-kiosk)。本地仅保留 `origin`，唯一开发分支为 `main`；上游地址仅用于来源说明，不配置为 Git remote。
+本项目仓库：[wifi504/easy-kiosk](https://github.com/wifi504/easy-kiosk)。本地仅保留 `origin`，稳定分支为 `main`，改造与 Actions 验证使用 `dev`；上游地址仅用于来源说明，不配置为 Git remote。
 
 原作者署名：**Copyright (c) 2025 Rushb**。原始 [MIT 许可证](LICENSE) 与 [第三方许可声明](THIRD-PARTY-NOTICES.md) 完整保留。easy-kiosk 是独立派生项目，不代表上游官方产品。

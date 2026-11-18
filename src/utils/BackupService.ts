@@ -7,7 +7,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform, PermissionsAndroid, Alert } from 'react-native';
 import RNFS from 'react-native-fs';
 import UpdateModule from './UpdateModule';
-import { hasSecurePin, getSecureApiKey, saveSecureApiKey, getSecureMqttPassword, saveSecureMqttPassword } from './secureStorage';
+import { hasSecurePin } from './secureStorage';
 
 // All storage keys to backup
 const BACKUP_KEYS = [
@@ -58,17 +58,8 @@ const BACKUP_KEYS = [
   '@kiosk_url_planner_enabled',
   '@kiosk_url_planner_events',
   // REST API
-  '@kiosk_rest_api_enabled',
-  '@kiosk_rest_api_port',
   // Note: @kiosk_rest_api_key is handled separately via Keychain (secure storage)
-  '@kiosk_rest_api_allow_control',
   // Live MJPEG camera stream
-  '@kiosk_camera_stream_enabled',
-  '@kiosk_camera_stream_camera',
-  '@kiosk_camera_stream_fps',
-  '@kiosk_camera_stream_quality',
-  '@kiosk_camera_stream_width',
-  '@kiosk_camera_stream_rotate',
   '@kiosk_allow_power_button',
   '@kiosk_block_factory_reset',
   '@kiosk_allow_notifications',
@@ -122,26 +113,6 @@ const BACKUP_KEYS = [
   // Custom User Agent
   '@kiosk_custom_user_agent',
   // MQTT
-  '@kiosk_mqtt_enabled',
-  '@kiosk_mqtt_broker_url',
-  '@kiosk_mqtt_port',
-  '@kiosk_mqtt_username',
-  '@kiosk_mqtt_client_id',
-  '@kiosk_mqtt_base_topic',
-  '@kiosk_mqtt_discovery_prefix',
-  '@kiosk_mqtt_status_interval',
-  '@kiosk_mqtt_allow_control',
-  '@kiosk_mqtt_device_name',
-  '@kiosk_mqtt_motion_always_on',
-  '@kiosk_mqtt_screenshot_enabled',
-  '@kiosk_mqtt_screenshot_auto',
-  '@kiosk_mqtt_screenshot_interval',
-  '@kiosk_mqtt_screenshot_quality',
-  '@kiosk_mqtt_screenshot_max_width',
-  '@kiosk_mqtt_camera_enabled',
-  '@kiosk_mqtt_camera_auto',
-  '@kiosk_mqtt_camera_interval',
-  '@kiosk_mqtt_camera_quality',
   // Beta Updates
   '@kiosk_beta_updates_enabled',
   // Managed Apps (Multi-App mode, accessibility, keep-alive)
@@ -318,15 +289,11 @@ export async function buildBackupJson(): Promise<{ success: boolean; json?: stri
     }
 
     try {
-      const apiKey = await getSecureApiKey();
-      if (apiKey) settings['@kiosk_rest_api_key'] = apiKey;
     } catch (e) {
       console.warn('Failed to read API key from secure storage:', e);
     }
 
     try {
-      const mqttPassword = await getSecureMqttPassword();
-      if (mqttPassword) settings['@kiosk_mqtt_password'] = mqttPassword;
     } catch (e) {
       console.warn('Failed to read MQTT password from secure storage:', e);
     }
@@ -477,15 +444,7 @@ export async function importBackup(filePath: string): Promise<{ success: boolean
         const value = backupData.settings[key];
         if (value !== null && value !== undefined) {
           // Handle API key separately - save to secure storage (Keychain)
-          if (key === '@kiosk_rest_api_key') {
-            await saveSecureApiKey(value);
-            console.log('[BackupService] API key imported to secure storage');
-          } else if (key === '@kiosk_mqtt_password') {
-            await saveSecureMqttPassword(value);
-            console.log('[BackupService] MQTT password imported to secure storage');
-          } else {
-            await AsyncStorage.setItem(key, value);
-          }
+          if (BACKUP_KEYS.includes(key)) await AsyncStorage.setItem(key, value);
         }
       } catch (e) {
         console.warn(`Failed to import key ${key}:`, e);
@@ -531,15 +490,7 @@ export async function importBackupFromContent(jsonContent: string, fileName?: st
       try {
         const value = data.settings[key];
         if (value !== null && value !== undefined) {
-          if (key === '@kiosk_rest_api_key') {
-            await saveSecureApiKey(value);
-            console.log('[BackupService] API key imported to secure storage');
-          } else if (key === '@kiosk_mqtt_password') {
-            await saveSecureMqttPassword(value);
-            console.log('[BackupService] MQTT password imported to secure storage');
-          } else {
-            await AsyncStorage.setItem(key, value);
-          }
+          if (BACKUP_KEYS.includes(key)) await AsyncStorage.setItem(key, value);
         }
       } catch (e) {
         console.warn(`Failed to import key ${key}:`, e);

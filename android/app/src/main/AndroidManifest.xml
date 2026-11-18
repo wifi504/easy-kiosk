@@ -9,7 +9,6 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE"/>
     <!-- CameraForegroundService: remote camera behind another app. Stripped from Play Store builds. -->
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CAMERA"/>
     <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS"
         tools:ignore="ProtectedPermissions" />
     <uses-permission android:name="android.permission.CAMERA" />
@@ -317,23 +316,11 @@
            grants the camera in the background only to a camera-type foreground service).
            specialUse is its fallback when the camera type is refused. Stripped from Play
            Store builds. -->
-      <service
-        android:name=".CameraForegroundService"
-        android:enabled="true"
-        android:exported="false"
-        android:foregroundServiceType="camera|specialUse">
-        <property
-          android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
-          android:value="remote_camera"/>
       </service>
 
       <!-- Runs one cloud heartbeat while backgrounded: React Native stops dispatching JS
            timers on host pause, so the heartbeat interval alone cannot keep the device
            online behind an external app. -->
-      <service
-        android:name=".CloudHeartbeatTaskService"
-        android:enabled="true"
-        android:exported="false"/>
 
       <!-- Receiver for silent installation results (disabled in Play Store builds) -->
       <receiver

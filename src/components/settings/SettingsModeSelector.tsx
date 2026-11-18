@@ -36,11 +36,11 @@ const SettingsModeSelector: React.FC<SettingsModeSelectorProps> = ({
   return (
     <View style={[styles.container, style]}>
       {label && <Text style={styles.label}>{label}</Text>}
-      
+
       <View style={styles.selectorContainer}>
         {options.map((option) => {
           const isSelected = value === option.value;
-          
+
           return (
             <TouchableOpacity
               key={option.value}
@@ -61,7 +61,7 @@ const SettingsModeSelector: React.FC<SettingsModeSelectorProps> = ({
                   {option.label}
                 </Text>
               </View>
-              
+
               {option.badge && (
                 <View style={[styles.badge, { backgroundColor: option.badgeColor || Colors.warning }]}>
                   <Text style={styles.badgeText}>{option.badge}</Text>
@@ -71,7 +71,7 @@ const SettingsModeSelector: React.FC<SettingsModeSelectorProps> = ({
           );
         })}
       </View>
-      
+
       {hint && <Text style={styles.hint}>{hint}</Text>}
     </View>
   );

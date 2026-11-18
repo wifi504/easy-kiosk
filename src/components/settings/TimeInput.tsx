@@ -33,30 +33,30 @@ const TimeInput: React.FC<TimeInputProps> = ({
   const formatTimeInput = (text: string): string => {
     // Remove non-numeric characters except colon
     let cleaned = text.replace(/[^0-9:]/g, '');
-    
+
     // Handle auto-formatting
     if (cleaned.length === 2 && !cleaned.includes(':') && displayValue.length < text.length) {
       cleaned = cleaned + ':';
     }
-    
+
     // Remove extra colons
     const parts = cleaned.split(':');
     if (parts.length > 2) {
       cleaned = parts[0] + ':' + parts.slice(1).join('');
     }
-    
+
     // Limit to 5 characters (HH:MM)
     if (cleaned.length > 5) {
       cleaned = cleaned.substring(0, 5);
     }
-    
+
     return cleaned;
   };
 
   const validateAndUpdate = (text: string) => {
     const formatted = formatTimeInput(text);
     setDisplayValue(formatted);
-    
+
     // Only call onChange with valid time, always as HH:MM: times are compared as strings,
     // and "22:00" < "7:00". Waiting for blur is not enough, Save can be tapped before it.
     if (isValidTime(formatted)) {

@@ -285,7 +285,7 @@ const BackupRestoreSection: React.FC<BackupRestoreSectionProps> = ({
 
   const renderBackupItem = ({ item }: { item: BackupFile }) => {
     const isSelected = selectedBackup?.path === item.path;
-    
+
     return (
       <TouchableOpacity
         style={[styles.backupItem, isSelected && styles.backupItemSelected]}

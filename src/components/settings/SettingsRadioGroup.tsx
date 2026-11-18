@@ -44,12 +44,12 @@ const SettingsRadioGroup: React.FC<SettingsRadioGroupProps> = ({
         </View>
       )}
       {hint && <Text style={styles.hint}>{hint}</Text>}
-      
+
       <View style={styles.optionsContainer}>
         {options.map((option) => {
           const isSelected = value === option.value;
           const isDisabled = option.disabled;
-          
+
           return (
             <TouchableOpacity
               key={option.value}

@@ -130,7 +130,7 @@ const OneTimeEventEditor: React.FC<OneTimeEventEditorProps> = ({
     }
 
     const normalizedUrl = normalizeUrl(url);
-    
+
     const savedEvent: ScheduledEvent = {
       id: event?.id || generateEventId(),
       type: 'oneTime',
