@@ -43,6 +43,16 @@ jobs:
           (cd "$BASE" && ./node_modules/.bin/eslint . -f json > "$RUNNER_TEMP/lint-main.json") || test $? -eq 1
           ./node_modules/.bin/eslint . -f json > "$RUNNER_TEMP/lint-dev.json" || test $? -eq 1
           node scripts/check-lint-regressions.mjs "$BASE" "$GITHUB_WORKSPACE" "$RUNNER_TEMP/lint-main.json" "$RUNNER_TEMP/lint-dev.json"
+      - name: 构建辅助工具语法检查
+        run: python3 -m py_compile scripts/prepare-embedded-chromium.py scripts/embed-chromium-apk.py scripts/engine-fixture-server.py
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: 编译内核合并工具（无需等待内核下载）
+        run: |
+          chmod +x android/gradlew
+          android/gradlew -p tools/engine-dex-tools --no-daemon compileJava
       - name: 单元测试
         if: success() || failure()
         run: npm test -- --runInBand --detectOpenHandles
