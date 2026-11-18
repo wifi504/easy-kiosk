@@ -2,7 +2,7 @@ name: EasyKiosk APK 构建与验证
 
 on:
   push:
-    branches: [dev]
+    branches: [main]
     paths-ignore:
       - 'docs/**'
       - '.github/workflows/prebuilt-chromium-audit.yml'
