@@ -1,6 +1,6 @@
 """Extract Chromium's complete Credits HTML from its original DataPack assets in Actions."""
 from pathlib import Path
-import os, sys, zipfile, struct, gzip
+import os, sys, zipfile, struct, gzip, brotli
 if os.environ.get('GITHUB_ACTIONS') != 'true': raise SystemExit('Notice extraction must run in Actions')
 apk, output = Path(sys.argv[1]), Path(sys.argv[2])
 found = []
@@ -20,6 +20,10 @@ with zipfile.ZipFile(apk) as archive:
             if begin > end or end > len(data): raise SystemExit('Invalid Chromium DataPack offsets')
             payload = data[begin:end]
             if payload.startswith(b'\x1f\x8b'): payload = gzip.decompress(payload)
+            elif payload.startswith(b'\x1e\x9b'):
+                expected_size = int.from_bytes(payload[2:8], 'little')
+                payload = brotli.decompress(payload[8:])
+                if len(payload) != expected_size: raise SystemExit('Chromium Brotli resource size mismatch')
             text = payload.lower()
             if b'<title>credits</title>' in text and b'copyright' in text and b'license' in text and len(text) > 10000:
                 found.append((name, resource_id, payload))

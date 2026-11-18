@@ -32,7 +32,7 @@ jobs:
       - run: npm ci
       - name: 从指定 Logo 生成桌面图标和预览
         run: |
-          python3 -m pip install 'Pillow==11.3.0'
+          python3 -m pip install 'Pillow==11.3.0' 'Brotli==1.1.0'
           python3 scripts/generate-app-icons.py
       - uses: actions/upload-artifact@v4
         with:
@@ -100,7 +100,7 @@ jobs:
       - name: 准备真实预编译内核及原生编译检查（不生成 APK）
         run: |
           sdkmanager 'platforms;android-36' 'build-tools;36.0.0' 'ndk;27.1.12297006'
-          python3 -m pip install 'Pillow==11.3.0'
+          python3 -m pip install 'Pillow==11.3.0' 'Brotli==1.1.0'
           python3 scripts/generate-app-icons.py
           cp android/gradle.properties.template android/gradle.properties
           chmod +x android/gradlew
@@ -152,7 +152,7 @@ jobs:
       - run: npm ci
       - name: 配置 Android 工具链并校验内置内核
         run: |
-          python3 -m pip install 'Pillow==11.3.0'
+          python3 -m pip install 'Pillow==11.3.0' 'Brotli==1.1.0'
           python3 scripts/generate-app-icons.py
           sdkmanager 'platforms;android-36' 'build-tools;36.0.0' 'ndk;27.1.12297006'
           cp android/gradle.properties.template android/gradle.properties
