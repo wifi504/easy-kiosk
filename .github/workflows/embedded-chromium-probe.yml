@@ -9,6 +9,9 @@ on:
       - 'scripts/*engine-probe*.py'
 permissions:
   contents: read
+concurrency:
+  group: embedded-chromium-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   probe:
     runs-on: ubuntu-24.04
