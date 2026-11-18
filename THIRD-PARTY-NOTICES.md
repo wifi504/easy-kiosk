@@ -294,8 +294,11 @@ https://github.com/holtdroid/chromium-builds/releases/tag/158.0.8127.36 .
 The provider states it is built from the official Chromium release tag. The exact release,
 asset identities and SHA-256 values are recorded in `config/chromium.json`.
 Chromium and its dependencies retain their upstream licenses; the engine's
-original resource packs and original engine APK travel with the application. Complete Credits HTML is
-also extracted from its DataPack resource into `assets/third-party/Chromium-CREDITS.html`.
+original resource packs and original engine APK travel with the application. The supplied Credits HTML is
+also preserved in `assets/third-party/Chromium-CREDITS.html`. This non-official upstream build
+contains Chromium's sample credits page; it is not a complete third-party license inventory.
+The Chromium main LICENSE from the exact source commit is included separately as
+`assets/third-party/Chromium-LICENSE.txt`.
 
 The app-scoped loader is derived from JonaNorman/WebViewUpgrade at the commit recorded in that
 same lock file, under Apache License 2.0. Its full license is copied into

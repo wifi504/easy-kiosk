@@ -1,6 +1,6 @@
 """Download a pinned precompiled WebView release in Actions, checking release and asset identities."""
 from pathlib import Path
-import os, sys, json, subprocess, hashlib
+import os, sys, json, subprocess, hashlib, urllib.request, base64
 if os.environ.get('GITHUB_ACTIONS') != 'true':
     raise SystemExit('Engine downloads must run in GitHub Actions')
 root = Path(__file__).resolve().parents[1]
@@ -25,3 +25,10 @@ with apk.open('rb') as stream: actual = hashlib.file_digest(stream, 'sha256').he
 if actual != artifact['sha256']: raise SystemExit('Precompiled engine SHA-256 mismatch')
 Path(str(apk) + '.sha256').write_text(actual + '  ' + apk.name + '\n')
 print(f"Verified pinned {repo} release={release['id']} asset={asset['id']} version={lock['version']} ABI={abi} SHA256={actual}")
+license_file = folder / 'Chromium-LICENSE.txt'
+if not license_file.exists():
+    license_url = f"https://chromium.googlesource.com/chromium/src/+/{lock['source_commit']}/LICENSE?format=TEXT"
+    with urllib.request.urlopen(license_url, timeout=60) as response:
+        license_file.write_bytes(base64.b64decode(response.read()))
+if hashlib.sha256(license_file.read_bytes()).hexdigest() != lock['license_sha256']:
+    raise SystemExit('Chromium upstream LICENSE checksum mismatch')

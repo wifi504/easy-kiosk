@@ -1,6 +1,7 @@
 {
   "version": "158.0.8127.36",
   "source_commit": "14d6f648e8cd7ad750a4044200ce94d3321be260",
+  "license_sha256": "368cca1106be99d39ecd32a38d8305585d802a475effb66380b91ffc9bcf709b",
   "provider_repository": "holtdroid/chromium-builds",
   "provider_release_id": 444800915,
   "loader_commit": "5a5a7d11b5e67bba37787a697f45c9f5d45e6dda",
