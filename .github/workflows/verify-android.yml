@@ -50,7 +50,7 @@ jobs:
           ./node_modules/.bin/eslint . -f json > "$RUNNER_TEMP/lint-dev.json" || test $? -eq 1
           node scripts/check-lint-regressions.mjs "$BASE" "$GITHUB_WORKSPACE" "$RUNNER_TEMP/lint-main.json" "$RUNNER_TEMP/lint-dev.json"
       - name: 构建辅助工具语法检查
-        run: python3 -m py_compile scripts/download-embedded-chromium.py scripts/prepare-embedded-chromium.py scripts/prepare-embedded-loader.py scripts/embed-chromium-apk.py scripts/engine-fixture-server.py scripts/generate-app-icons.py scripts/extract-chromium-notices.py scripts/stage-renderer-assets.py scripts/prepare-independent-engine-probe.py scripts/check-android-guest.py
+        run: python3 -m py_compile scripts/download-embedded-chromium.py scripts/prepare-embedded-chromium.py scripts/prepare-embedded-loader.py scripts/embed-chromium-apk.py scripts/engine-fixture-server.py scripts/generate-app-icons.py scripts/extract-chromium-notices.py scripts/stage-renderer-assets.py scripts/prepare-independent-engine-probe.py scripts/check-android-guest.py scripts/configure-android-guest.py
       - name: 单元测试
         if: success() || failure()
         run: npm test -- --runInBand --detectOpenHandles
@@ -110,6 +110,7 @@ jobs:
           heap-size: 256M
           disk-size: 16384M
           disable-animations: true
+          pre-emulator-launch-script: python3 scripts/configure-android-guest.py
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -qemu -m 1024
           script: |
             adb shell wm size 1080x1920
@@ -222,6 +223,7 @@ jobs:
           heap-size: 256M
           disk-size: 16384M
           disable-animations: true
+          pre-emulator-launch-script: python3 scripts/configure-android-guest.py
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -qemu -m 1024
           script: |
             adb shell wm size 1080x1920
