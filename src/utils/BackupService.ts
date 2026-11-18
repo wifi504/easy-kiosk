@@ -1,5 +1,5 @@
 /**
- * FreeKiosk - BackupService
+ * EasyKiosk - BackupService
  * Handles backup and restore of app configuration
  */
 
@@ -220,7 +220,7 @@ async function requestStoragePermission(): Promise<boolean> {
         PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE,
         {
           title: 'Storage Permission',
-          message: 'FreeKiosk needs storage access to save and load backup files.',
+          message: 'EasyKiosk needs storage access to save and load backup files.',
           buttonNeutral: 'Ask Me Later',
           buttonNegative: 'Cancel',
           buttonPositive: 'OK',
@@ -231,7 +231,7 @@ async function requestStoragePermission(): Promise<boolean> {
         PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE,
         {
           title: 'Storage Permission',
-          message: 'FreeKiosk needs storage access to save and load backup files.',
+          message: 'EasyKiosk needs storage access to save and load backup files.',
           buttonNeutral: 'Ask Me Later',
           buttonNegative: 'Cancel',
           buttonPositive: 'OK',

@@ -115,7 +115,7 @@
       "password": "Wachtwoord",
       "passwordPlaceholder": "Wachtwoord",
       "passwordHint": "Opgeslagen in de Keychain van het apparaat (niet als platte tekst)",
-      "info": "Wanneer een website een 401 Unauthorized-antwoord geeft, antwoordt FreeKiosk automatisch met deze inloggegevens. Laat de gebruikersnaam leeg om uit te schakelen."
+      "info": "Wanneer een website een 401 Unauthorized-antwoord geeft, antwoordt EasyKiosk automatisch met deze inloggegevens. Laat de gebruikersnaam leeg om uit te schakelen."
     },
     "urlRotation": {
       "title": "URL-rotatie",
@@ -168,9 +168,9 @@
     },
     "usageStats": {
       "granted": "Gebruikstoegang verleend",
-      "grantedHint": "Bewaking voor automatisch opnieuw starten is actief. FreeKiosk kan detecteren wanneer de externe app sluit.",
+      "grantedHint": "Bewaking voor automatisch opnieuw starten is actief. EasyKiosk kan detecteren wanneer de externe app sluit.",
       "required": "Gebruikstoegang vereist",
-      "requiredHint": "Vereist voor automatisch opnieuw starten. Zonder dit kan FreeKiosk niet detecteren wanneer de externe app sluit of crasht.",
+      "requiredHint": "Vereist voor automatisch opnieuw starten. Zonder dit kan EasyKiosk niet detecteren wanneer de externe app sluit of crasht.",
       "grantButton": "Gebruikstoegang verlenen"
     },
     "password": {
@@ -261,9 +261,9 @@
     "brightness": {
       "title": "Helderheidsbeheer",
       "appControl": "Helderheidsbeheer door de app",
-      "hintManaged": "FreeKiosk beheert de schermhelderheid",
+      "hintManaged": "EasyKiosk beheert de schermhelderheid",
       "hintSystem": "Het systeem beheert de helderheid (Tasker, Android-instellingen, enz.)",
-      "systemInfo": "De helderheid wordt door het systeem beheerd. Externe tools zoals Tasker kunnen de helderheid regelen zonder storing door FreeKiosk."
+      "systemInfo": "De helderheid wordt door het systeem beheerd. Externe tools zoals Tasker kunnen de helderheid regelen zonder storing door EasyKiosk."
     },
     "manualBrightness": {
       "title": "Handmatige helderheid",
@@ -354,14 +354,14 @@
       "proximityInfo": "Korte afstand (enkele centimeters): zwaai met een hand vlak voor het scherm om het te laten ontwaken. In tegenstelling tot cameradetectie wordt dit nooit geactiveerd door lichtwisselingen en gebruikt het bijna geen batterij.",
       "howItWorksTitle": "Hoe werkt het",
       "howItWorksAfter": "• Na {{delay}} minuten zonder interactie wordt de schermbeveiliging geactiveerd",
-      "howItWorksExternalApp": "• FreeKiosk komt op de voorgrond om de schermbeveiliging te tonen; de externe app hervat bij het ontwaken",
+      "howItWorksExternalApp": "• EasyKiosk komt op de voorgrond om de schermbeveiliging te tonen; de externe app hervat bij het ontwaken",
       "howItWorksTouch": "• Tik op het scherm om het apparaat te laten ontwaken",
       "howItWorksMotion": "• Beweging voor de camera laat het scherm ook ontwaken",
       "howItWorksProximity": "• Een hand dicht bij de nabijheidssensor laat het scherm ook ontwaken",
       "howItWorksBrightness": "• De normale helderheid wordt automatisch hersteld",
       "howItWorksDimOverApp": "• Het scherm dimt over de externe app heen, die open blijft; de eerste tik laat het ontwaken",
       "keepExternalApp": "App op de voorgrond houden",
-      "keepExternalAppHint": "Dimt over de externe app heen in plaats van terug te schakelen naar FreeKiosk, zodat die bij het ontwaken niet opnieuw wordt geladen. De eerste tik laat alleen het scherm ontwaken. Ontwaken door beweging of nabijheid is bij deze optie niet beschikbaar."
+      "keepExternalAppHint": "Dimt over de externe app heen in plaats van terug te schakelen naar EasyKiosk, zodat die bij het ontwaken niet opnieuw wordt geladen. De eerste tik laat alleen het scherm ontwaken. Ontwaken door beweging of nabijheid is bij deze optie niet beschikbaar."
     },
     "screenSchedule": {
       "title": "Slaapschema van scherm",
@@ -449,11 +449,11 @@
       "pausePage": "Pagina pauzeren terwijl het scherm uit is",
       "pausePageHint": "Stopt de eigen activiteit van de pagina (timers, afbeeldingen ophalen) zolang het scherm echt uit is (uitschakelcommando, vergrendeling, aan/uit-knop, schema), zodat een diavoorstelling niet blijft downloaden. Bij het inschakelen gaat ze weer verder. Standaard uit: een dashboard dat actueel moet blijven, laat dit uit.",
       "intercom": "Modus voor tweeweg-audio (intercom)",
-      "intercomHint": "Inschakelen voor WebRTC tweeweg-audio / terugspreken (bijv. een Home Assistant / go2rtc-deurbelintercomkaart). Zolang de webpagina actief de microfoon gebruikt, zet FreeKiosk het apparaat in de communicatie-audiomodus zodat het terugkanaal van de microfoon verzendt, en herstelt daarna de normale audio zodra je stopt met praten. Laat uitgeschakeld voor normaal browsen: het wordt alleen actief terwijl de microfoon in gebruik is."
+      "intercomHint": "Inschakelen voor WebRTC tweeweg-audio / terugspreken (bijv. een Home Assistant / go2rtc-deurbelintercomkaart). Zolang de webpagina actief de microfoon gebruikt, zet EasyKiosk het apparaat in de communicatie-audiomodus zodat het terugkanaal van de microfoon verzendt, en herstelt daarna de normale audio zodra je stopt met praten. Laat uitgeschakeld voor normaal browsen: het wordt alleen actief terwijl de microfoon in gebruik is."
     },
     "orientation": {
       "title": "Schermoriëntatie",
-      "hint": "Vergrendelt het scherm van FreeKiosk in één oriëntatie, of volgt het apparaat. Geldt niet voor een externe app.",
+      "hint": "Vergrendelt het scherm van EasyKiosk in één oriëntatie, of volgt het apparaat. Geldt niet voor een externe app.",
       "auto": "Apparaat volgen",
       "portrait": "Staand",
       "landscape": "Liggend",
@@ -480,7 +480,7 @@
       "enableHint": "Voorkom dat gebruikers de kiosk-app verlaten. Pincode vereist om af te sluiten.",
       "disabledWarning": "Als de vergrendelmodus is uitgeschakeld, kunnen gebruikers de app gewoon verlaten",
       "screenPinningInfo": "Schermvastzetten ingeschakeld: alleen 5 keer tikken + pincode om af te sluiten",
-      "noDeviceOwnerWarning": "Zonder Device Owner kunnen gebruikers afsluiten via het gebaar Terug + Recente apps. Stel FreeKiosk in als Device Owner voor een volledige vergrendeling.",
+      "noDeviceOwnerWarning": "Zonder Device Owner kunnen gebruikers afsluiten via het gebaar Terug + Recente apps. Stel EasyKiosk in als Device Owner voor een volledige vergrendeling.",
       "externalAppNoOwnerError": "Device Owner vereist: de vergrendelmodus werkt in de modus Externe app niet zonder Device Owner-rechten.",
       "externalAppOwnerInfo": "Vergrendelmodus ingeschakeld: alleen 5 keer ergens op het scherm tikken + pincode om de externe app te verlaten",
       "blockPowerMenu": "Aan/uit-menu blokkeren",
@@ -500,19 +500,19 @@
     "autoLaunch": {
       "title": "Automatisch starten",
       "launchOnBoot": "Starten bij opstarten",
-      "launchOnBootHint": "FreeKiosk automatisch starten wanneer het apparaat opstart",
+      "launchOnBootHint": "EasyKiosk automatisch starten wanneer het apparaat opstart",
       "appearOnTopInfo": "Zorg dat de machtiging \"Boven andere apps weergeven\" is ingeschakeld in de systeeminstellingen voor betrouwbaar automatisch starten.",
-      "tvBootBlocked": "Zonder \"Weergeven over andere apps\" verhindert Android dat FreeKiosk bij het opstarten op deze tv start: na een stroomstoring blijft het startscherm van de tv staan en wordt er niets afgespeeld. Deze tv heeft geen scherm om dit toe te staan. Vanaf een computer, eenmalig:",
-      "tvBootGranted": "\"Weergeven over andere apps\" is toegestaan: FreeKiosk kan bij het opstarten starten.",
+      "tvBootBlocked": "Zonder \"Weergeven over andere apps\" verhindert Android dat EasyKiosk bij het opstarten op deze tv start: na een stroomstoring blijft het startscherm van de tv staan en wordt er niets afgespeeld. Deze tv heeft geen scherm om dit toe te staan. Vanaf een computer, eenmalig:",
+      "tvBootGranted": "\"Weergeven over andere apps\" is toegestaan: EasyKiosk kan bij het opstarten starten.",
       "openSystemSettings": "Systeeminstellingen openen",
       "screenLockCompat": "Compatibiliteit met systeemschermvergrendeling",
-      "screenLockCompatHint": "Schakel dit ALLEEN in als je op dit apparaat een native Android-schermvergrendeling (pincode/wachtwoord) hebt ingesteld. FreeKiosk (1) maakt dan bij het opstarten plaats voor het beveiligde vergrendelscherm in plaats van direct te vergrendelen, waardoor het vastlopen bij het herstarten door het conflict tussen de kiosk en het beveiligde vergrendelscherm wordt voorkomen, en (2) houdt de systeem-keyguard actief zolang de app is vastgezet, zodat de schermvergrendeling echt om het wachtwoord vraagt nadat het scherm uit en weer aan is gegaan (zonder dit schakelt de lock-taskmodus de keyguard uit en verschijnt het wachtwoord nooit). Met een systeemschermvergrendeling moet iemand na elke herstart op het apparaat het wachtwoord invoeren voordat de kiosk start, en bij elke activering van het scherm. Dat is ongeschikt voor onbeheerde apparaten. Voor de beveiliging van het apparaat is de afsluitpincode van FreeKiosk + Device Owner meestal de betere keuze.",
-      "screenLockCompatWarning": "Met een native schermvergrendeling moet het wachtwoord na elke herstart handmatig worden ingevoerd voordat FreeKiosk start. Dit heeft geen effect zolang er geen Android-schermvergrendeling is ingesteld.",
-      "defaultLauncher": "FreeKiosk instellen als standaard launcher",
-      "defaultLauncherHintOwner": "Maakt FreeKiosk via Device Owner de permanente Home-app. Het systeem start FreeKiosk dan zelf opnieuw na elke herstart en systeemupdate, zonder afhankelijk te zijn van de OEM-machtigingen 'Boven andere apps weergeven' / Automatisch starten die sommige merken (bijv. Samsung) bij OS-updates resetten: de belangrijkste oorzaak van een kiosk die na een herstart/update wegvalt. De Home-knop brengt je ook hier terug. Als je dit uitschakelt, wordt je normale launcher hersteld.",
-      "defaultLauncherHintNonOwner": "Opent de systeemkeuze voor de Home-app, zodat je FreeKiosk als standaard launcher kunt instellen. Het systeem start FreeKiosk dan bij het opstarten. Zonder Device Owner is deze keuze niet vergrendeld: de gebruiker kan haar terugzetten en sommige merken resetten haar bij een systeemupdate (met Device Owner is ze permanent).",
-      "defaultLauncherWarningOwner": "FreeKiosk wordt het startscherm/de launcher van het apparaat. Als de app bij het starten crasht, is er geen terugvallauncher. Test daarom eerst op één apparaat voordat je een hele vloot uitrolt. Als je dit uitschakelt (of Device Owner verwijdert), wordt de normale launcher hersteld.",
-      "defaultLauncherWarningNonOwner": "Kies FreeKiosk in het scherm voor de Home-app dat opent. Dit wordt zonder Device Owner niet afgedwongen en kan door een systeemupdate worden gereset. Kies later een andere launcher in hetzelfde systeemscherm om het te verwijderen."
+      "screenLockCompatHint": "Schakel dit ALLEEN in als je op dit apparaat een native Android-schermvergrendeling (pincode/wachtwoord) hebt ingesteld. EasyKiosk (1) maakt dan bij het opstarten plaats voor het beveiligde vergrendelscherm in plaats van direct te vergrendelen, waardoor het vastlopen bij het herstarten door het conflict tussen de kiosk en het beveiligde vergrendelscherm wordt voorkomen, en (2) houdt de systeem-keyguard actief zolang de app is vastgezet, zodat de schermvergrendeling echt om het wachtwoord vraagt nadat het scherm uit en weer aan is gegaan (zonder dit schakelt de lock-taskmodus de keyguard uit en verschijnt het wachtwoord nooit). Met een systeemschermvergrendeling moet iemand na elke herstart op het apparaat het wachtwoord invoeren voordat de kiosk start, en bij elke activering van het scherm. Dat is ongeschikt voor onbeheerde apparaten. Voor de beveiliging van het apparaat is de afsluitpincode van EasyKiosk + Device Owner meestal de betere keuze.",
+      "screenLockCompatWarning": "Met een native schermvergrendeling moet het wachtwoord na elke herstart handmatig worden ingevoerd voordat EasyKiosk start. Dit heeft geen effect zolang er geen Android-schermvergrendeling is ingesteld.",
+      "defaultLauncher": "EasyKiosk instellen als standaard launcher",
+      "defaultLauncherHintOwner": "Maakt EasyKiosk via Device Owner de permanente Home-app. Het systeem start EasyKiosk dan zelf opnieuw na elke herstart en systeemupdate, zonder afhankelijk te zijn van de OEM-machtigingen 'Boven andere apps weergeven' / Automatisch starten die sommige merken (bijv. Samsung) bij OS-updates resetten: de belangrijkste oorzaak van een kiosk die na een herstart/update wegvalt. De Home-knop brengt je ook hier terug. Als je dit uitschakelt, wordt je normale launcher hersteld.",
+      "defaultLauncherHintNonOwner": "Opent de systeemkeuze voor de Home-app, zodat je EasyKiosk als standaard launcher kunt instellen. Het systeem start EasyKiosk dan bij het opstarten. Zonder Device Owner is deze keuze niet vergrendeld: de gebruiker kan haar terugzetten en sommige merken resetten haar bij een systeemupdate (met Device Owner is ze permanent).",
+      "defaultLauncherWarningOwner": "EasyKiosk wordt het startscherm/de launcher van het apparaat. Als de app bij het starten crasht, is er geen terugvallauncher. Test daarom eerst op één apparaat voordat je een hele vloot uitrolt. Als je dit uitschakelt (of Device Owner verwijdert), wordt de normale launcher hersteld.",
+      "defaultLauncherWarningNonOwner": "Kies EasyKiosk in het scherm voor de Home-app dat opent. Dit wordt zonder Device Owner niet afgedwongen en kan door een systeemupdate worden gereset. Kies later een andere launcher in hetzelfde systeemscherm om het te verwijderen."
     },
     "returnToSettings": {
       "title": "Terug naar instellingen",
@@ -651,11 +651,11 @@
       "enabledNotConnected": "● Ingeschakeld (niet verbonden)",
       "disabled": "○ Uitgeschakeld",
       "whyTitle": "Waarom is dit nodig?",
-      "whyInfo": "Met de toegankelijkheidsservice kan FreeKiosk toetsenbordinvoer (afstandsbediening, tekstinvoer) naar externe apps sturen.\n\nZonder deze service werkt toetsenbordemulatie alleen binnen de eigen WebView van FreeKiosk.",
+      "whyInfo": "Met de toegankelijkheidsservice kan EasyKiosk toetsenbordinvoer (afstandsbediening, tekstinvoer) naar externe apps sturen.\n\nZonder deze service werkt toetsenbordemulatie alleen binnen de eigen WebView van EasyKiosk.",
       "enableAuto": "Automatisch inschakelen (Device Owner)",
       "openSettings": "Toegankelijkheidsinstellingen openen",
       "hintOwner": "In Device Owner-modus kan de service automatisch worden ingeschakeld als de machtiging WRITE_SECURE_SETTINGS via ADB is verleend. Anders schakel je de service handmatig in via de Android-instellingen.",
-      "hintNonOwner": "Schakel \"FreeKiosk\" in via Instellingen → Toegankelijkheid → Geïnstalleerde services.",
+      "hintNonOwner": "Schakel \"EasyKiosk\" in via Instellingen → Toegankelijkheid → Geïnstalleerde services.",
       "runningHint": "Toetsenbordemulatie is beschikbaar voor alle apps (WebView + externe apps).",
       "managedAppsTitle": "Toegankelijkheid van beheerde apps",
       "managedAppsInfo": "Je kunt de toegankelijkheidsservices van andere apps toestaan in het gedeelte \"Beheerde apps\" op het tabblad Algemeen.\nZet \"Toegankelijkheid toestaan\" per app aan om hun toegankelijkheidsservices via Device Owner op de toegestane lijst te zetten.",
@@ -671,7 +671,7 @@
       "title": "Android-systeeminstellingen",
       "hint": "Open de standaard Android-instellingen om Wi-Fi, volume, scherm en meer te wijzigen.\nHandig als je apparaat geen fysieke navigatieknoppen heeft.",
       "kioskActiveTitle": "Kioskmodus actief",
-      "kioskActiveInfo": "De kioskmodus wordt tijdelijk onderbroken om de Android-instellingen te openen. Hij wordt automatisch weer geactiveerd zodra je terugkeert naar FreeKiosk.",
+      "kioskActiveInfo": "De kioskmodus wordt tijdelijk onderbroken om de Android-instellingen te openen. Hij wordt automatisch weer geactiveerd zodra je terugkeert naar EasyKiosk.",
       "openSettings": "Android-instellingen openen",
       "wifi": "Wi-Fi",
       "sound": "Geluid",
@@ -686,7 +686,7 @@
       "removeDeviceOwner": "Device Owner verwijderen",
       "exitKioskMode": "Kioskmodus verlaten"
     },
-    "versionFooter": "FreeKiosk v{{version}}"
+    "versionFooter": "EasyKiosk v{{version}}"
   },
   "dashboard": {
     "iconModes": {
@@ -769,7 +769,7 @@
       "fileBrowsingAndroidOnly": "Bladeren door bestanden is alleen beschikbaar op Android.",
       "selectedBackupDefault": "Geselecteerde back-up",
       "invalidBackup": "Ongeldige back-up",
-      "notValidBackup": "Het geselecteerde bestand is geen geldige FreeKiosk-back-up.",
+      "notValidBackup": "Het geselecteerde bestand is geen geldige EasyKiosk-back-up.",
       "error": "Fout",
       "browseFileFailed": "Bladeren naar bestand mislukt: {{error}}",
       "restoreConfigTitle": "Configuratie herstellen",
@@ -820,7 +820,7 @@
       "on": "inschakelen",
       "off": "uitschakelen",
       "scanUnavailableTitle": "Wi-Fi-scan niet beschikbaar",
-      "scanUnavailableDefault": "FreeKiosk heeft geen machtiging om naar Wi-Fi-netwerken te zoeken.",
+      "scanUnavailableDefault": "EasyKiosk heeft geen machtiging om naar Wi-Fi-netwerken te zoeken.",
       "savedPasswordFailedTitle": "Opgeslagen Wi-Fi-wachtwoord mislukt",
       "enterPasswordAgain": "Voer het wachtwoord voor \"{{ssid}}\" opnieuw in.",
       "connectionFailedTitle": "Verbinding mislukt",
@@ -1119,7 +1119,7 @@
       "running": "Externe app is actief",
       "waiting": "Wachten op app...",
       "testModeTitle": "Testmodus actief",
-      "testModeText": "Je kunt de Terug-knop van Android gebruiken om terug te gaan naar FreeKiosk.",
+      "testModeText": "Je kunt de Terug-knop van Android gebruiken om terug te gaan naar EasyKiosk.",
       "returnToApp": "Terug naar app",
       "settings": "Instellingen",
       "hint": "Tip: tik in de externe app 5× op de geheime knop om hier terug te keren (positie instelbaar)"
@@ -1152,7 +1152,7 @@
         },
         "usage": {
           "label": "Gebruikstoegang",
-          "description": "Laat FreeKiosk de app op de voorgrond detecteren en opnieuw starten in de modus Externe app."
+          "description": "Laat EasyKiosk de app op de voorgrond detecteren en opnieuw starten in de modus Externe app."
         },
         "battery": {
           "label": "Batterij-optimalisaties negeren",
@@ -1170,16 +1170,7 @@
       "autoReloadText": "Automatisch opnieuw laden over 5 seconden...",
       "reloadNow": "Nu opnieuw laden",
       "fallbackSettingsHint": "Tik 5× op de instellingenknop om terug te keren naar de instellingen",
-      "welcomeSubtitle": "Professionele kioskapplicatie",
-      "featureSecureKiosk": "Beveiligde kioskmodus",
-      "featureOptimalPerformance": "Optimale prestaties",
-      "featureOpenSource": "100% gratis en open source",
-      "startConfiguration": "Configuratie starten",
-      "supportOnGithub": "Steun ons op GitHub",
-      "tapHint": "Tip: tik 5× ergens op het scherm om de instellingen te openen",
-      "tapHintTv": "Tip: druk 5× op Terug op de afstandsbediening om de instellingen te openen",
-      "footerVersion": "Versie {{version}} • door Rushb",
-      "footerByRushb": "door Rushb"
+      "startConfiguration": "Configuratie starten"
     },
     "mediaPlayer": {
       "title": "Mediaspeler",
@@ -1237,7 +1228,7 @@
       "noOrigins": "Geen oorsprongen toegestaan",
       "noOriginsHint": "Geen enkele pagina kan afdrukken totdat je er een toevoegt",
       "printTestPage": "Testpagina afdrukken",
-      "info": "Webpagina's drukken stil af via window.FreeKiosk.silentPrinter.print() of printImage(). print() legt de pagina zo op dat één CSS-pixel één stip is.\n\nStandaard opent window.print() het Android-afdrukvenster als Window Printing is ingeschakeld, en doet anders niets. Met \"window.print() naar deze printer sturen\" aan, print het in plaats daarvan zonder venster op de ESC/POS-printer.\n\nVoor toegang die een herstart overleeft: sluit de printer aan, kies FreeKiosk en vink \"Altijd openen\" aan. De knop hierboven verleent alleen toegang totdat de printer wordt losgekoppeld, en de lock task-modus onderdrukt dat venster volledig.\n\nPrinters met een leverancierspecifieke USB-interface in plaats van de standaard printerklasse drukken nog steeds af, maar kunnen het papierniveau niet melden."
+      "info": "Webpagina's drukken stil af via window.FreeKiosk.silentPrinter.print() of printImage(). print() legt de pagina zo op dat één CSS-pixel één stip is.\n\nStandaard opent window.print() het Android-afdrukvenster als Window Printing is ingeschakeld, en doet anders niets. Met \"window.print() naar deze printer sturen\" aan, print het in plaats daarvan zonder venster op de ESC/POS-printer.\n\nVoor toegang die een herstart overleeft: sluit de printer aan, kies EasyKiosk en vink \"Altijd openen\" aan. De knop hierboven verleent alleen toegang totdat de printer wordt losgekoppeld, en de lock task-modus onderdrukt dat venster volledig.\n\nPrinters met een leverancierspecifieke USB-interface in plaats van de standaard printerklasse drukken nog steeds af, maar kunnen het papierniveau niet melden."
     }
   },
   "screens": {
@@ -1305,13 +1296,13 @@
       "checkUpdateFailed": "Controleren op updates niet mogelijk: {{error}}",
       "downloadUrlUnavailable": "Download-URL niet beschikbaar.",
       "permissionRequiredTitle": "Machtiging vereist",
-      "permissionRequiredMessage": "FreeKiosk heeft machtiging nodig om updates te installeren.\n\nSchakel \"Toestaan vanuit deze bron\" in op het volgende scherm, kom daarna terug en probeer de update opnieuw.",
+      "permissionRequiredMessage": "EasyKiosk heeft machtiging nodig om updates te installeren.\n\nSchakel \"Toestaan vanuit deze bron\" in op het volgende scherm, kom daarna terug en probeer de update opnieuw.",
       "settingsUnavailableTitle": "Instellingen niet beschikbaar",
-      "settingsUnavailableMessage": "Dit apparaat ondersteunt het inschakelen van app-installaties via de instellingen niet.\n\nAlternatief: verbind via ADB en voer uit:\nadb install -r FreeKiosk-<version>.apk",
+      "settingsUnavailableMessage": "Dit apparaat ondersteunt het inschakelen van app-installaties via de instellingen niet.\n\nAlternatief: verbind via ADB en voer uit:\nadb install -r EasyKiosk-<version>.apk",
       "updateReadyTitle": "Update gereed",
       "updateReadyMessage": "De update is gedownload. Het installatiescherm zou zo moeten verschijnen.\n\nAls er niets gebeurt:\n• Controleer het meldingenpaneel\n• Zoek naar \"Pakketinstallatie\"\n• Verleen installatiemachtiging als erom wordt gevraagd",
       "installPermissionNeededTitle": "Installatiemachtiging nodig",
-      "installPermissionNeededMessage": "De update is gedownload maar kan niet worden geïnstalleerd.\n\nSchakel \"Installeren vanuit onbekende bronnen\" in voor FreeKiosk in de instellingen van je apparaat en probeer het opnieuw.\n\nOp beperkte apparaten (bijv. Echo Show) gebruik je:\nadb install -r <apk>",
+      "installPermissionNeededMessage": "De update is gedownload maar kan niet worden geïnstalleerd.\n\nSchakel \"Installeren vanuit onbekende bronnen\" in voor EasyKiosk in de instellingen van je apparaat en probeer het opnieuw.\n\nOp beperkte apparaten (bijv. Echo Show) gebruik je:\nadb install -r <apk>",
       "downloadFailed": "Downloaden mislukt:\n\n{{error}}",
       "enterUrl": "Voer een URL in",
       "addMediaItem": "Voeg minstens één media-item toe (video- of afbeeldings-URL)",
@@ -1356,7 +1347,7 @@
       "removeDeviceOwnerTitle": "Device Owner verwijderen",
       "removeDeviceOwnerMessage": "WAARSCHUWING: Hiermee worden de Device Owner-rechten verwijderd.\n\nJe verliest:\n• Volledige kioskmodus\n• Navigatieblokkering\n• Vergrendelbeveiliging\n\nAlle instellingen worden hersteld.\n\nDoorgaan?",
       "remove": "Verwijderen",
-      "deviceOwnerRemovedMessage": "Device Owner verwijderd!\n\nJe kunt FreeKiosk nu normaal verwijderen.",
+      "deviceOwnerRemovedMessage": "Device Owner verwijderd!\n\nJe kunt EasyKiosk nu normaal verwijderen.",
       "failedMessage": "Mislukt: {{error}}",
       "removeCertificateTitle": "Certificaat verwijderen",
       "removeCertificateMessage": "Het geaccepteerde certificaat verwijderen voor:\n\n{{url}}\n\nJe moet het bij je volgende bezoek opnieuw accepteren.",
@@ -1382,11 +1373,11 @@
       "fileAccessOffTitle": "Bestandstoegang is uit",
       "fileAccessOffMessage": "Om een lokaal bestand te openen, schakel je eerst Algemeen > PDF-viewer > Inline PDF-viewer in. Die instelling geeft de browser toegang tot bestanden op het apparaat.",
       "allFilesNeededTitle": "Toegang tot alle bestanden is nodig",
-      "allFilesNeededMessage": "Dit bestand staat buiten de map van FreeKiosk. Sta op het volgende scherm toe dat FreeKiosk alle bestanden mag openen, ga terug en sla opnieuw op.",
+      "allFilesNeededMessage": "Dit bestand staat buiten de map van EasyKiosk. Sta op het volgende scherm toe dat EasyKiosk alle bestanden mag openen, ga terug en sla opnieuw op.",
       "allFilesOpenSettings": "Instellingen openen",
       "allFilesCancel": "Annuleren",
-      "allFilesUnavailableTitle": "Bestand buiten de map van FreeKiosk",
-      "allFilesUnavailableMessage": "Deze versie van FreeKiosk kan geen bestanden buiten zijn eigen map lezen. Kopieer het bestand naar Android/data/com.freekiosk/files/ op het apparaat of kies het met 'Kies een lokaal HTML-bestand'.",
+      "allFilesUnavailableTitle": "Bestand buiten de map van EasyKiosk",
+      "allFilesUnavailableMessage": "Deze versie van EasyKiosk kan geen bestanden buiten zijn eigen map lezen. Kopieer het bestand naar Android/data/com.freekiosk/files/ op het apparaat of kies het met 'Kies een lokaal HTML-bestand'.",
       "passwordNotSavedTitle": "Wachtwoord niet opgeslagen",
       "basicAuthNotSavedMessage": "Het HTTP Basic Auth-wachtwoord kon niet worden opgeslagen in de beveiligde opslag van dit apparaat. Alle andere instellingen op dit scherm zijn opgeslagen. Dit gebeurt op firmware waarvan de Android Keystore defect is.",
       "downloadProgress": "{{percent}}% ({{done}} / {{total}} MB)",

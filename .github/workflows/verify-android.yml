@@ -42,6 +42,11 @@ jobs:
   apk:
     runs-on: ubuntu-24.04
     timeout-minutes: 60
+    env:
+      EASYKIOSK_KEYSTORE_FILE: ${{ runner.temp }}/easy-kiosk.jks
+      EASYKIOSK_STORE_PASSWORD: ${{ secrets.EASYKIOSK_STORE_PASSWORD }}
+      EASYKIOSK_KEY_ALIAS: ${{ secrets.EASYKIOSK_KEY_ALIAS }}
+      EASYKIOSK_KEY_PASSWORD: ${{ secrets.EASYKIOSK_KEY_PASSWORD }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -62,19 +67,30 @@ jobs:
           sdkmanager 'platforms;android-36' 'build-tools;36.0.0' 'ndk;27.1.12297006'
           cp android/gradle.properties.template android/gradle.properties
           chmod +x android/gradlew
+      - name: 读取正式签名密钥
+        env:
+          KEYSTORE_BASE64: ${{ secrets.EASYKIOSK_KEYSTORE_BASE64 }}
+        run: |
+          test -n "$KEYSTORE_BASE64"
+          umask 077
+          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$EASYKIOSK_KEYSTORE_FILE"
       - name: 检查 Manifest 和 Kotlin
         working-directory: android
         run: ./gradlew --no-daemon :app:processReleaseMainManifest :app:compileReleaseKotlin -PreactNativeArchitectures=arm64-v8a,x86_64
-      - name: 编译测试 APK（嵌入 JS，使用现有测试签名）
+      - name: 编译正式签名 APK（嵌入 JS）
         working-directory: android
         run: ./gradlew --no-daemon testReleaseUnitTest assembleRelease -PreactNativeArchitectures=arm64-v8a,x86_64
       - name: 核验签名和许可并生成校验和
         run: |
           APK=android/app/build/outputs/apk/release/app-release.apk
-          "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose "$APK"
+          "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose --print-certs "$APK"
+          "$ANDROID_HOME/build-tools/36.0.0/aapt" dump badging "$APK" | grep -F "versionName='${GITHUB_SHA:0:7}'"
           unzip -p "$APK" assets/LICENSE | grep -F 'Copyright (c) 2025 Rushb'
           unzip -p "$APK" assets/THIRD-PARTY-NOTICES.md > /dev/null
           sha256sum "$APK" > "$APK.sha256"
+      - name: 清理临时密钥
+        if: always()
+        run: rm -f "$EASYKIOSK_KEYSTORE_FILE"
       - uses: actions/upload-artifact@v4
         with:
           name: easy-kiosk-dev-${{ github.run_number }}

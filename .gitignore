@@ -99,3 +99,8 @@ launch.md
 ROADMAP.md
 Features.md
 ISSUE_TRIAGE.md
+
+# Private signing material
+*.jks
+*.p12
+keystore.properties

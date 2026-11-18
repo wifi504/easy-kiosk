@@ -115,7 +115,7 @@
       "password": "密码",
       "passwordPlaceholder": "密码",
       "passwordHint": "存储在设备的安全存储（Keychain）中，而非明文",
-      "info": "当网站返回 401 Unauthorized 响应时，FreeKiosk 会自动使用这些凭据进行响应。用户名留空则禁用。"
+      "info": "当网站返回 401 Unauthorized 响应时，EasyKiosk 会自动使用这些凭据进行响应。用户名留空则禁用。"
     },
     "urlRotation": {
       "title": "URL 轮换",
@@ -168,9 +168,9 @@
     },
     "usageStats": {
       "granted": "已授予使用情况访问权限",
-      "grantedHint": "自动重新启动监控已启用。FreeKiosk 可以检测外部应用何时关闭。",
+      "grantedHint": "自动重新启动监控已启用。EasyKiosk 可以检测外部应用何时关闭。",
       "required": "需要使用情况访问权限",
-      "requiredHint": "自动重新启动需要此权限。没有此权限，FreeKiosk 无法检测外部应用何时关闭或崩溃。",
+      "requiredHint": "自动重新启动需要此权限。没有此权限，EasyKiosk 无法检测外部应用何时关闭或崩溃。",
       "grantButton": "授予使用情况访问权限"
     },
     "password": {
@@ -261,9 +261,9 @@
     "brightness": {
       "title": "亮度控制",
       "appControl": "应用亮度控制",
-      "hintManaged": "由 FreeKiosk 管理屏幕亮度",
+      "hintManaged": "由 EasyKiosk 管理屏幕亮度",
       "hintSystem": "由系统管理亮度（Tasker、Android 设置等）",
-      "systemInfo": "亮度由系统管理。Tasker 等外部工具可以控制亮度，不受 FreeKiosk 干扰。"
+      "systemInfo": "亮度由系统管理。Tasker 等外部工具可以控制亮度，不受 EasyKiosk 干扰。"
     },
     "manualBrightness": {
       "title": "手动亮度",
@@ -354,14 +354,14 @@
       "proximityInfo": "近距离（几厘米）：在屏幕正前方挥手即可唤醒。与摄像头动作检测不同，它不会因光线变化而触发，且几乎不耗电。",
       "howItWorksTitle": "工作原理",
       "howItWorksAfter": "• 无操作 {{delay}} 分钟后，屏幕保护程序启动",
-      "howItWorksExternalApp": "• FreeKiosk 切换到前台显示屏幕保护程序；唤醒后外部应用恢复",
+      "howItWorksExternalApp": "• EasyKiosk 切换到前台显示屏幕保护程序；唤醒后外部应用恢复",
       "howItWorksTouch": "• 触摸屏幕即可唤醒设备",
       "howItWorksMotion": "• 摄像头前有动作也会唤醒屏幕",
       "howItWorksProximity": "• 手靠近距离传感器也会唤醒屏幕",
       "howItWorksBrightness": "• 自动恢复正常亮度",
       "howItWorksDimOverApp": "• 屏幕在外部应用上方调暗，外部应用保持打开；第一次点按会唤醒屏幕",
       "keepExternalApp": "保持应用在前台",
-      "keepExternalAppHint": "在外部应用上方调暗，而不是切换回 FreeKiosk，因此唤醒时应用不会重新加载。第一次点按仅唤醒屏幕。使用此选项时，动作唤醒和接近唤醒不可用。"
+      "keepExternalAppHint": "在外部应用上方调暗，而不是切换回 EasyKiosk，因此唤醒时应用不会重新加载。第一次点按仅唤醒屏幕。使用此选项时，动作唤醒和接近唤醒不可用。"
     },
     "screenSchedule": {
       "title": "屏幕休眠计划",
@@ -449,11 +449,11 @@
       "pausePage": "屏幕关闭时暂停页面",
       "pausePageHint": "当屏幕真正关闭时（关屏命令、锁屏、电源键、计划任务），停止页面自身的活动（定时器、图片加载），避免幻灯片继续下载。屏幕亮起后恢复运行。默认关闭：需要持续更新的仪表板应保持关闭。",
       "intercom": "双向音频（对讲）模式",
-      "intercomHint": "启用后可使用 WebRTC 双向音频/对讲（例如 Home Assistant / go2rtc 门铃对讲卡片）。网页正在使用麦克风时，FreeKiosk 会将设备切换到通话音频模式，以便麦克风回传通道能够发送声音，停止讲话后再恢复正常音频。正常浏览时请保持关闭，它仅在麦克风使用期间生效。"
+      "intercomHint": "启用后可使用 WebRTC 双向音频/对讲（例如 Home Assistant / go2rtc 门铃对讲卡片）。网页正在使用麦克风时，EasyKiosk 会将设备切换到通话音频模式，以便麦克风回传通道能够发送声音，停止讲话后再恢复正常音频。正常浏览时请保持关闭，它仅在麦克风使用期间生效。"
     },
     "orientation": {
       "title": "屏幕方向",
-      "hint": "将 FreeKiosk 的屏幕锁定为一个方向，或跟随设备。不适用于外部应用。",
+      "hint": "将 EasyKiosk 的屏幕锁定为一个方向，或跟随设备。不适用于外部应用。",
       "auto": "跟随设备",
       "portrait": "纵向",
       "landscape": "横向",
@@ -480,7 +480,7 @@
       "enableHint": "防止用户退出自助终端应用。退出需要输入 PIN 码。",
       "disabledWarning": "锁定模式禁用时，用户可以正常退出应用",
       "screenPinningInfo": "屏幕固定已启用：只有点按 5 次手势 + PIN 码才能退出",
-      "noDeviceOwnerWarning": "未启用 Device Owner 时，用户可以通过返回 + 最近应用手势退出。将 FreeKiosk 设为 Device Owner 可实现完全锁定。",
+      "noDeviceOwnerWarning": "未启用 Device Owner 时，用户可以通过返回 + 最近应用手势退出。将 EasyKiosk 设为 Device Owner 可实现完全锁定。",
       "externalAppNoOwnerError": "需要 Device Owner：没有 Device Owner 权限时，锁定模式在外部应用模式下无法工作。",
       "externalAppOwnerInfo": "锁定模式已启用：只有在屏幕任意位置点按 5 次 + PIN 码才能退出外部应用",
       "blockPowerMenu": "屏蔽电源菜单",
@@ -500,19 +500,19 @@
     "autoLaunch": {
       "title": "自动启动",
       "launchOnBoot": "开机启动",
-      "launchOnBootHint": "设备启动时自动启动 FreeKiosk",
+      "launchOnBootHint": "设备启动时自动启动 EasyKiosk",
       "appearOnTopInfo": "请确保在系统设置中启用了“显示在其他应用上层”权限，以便可靠地自动启动。",
-      "tvBootBlocked": "没有“显示在其他应用上层”权限时，Android 会阻止 FreeKiosk 在此电视开机时启动：断电后，电视停留在主屏幕，不会播放任何内容。此电视上没有可授予该权限的界面。请在电脑上执行一次：",
-      "tvBootGranted": "已授予“显示在其他应用上层”权限：FreeKiosk 可以开机启动。",
+      "tvBootBlocked": "没有“显示在其他应用上层”权限时，Android 会阻止 EasyKiosk 在此电视开机时启动：断电后，电视停留在主屏幕，不会播放任何内容。此电视上没有可授予该权限的界面。请在电脑上执行一次：",
+      "tvBootGranted": "已授予“显示在其他应用上层”权限：EasyKiosk 可以开机启动。",
       "openSystemSettings": "打开系统设置",
       "screenLockCompat": "兼容系统锁屏",
-      "screenLockCompatHint": "仅当在此设备上设置了 Android 原生锁屏（PIN/密码）时才启用。启用后，FreeKiosk 会（1）在开机时先让位给安全锁屏，而不是立即锁定，从而避免自助终端与安全锁屏冲突导致的重启卡死；（2）在屏幕固定期间保持系统锁屏处于活动状态，使屏幕关闭再打开后锁屏确实会提示输入（否则 lock-task 模式会禁用锁屏，密码界面永远不会出现）。使用系统锁屏意味着每次重启后、自助终端启动前，以及每次唤醒时，都必须有人在设备上输入密码，因此不适合无人值守的设备。就设备安全而言，FreeKiosk 退出 PIN + Device Owner 通常是更好的选择。",
-      "screenLockCompatWarning": "设置原生锁屏后，每次重启时都需要先手动输入密码，FreeKiosk 才会启动。除非确实配置了 Android 锁屏，否则此选项无效。",
-      "defaultLauncher": "将 FreeKiosk 设为默认启动器",
-      "defaultLauncherHintOwner": "通过 Device Owner 将 FreeKiosk 设为固定的主屏幕应用。此后每次重启和系统更新后，系统都会自行重新启动 FreeKiosk，无需依赖部分品牌（例如 Samsung）在系统更新时会重置的厂商“显示在其他应用上层”/自启动权限，而这正是重启/更新后自助终端失效的主要原因。主页按钮也会返回此处。关闭此选项会恢复正常的启动器。",
-      "defaultLauncherHintNonOwner": "打开系统主屏幕应用选择器，以便将 FreeKiosk 设为默认启动器。此后系统会在开机时重新启动 FreeKiosk。未启用 Device Owner 时，此选择不会被锁定：用户可以改回，部分品牌也可能在系统更新时将其重置（Device Owner 可使其永久生效）。",
-      "defaultLauncherWarningOwner": "FreeKiosk 将成为设备的主屏幕/启动器。如果应用在启动时崩溃，将没有备用启动器，因此请先在一台设备上测试，再在设备群组中推广。禁用此选项（或移除 Device Owner）会恢复正常的启动器。",
-      "defaultLauncherWarningNonOwner": "在打开的主屏幕应用界面中选择 FreeKiosk。未启用 Device Owner 时此设置不会被强制执行，并可能被系统更新重置。以后如需移除，请在同一系统界面中选择其他启动器。"
+      "screenLockCompatHint": "仅当在此设备上设置了 Android 原生锁屏（PIN/密码）时才启用。启用后，EasyKiosk 会（1）在开机时先让位给安全锁屏，而不是立即锁定，从而避免自助终端与安全锁屏冲突导致的重启卡死；（2）在屏幕固定期间保持系统锁屏处于活动状态，使屏幕关闭再打开后锁屏确实会提示输入（否则 lock-task 模式会禁用锁屏，密码界面永远不会出现）。使用系统锁屏意味着每次重启后、自助终端启动前，以及每次唤醒时，都必须有人在设备上输入密码，因此不适合无人值守的设备。就设备安全而言，EasyKiosk 退出 PIN + Device Owner 通常是更好的选择。",
+      "screenLockCompatWarning": "设置原生锁屏后，每次重启时都需要先手动输入密码，EasyKiosk 才会启动。除非确实配置了 Android 锁屏，否则此选项无效。",
+      "defaultLauncher": "将 EasyKiosk 设为默认启动器",
+      "defaultLauncherHintOwner": "通过 Device Owner 将 EasyKiosk 设为固定的主屏幕应用。此后每次重启和系统更新后，系统都会自行重新启动 EasyKiosk，无需依赖部分品牌（例如 Samsung）在系统更新时会重置的厂商“显示在其他应用上层”/自启动权限，而这正是重启/更新后自助终端失效的主要原因。主页按钮也会返回此处。关闭此选项会恢复正常的启动器。",
+      "defaultLauncherHintNonOwner": "打开系统主屏幕应用选择器，以便将 EasyKiosk 设为默认启动器。此后系统会在开机时重新启动 EasyKiosk。未启用 Device Owner 时，此选择不会被锁定：用户可以改回，部分品牌也可能在系统更新时将其重置（Device Owner 可使其永久生效）。",
+      "defaultLauncherWarningOwner": "EasyKiosk 将成为设备的主屏幕/启动器。如果应用在启动时崩溃，将没有备用启动器，因此请先在一台设备上测试，再在设备群组中推广。禁用此选项（或移除 Device Owner）会恢复正常的启动器。",
+      "defaultLauncherWarningNonOwner": "在打开的主屏幕应用界面中选择 EasyKiosk。未启用 Device Owner 时此设置不会被强制执行，并可能被系统更新重置。以后如需移除，请在同一系统界面中选择其他启动器。"
     },
     "returnToSettings": {
       "title": "返回设置",
@@ -651,11 +651,11 @@
       "enabledNotConnected": "● 已启用（未连接）",
       "disabled": "○ 已禁用",
       "whyTitle": "为什么需要此服务？",
-      "whyInfo": "无障碍服务使 FreeKiosk 能够向外部应用发送键盘输入（遥控器、文本输入）。\n\n没有此服务时，键盘模拟仅在 FreeKiosk 自身的 WebView 中有效。",
+      "whyInfo": "无障碍服务使 EasyKiosk 能够向外部应用发送键盘输入（遥控器、文本输入）。\n\n没有此服务时，键盘模拟仅在 EasyKiosk 自身的 WebView 中有效。",
       "enableAuto": "自动启用（Device Owner）",
       "openSettings": "打开无障碍设置",
       "hintOwner": "如果已通过 ADB 授予 WRITE_SECURE_SETTINGS 权限，Device Owner 模式可以自动启用该服务。否则，请在 Android 设置中手动启用。",
-      "hintNonOwner": "在“设置 → 无障碍 → 已安装的服务”中启用“FreeKiosk”。",
+      "hintNonOwner": "在“设置 → 无障碍 → 已安装的服务”中启用“EasyKiosk”。",
       "runningHint": "键盘模拟可用于所有应用（WebView + 外部应用）。",
       "managedAppsTitle": "受管应用的无障碍服务",
       "managedAppsInfo": "可以在“常规”选项卡的“受管应用”部分中允许其他应用的无障碍服务。\n为每个应用切换“允许无障碍”，即可通过 Device Owner 将其无障碍服务加入白名单。",
@@ -671,7 +671,7 @@
       "title": "Android 系统设置",
       "hint": "打开 Android 原生设置以更改 Wi-Fi、音量、显示等。\n适用于没有实体导航按钮的设备。",
       "kioskActiveTitle": "自助终端模式运行中",
-      "kioskActiveInfo": "打开 Android 设置时，自助终端模式将暂时暂停。返回 FreeKiosk 后将自动恢复。",
+      "kioskActiveInfo": "打开 Android 设置时，自助终端模式将暂时暂停。返回 EasyKiosk 后将自动恢复。",
       "openSettings": "打开 Android 设置",
       "wifi": "Wi-Fi",
       "sound": "声音",
@@ -686,7 +686,7 @@
       "removeDeviceOwner": "移除 Device Owner",
       "exitKioskMode": "退出自助终端模式"
     },
-    "versionFooter": "FreeKiosk v{{version}}"
+    "versionFooter": "EasyKiosk v{{version}}"
   },
   "dashboard": {
     "iconModes": {
@@ -769,7 +769,7 @@
       "fileBrowsingAndroidOnly": "文件浏览仅在 Android 上可用。",
       "selectedBackupDefault": "所选备份",
       "invalidBackup": "备份无效",
-      "notValidBackup": "所选文件不是有效的 FreeKiosk 备份。",
+      "notValidBackup": "所选文件不是有效的 EasyKiosk 备份。",
       "error": "错误",
       "browseFileFailed": "浏览文件失败：{{error}}",
       "restoreConfigTitle": "恢复配置",
@@ -820,7 +820,7 @@
       "on": "打开",
       "off": "关闭",
       "scanUnavailableTitle": "无法扫描 Wi-Fi",
-      "scanUnavailableDefault": "FreeKiosk 没有扫描 Wi-Fi 网络的权限。",
+      "scanUnavailableDefault": "EasyKiosk 没有扫描 Wi-Fi 网络的权限。",
       "savedPasswordFailedTitle": "已保存的 Wi-Fi 密码无效",
       "enterPasswordAgain": "请重新输入“{{ssid}}”的密码。",
       "connectionFailedTitle": "连接失败",
@@ -1119,7 +1119,7 @@
       "running": "外部应用正在运行",
       "waiting": "正在等待应用...",
       "testModeTitle": "测试模式已启用",
-      "testModeText": "可以使用 Android 返回键回到 FreeKiosk。",
+      "testModeText": "可以使用 Android 返回键回到 EasyKiosk。",
       "returnToApp": "返回应用",
       "settings": "设置",
       "hint": "提示：在外部应用中，点按隐藏按钮 5 次即可返回此处（位置可配置）"
@@ -1152,7 +1152,7 @@
         },
         "usage": {
           "label": "使用情况访问权限",
-          "description": "使 FreeKiosk 能够在外部应用模式下检测并重新启动前台应用。"
+          "description": "使 EasyKiosk 能够在外部应用模式下检测并重新启动前台应用。"
         },
         "battery": {
           "label": "忽略电池优化",
@@ -1170,16 +1170,7 @@
       "autoReloadText": "5 秒后自动重新加载...",
       "reloadNow": "立即重新加载",
       "fallbackSettingsHint": "点按设置按钮 5 次即可返回设置",
-      "welcomeSubtitle": "专业自助终端应用",
-      "featureSecureKiosk": "安全的自助终端模式",
-      "featureOptimalPerformance": "出色的性能",
-      "featureOpenSource": "100% 免费且开源",
-      "startConfiguration": "开始配置",
-      "supportOnGithub": "在 GitHub 上支持我们",
-      "tapHint": "提示：在屏幕任意位置点按 5 次即可进入设置",
-      "tapHintTv": "提示：在遥控器上按 5 次返回键即可进入设置",
-      "footerVersion": "版本 {{version}} • Rushb 出品",
-      "footerByRushb": "Rushb 出品"
+      "startConfiguration": "开始配置"
     },
     "mediaPlayer": {
       "title": "媒体播放器",
@@ -1237,7 +1228,7 @@
       "noOrigins": "未允许任何来源",
       "noOriginsHint": "添加来源之前，任何页面都无法打印",
       "printTestPage": "打印测试页",
-      "info": "网页通过调用 window.FreeKiosk.silentPrinter.print() 或 printImage() 进行静默打印。print() 会将页面排版为一个 CSS 像素对应一个点。\n\n默认情况下，启用窗口打印时，window.print() 会打开 Android 打印对话框，否则不执行任何操作。开启“将 window.print() 发送到此打印机”后，它会改为无对话框地在 ESC/POS 打印机上打印。\n\n要获得重启后仍然有效的访问权限：插入打印机，然后选择 FreeKiosk 并勾选“始终打开”。上方按钮授予的访问权限仅在打印机拔出前有效，而 lock task 模式会完全屏蔽该对话框。\n\n使用厂商专用 USB 接口而非标准打印机类的打印机仍可打印，但无法报告纸量。"
+      "info": "网页通过调用 window.FreeKiosk.silentPrinter.print() 或 printImage() 进行静默打印。print() 会将页面排版为一个 CSS 像素对应一个点。\n\n默认情况下，启用窗口打印时，window.print() 会打开 Android 打印对话框，否则不执行任何操作。开启“将 window.print() 发送到此打印机”后，它会改为无对话框地在 ESC/POS 打印机上打印。\n\n要获得重启后仍然有效的访问权限：插入打印机，然后选择 EasyKiosk 并勾选“始终打开”。上方按钮授予的访问权限仅在打印机拔出前有效，而 lock task 模式会完全屏蔽该对话框。\n\n使用厂商专用 USB 接口而非标准打印机类的打印机仍可打印，但无法报告纸量。"
     }
   },
   "screens": {
@@ -1305,13 +1296,13 @@
       "checkUpdateFailed": "无法检查更新：{{error}}",
       "downloadUrlUnavailable": "下载 URL 不可用。",
       "permissionRequiredTitle": "需要权限",
-      "permissionRequiredMessage": "FreeKiosk 需要安装更新的权限。\n\n请在下一个界面中启用“允许来自此来源的应用”，然后返回并重新尝试更新。",
+      "permissionRequiredMessage": "EasyKiosk 需要安装更新的权限。\n\n请在下一个界面中启用“允许来自此来源的应用”，然后返回并重新尝试更新。",
       "settingsUnavailableTitle": "设置不可用",
-      "settingsUnavailableMessage": "此设备不支持从设置中允许安装应用。\n\n替代方法：通过 ADB 连接并运行：\nadb install -r FreeKiosk-<version>.apk",
+      "settingsUnavailableMessage": "此设备不支持从设置中允许安装应用。\n\n替代方法：通过 ADB 连接并运行：\nadb install -r EasyKiosk-<version>.apk",
       "updateReadyTitle": "更新已就绪",
       "updateReadyMessage": "更新已成功下载。安装界面很快就会出现。\n\n如果没有任何反应：\n• 查看通知面板\n• 查找“软件包安装程序”\n• 如有提示，请授予安装权限",
       "installPermissionNeededTitle": "需要安装权限",
-      "installPermissionNeededMessage": "更新已下载，但无法安装。\n\n请在设备设置中为 FreeKiosk 启用“安装未知来源的应用”，然后重试。\n\n在受限设备上（例如 Echo Show），请使用：\nadb install -r <apk>",
+      "installPermissionNeededMessage": "更新已下载，但无法安装。\n\n请在设备设置中为 EasyKiosk 启用“安装未知来源的应用”，然后重试。\n\n在受限设备上（例如 Echo Show），请使用：\nadb install -r <apk>",
       "downloadFailed": "下载失败：\n\n{{error}}",
       "enterUrl": "请输入 URL",
       "addMediaItem": "请至少添加一个媒体项目（视频或图片 URL）",
@@ -1356,7 +1347,7 @@
       "removeDeviceOwnerTitle": "移除 Device Owner",
       "removeDeviceOwnerMessage": "警告：此操作将移除 Device Owner 权限。\n\n将失去：\n• 完整的自助终端模式\n• 导航屏蔽\n• 锁定保护\n\n所有设置都将被重置。\n\n是否继续？",
       "remove": "移除",
-      "deviceOwnerRemovedMessage": "Device Owner 已移除！\n\n现在可以正常卸载 FreeKiosk。",
+      "deviceOwnerRemovedMessage": "Device Owner 已移除！\n\n现在可以正常卸载 EasyKiosk。",
       "failedMessage": "失败：{{error}}",
       "removeCertificateTitle": "移除证书",
       "removeCertificateMessage": "移除以下网址已接受的证书：\n\n{{url}}\n\n下次访问时需要重新接受。",
@@ -1382,11 +1373,11 @@
       "fileAccessOffTitle": "文件访问已关闭",
       "fileAccessOffMessage": "要打开本地文件，请先开启“常规 > PDF 查看器 > 内嵌 PDF 查看器”。正是该设置让浏览器能够访问设备上的文件。",
       "allFilesNeededTitle": "需要访问所有文件的权限",
-      "allFilesNeededMessage": "此文件位于 FreeKiosk 自己的文件夹之外。在下一个界面中允许 FreeKiosk 访问所有文件，然后返回并再次保存。",
+      "allFilesNeededMessage": "此文件位于 EasyKiosk 自己的文件夹之外。在下一个界面中允许 EasyKiosk 访问所有文件，然后返回并再次保存。",
       "allFilesOpenSettings": "打开设置",
       "allFilesCancel": "取消",
-      "allFilesUnavailableTitle": "文件位于 FreeKiosk 文件夹之外",
-      "allFilesUnavailableMessage": "此版本的 FreeKiosk 无法读取自己文件夹之外的文件。请将文件复制到设备上的 Android/data/com.freekiosk/files/，或使用“选择本地 HTML 文件”选择它。",
+      "allFilesUnavailableTitle": "文件位于 EasyKiosk 文件夹之外",
+      "allFilesUnavailableMessage": "此版本的 EasyKiosk 无法读取自己文件夹之外的文件。请将文件复制到设备上的 Android/data/com.freekiosk/files/，或使用“选择本地 HTML 文件”选择它。",
       "passwordNotSavedTitle": "密码未保存",
       "basicAuthNotSavedMessage": "无法将 HTTP Basic Auth 密码写入此设备的安全存储。此界面上的其他设置均已保存。这种情况出现在 Android Keystore 损坏的固件上。",
       "downloadProgress": "{{percent}}%（{{done}} / {{total}} MB）",

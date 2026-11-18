@@ -555,7 +555,7 @@ class KioskWatchdogService : Service() {
 
     private fun buildNotification(): Notification {
         return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("FreeKiosk")
+            .setContentTitle("EasyKiosk")
 
             // than one of the two features that ask for it.
             .setContentText("Kiosk mode active")

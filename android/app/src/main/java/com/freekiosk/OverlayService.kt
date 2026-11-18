@@ -313,7 +313,7 @@ class OverlayService : Service() {
 
         // Créer une notification minimale
         val notification = NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("FreeKiosk")
+            .setContentTitle("EasyKiosk")
             .setContentText("External app mode active")
             .setSmallIcon(android.R.drawable.ic_menu_view)
             .setPriority(NotificationCompat.PRIORITY_LOW)

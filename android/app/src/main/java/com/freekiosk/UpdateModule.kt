@@ -107,9 +107,9 @@ class UpdateModule(reactContext: ReactApplicationContext) : ReactContextBaseJava
         Thread {
             try {
                 val apiUrl = if (includeBeta) {
-                    "https://api.github.com/repos/rushb-fr/freekiosk/releases?per_page=10"
+                    "https://api.github.com/repos/wifi504/easy-kiosk/releases?per_page=10"
                 } else {
-                    "https://api.github.com/repos/rushb-fr/freekiosk/releases/latest"
+                    "https://api.github.com/repos/wifi504/easy-kiosk/releases/latest"
                 }
 
                 android.util.Log.d("UpdateModule", "Checking updates: includeBeta=$includeBeta, url=$apiUrl")
@@ -162,7 +162,7 @@ class UpdateModule(reactContext: ReactApplicationContext) : ReactContextBaseJava
 
                     // Fallback to constructed URL if no asset found (should not happen)
                     if (apkUrl.isEmpty()) {
-                        apkUrl = "https://github.com/rushb-fr/freekiosk/releases/download/v${tagName}/FreeKiosk-v${tagName}.apk"
+                        apkUrl = "https://github.com/wifi504/easy-kiosk/releases/download/v${tagName}/EasyKiosk-${tagName}.apk"
                         android.util.Log.w("UpdateModule", "No APK asset found, using fallback URL")
                     }
 
@@ -277,7 +277,7 @@ class UpdateModule(reactContext: ReactApplicationContext) : ReactContextBaseJava
 
             val fileName = "FreeKiosk-${version}.apk"
             val request = DownloadManager.Request(Uri.parse(downloadUrl)).apply {
-                setTitle("FreeKiosk Update")
+                setTitle("EasyKiosk Update")
                 setDescription("Downloading version $version")
                 setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
                 // Use app-private external dir: no WRITE_EXTERNAL_STORAGE permission needed

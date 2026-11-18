@@ -8,7 +8,6 @@ import {
   Animated,
   Image,
   ScrollView,
-  Linking,
   NativeModules,
   findNodeHandle,
   Platform,
@@ -18,8 +17,7 @@ import {
 const { DeviceUtilitiesModule } = NativeModules;
 
 import KioskModule from '../utils/KioskModule';
-import UpdateModule from '../utils/UpdateModule';
-import Icon, { IconName } from './Icon';
+import Icon from './Icon';
 import RNFS from 'react-native-fs';
 import { WebView } from 'react-native-webview';
 import { pullToRefreshScript } from '../utils/pullToRefreshScript';
@@ -172,9 +170,6 @@ const WebViewComponent = forwardRef<WebViewComponentRef, WebViewComponentProps>(
   const darkLoading = useColorScheme() === 'dark';
   const [pageLoaded, setPageLoaded] = useState<boolean>(false);
   const [blockedUrlMessage, setBlockedUrlMessage] = useState<string | null>(null);
-  // App version for the error-overlay footer — read from the installed APK (build.gradle)
-  // via UpdateModule rather than hardcoded, so it never drifts on release bumps.
-  const [appVersion, setAppVersion] = useState<string>('');
   const blockedUrlTimerRef = useRef<any>(null);
   const isGoingBackRef = useRef<boolean>(false); // Prevent goBack loop for URL filter
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -359,12 +354,6 @@ const WebViewComponent = forwardRef<WebViewComponentRef, WebViewComponentProps>(
     }).start();
   }, [fadeAnim]);
 
-  // Fetch the installed app version once for the error-overlay footer.
-  React.useEffect(() => {
-    UpdateModule.getCurrentVersion()
-      .then(info => setAppVersion(info.versionName))
-      .catch(() => {});
-  }, []);
 
   // Execute JavaScript from API — with retry if page is still loading
   React.useEffect(() => {
@@ -1347,7 +1336,7 @@ const WebViewComponent = forwardRef<WebViewComponentRef, WebViewComponentProps>(
           }
         } else if (data.type === 'PRINT_REQUEST') {
           // Handle print request from window.print()
-          PrintModule.printWebView(data.title || 'FreeKiosk Print', data.paperSize || 'A4')
+          PrintModule.printWebView(data.title || 'EasyKiosk Print', data.paperSize || 'A4')
             .then(() => {
               console.log('[WebView] Print job started');
               if (data.framePrint) clearFramePrintWhenDone();
@@ -1464,12 +1453,6 @@ const WebViewComponent = forwardRef<WebViewComponentRef, WebViewComponentProps>(
 
 
 
-  const handleOpenGitHub = (): void => {
-    Linking.openURL('https://github.com/rushb-fr/freekiosk').catch(err =>
-      console.error('[FreeKiosk] Failed to open GitHub URL:', err)
-    );
-  };
-
   if (!url) {
     return (
       <View style={styles.welcomeContainer}>
@@ -1490,55 +1473,17 @@ const WebViewComponent = forwardRef<WebViewComponentRef, WebViewComponentProps>(
               </View>
             </View>
 
-            {/* Title */}
-            <Text style={styles.welcomeTitle}>FreeKiosk</Text>
-            <Text style={styles.welcomeSubtitle}>
-              {t('components.webView.welcomeSubtitle')}
-            </Text>
-
-            {/* Features List */}
-            <View style={styles.featuresList}>
-              <FeatureItem
-                icon="shield-check"
-                text={t('components.webView.featureSecureKiosk')}
-              />
-              <FeatureItem
-                icon="flash"
-                text={t('components.webView.featureOptimalPerformance')}
-              />
-              <FeatureItem
-                icon="github"
-                text={t('components.webView.featureOpenSource')}
-              />
-            </View>
-
             {/* Action Button */}
             <TouchableOpacity
               style={[styles.setupButton, styles.rowCenter]}
               onPress={handleNavigateToSettings}
               activeOpacity={0.8}
             >
-              <Icon name="rocket-launch" size={20} color="#2b7fff" style={styles.buttonLeadingIcon} />
               <Text style={styles.setupButtonText}>
                 {t('components.webView.startConfiguration')}
               </Text>
             </TouchableOpacity>
 
-            {/* Hint */}
-            <View style={styles.hintContainer}>
-              <Text style={styles.hintText}>
-                {t(Platform.isTV ? 'components.webView.tapHintTv' : 'components.webView.tapHint')}
-              </Text>
-            </View>
-
-            {/* Footer */}
-            <TouchableOpacity onPress={handleOpenGitHub} activeOpacity={0.7} style={styles.githubLink}>
-              <Icon name="github" size={16} color="rgba(255, 255, 255, 0.85)" style={styles.githubLinkIcon} />
-              <Text style={styles.githubLinkText}>{t('components.webView.supportOnGithub')}</Text>
-            </TouchableOpacity>
-            <Text style={styles.footerText}>
-              {appVersion ? t('components.webView.footerVersion', { version: appVersion }) : t('components.webView.footerByRushb')}
-            </Text>
           </Animated.View>
         </ScrollView>
       </View>
@@ -1902,14 +1847,6 @@ const WebViewComponent = forwardRef<WebViewComponentRef, WebViewComponentProps>(
 });
 
 
-const FeatureItem: React.FC<{ icon: IconName; text: string }> = ({ icon, text }) => (
-  <View style={styles.featureItem}>
-    <Icon name={icon} size={22} color="#2b7fff" style={styles.featureIcon} />
-    <Text style={styles.featureText}>{text}</Text>
-  </View>
-);
-
-
 const styles = StyleSheet.create({
   // WELCOME SCREEN STYLES
   welcomeContainer: {
@@ -1946,35 +1883,6 @@ const styles = StyleSheet.create({
     height: 80,
     tintColor: undefined,
   },
-  welcomeTitle: {
-    fontSize: 42,
-    fontWeight: 'bold',
-    color: '#fff',
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  welcomeSubtitle: {
-    fontSize: 18,
-    color: 'rgba(255, 255, 255, 0.9)',
-    marginBottom: 48,
-    textAlign: 'center',
-  },
-  featuresList: {
-    width: '100%',
-    marginBottom: 40,
-  },
-  featureItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
-    paddingVertical: 16,
-    paddingHorizontal: 20,
-    borderRadius: 12,
-    marginBottom: 12,
-  },
-  featureIcon: {
-    marginRight: 16,
-  },
   rowCenter: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1982,12 +1890,6 @@ const styles = StyleSheet.create({
   },
   buttonLeadingIcon: {
     marginRight: 10,
-  },
-  featureText: {
-    fontSize: 16,
-    color: '#fff',
-    fontWeight: '500',
-    flex: 1,
   },
 
 
@@ -2010,20 +1912,6 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
   },
-  hintContainer: {
-    marginTop: 8,
-    padding: 16,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-  },
-  hintText: {
-    fontSize: 13,
-    color: 'rgba(255, 255, 255, 0.9)',
-    textAlign: 'center',
-    lineHeight: 18,
-  },
 
 
 
@@ -2033,26 +1921,6 @@ const styles = StyleSheet.create({
 
 
 
-  githubLink: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 24,
-  },
-  githubLinkIcon: {
-    marginRight: 6,
-  },
-  githubLinkText: {
-    color: 'rgba(255, 255, 255, 0.85)',
-    fontSize: 13,
-    textDecorationLine: 'underline',
-  },
-  footerText: {
-    marginTop: 12,
-    fontSize: 12,
-    color: 'rgba(255, 255, 255, 0.6)',
-    textAlign: 'center',
-  },
 
   // WEBVIEW STYLES
   container: { 

@@ -8,7 +8,7 @@ export interface MultiAppAppearance {
 
 export const DEFAULT_MULTI_APP_APPEARANCE: MultiAppAppearance = {
   backgroundColor: '#2b7fff',
-  title: 'FreeKiosk',
+  title: 'EasyKiosk',
   logoUri: '',
   showTitle: true,
   showLogo: true,

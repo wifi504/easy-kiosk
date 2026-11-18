@@ -321,7 +321,7 @@ class BackgroundAppMonitorService : Service() {
 
     private fun buildNotification(): Notification {
         return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("FreeKiosk")
+            .setContentTitle("EasyKiosk")
             .setContentText("Monitoring ${keepAlivePackages.size} background app(s)")
             .setSmallIcon(android.R.drawable.ic_menu_manage)
             .setPriority(NotificationCompat.PRIORITY_LOW)

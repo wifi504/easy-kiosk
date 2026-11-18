@@ -311,7 +311,7 @@ const ExternalAppOverlay: React.FC<ExternalAppOverlayProps> = ({
           </View>
 
           {/* Title */}
-          <Text style={styles.title}>FreeKiosk</Text>
+          <Text style={styles.title}>EasyKiosk</Text>
           <Text style={styles.subtitle}>{t('components.externalAppOverlay.subtitle')}</Text>
 
           {/* Status Message */}

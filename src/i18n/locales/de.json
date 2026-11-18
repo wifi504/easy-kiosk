@@ -115,7 +115,7 @@
       "password": "Passwort",
       "passwordPlaceholder": "Passwort",
       "passwordHint": "Im Keychain des Geräts gespeichert (nicht im Klartext)",
-      "info": "Wenn eine Website eine Antwort 401 Unauthorized zurückgibt, antwortet FreeKiosk automatisch mit diesen Zugangsdaten. Lass den Benutzernamen leer, um dies zu deaktivieren."
+      "info": "Wenn eine Website eine Antwort 401 Unauthorized zurückgibt, antwortet EasyKiosk automatisch mit diesen Zugangsdaten. Lass den Benutzernamen leer, um dies zu deaktivieren."
     },
     "urlRotation": {
       "title": "URL-Rotation",
@@ -168,9 +168,9 @@
     },
     "usageStats": {
       "granted": "Nutzungszugriff erteilt",
-      "grantedHint": "Die Überwachung für den automatischen Neustart ist aktiv. FreeKiosk kann erkennen, wenn die externe App geschlossen wird.",
+      "grantedHint": "Die Überwachung für den automatischen Neustart ist aktiv. EasyKiosk kann erkennen, wenn die externe App geschlossen wird.",
       "required": "Nutzungszugriff erforderlich",
-      "requiredHint": "Erforderlich für den automatischen Neustart. Ohne diesen kann FreeKiosk nicht erkennen, wenn die externe App geschlossen wird oder abstürzt.",
+      "requiredHint": "Erforderlich für den automatischen Neustart. Ohne diesen kann EasyKiosk nicht erkennen, wenn die externe App geschlossen wird oder abstürzt.",
       "grantButton": "Nutzungszugriff erteilen"
     },
     "password": {
@@ -261,9 +261,9 @@
     "brightness": {
       "title": "Helligkeitssteuerung",
       "appControl": "Helligkeitssteuerung durch die App",
-      "hintManaged": "FreeKiosk steuert die Bildschirmhelligkeit",
+      "hintManaged": "EasyKiosk steuert die Bildschirmhelligkeit",
       "hintSystem": "Das System steuert die Helligkeit (Tasker, Android-Einstellungen usw.)",
-      "systemInfo": "Die Helligkeit wird vom System gesteuert. Externe Tools wie Tasker können die Helligkeit ohne Eingriffe von FreeKiosk steuern."
+      "systemInfo": "Die Helligkeit wird vom System gesteuert. Externe Tools wie Tasker können die Helligkeit ohne Eingriffe von EasyKiosk steuern."
     },
     "manualBrightness": {
       "title": "Manuelle Helligkeit",
@@ -354,14 +354,14 @@
       "proximityInfo": "Kurze Reichweite (einige Zentimeter): Wische mit der Hand direkt vor dem Bildschirm, um ihn aufzuwecken. Anders als die Kamera-Bewegungserkennung löst sie nie durch Lichtwechsel aus und verbraucht kaum Akku.",
       "howItWorksTitle": "So funktioniert es",
       "howItWorksAfter": "• Nach {{delay}} Minute(n) ohne Interaktion wird der Bildschirmschoner aktiviert",
-      "howItWorksExternalApp": "• FreeKiosk kommt in den Vordergrund, um den Bildschirmschoner anzuzeigen; die externe App wird beim Aufwecken fortgesetzt",
+      "howItWorksExternalApp": "• EasyKiosk kommt in den Vordergrund, um den Bildschirmschoner anzuzeigen; die externe App wird beim Aufwecken fortgesetzt",
       "howItWorksTouch": "• Tippe auf den Bildschirm, um das Gerät aufzuwecken",
       "howItWorksMotion": "• Eine Bewegung vor der Kamera weckt den Bildschirm ebenfalls auf",
       "howItWorksProximity": "• Eine Hand nahe am Näherungssensor weckt den Bildschirm ebenfalls auf",
       "howItWorksBrightness": "• Die normale Helligkeit wird automatisch wiederhergestellt",
       "howItWorksDimOverApp": "• Der Bildschirm wird über der externen App abgedunkelt, die geöffnet bleibt; das erste Tippen weckt ihn auf",
       "keepExternalApp": "App im Vordergrund behalten",
-      "keepExternalAppHint": "Dunkelt über der externen App ab, statt zu FreeKiosk zurückzuwechseln, damit sie beim Aufwecken nicht neu lädt. Das erste Tippen weckt nur den Bildschirm auf. Aufwecken durch Bewegung oder Annäherung ist mit dieser Option nicht verfügbar."
+      "keepExternalAppHint": "Dunkelt über der externen App ab, statt zu EasyKiosk zurückzuwechseln, damit sie beim Aufwecken nicht neu lädt. Das erste Tippen weckt nur den Bildschirm auf. Aufwecken durch Bewegung oder Annäherung ist mit dieser Option nicht verfügbar."
     },
     "screenSchedule": {
       "title": "Zeitplan für Bildschirmruhe",
@@ -449,11 +449,11 @@
       "pausePage": "Seite pausieren, solange der Bildschirm aus ist",
       "pausePageHint": "Hält die eigene Aktivität der Seite (Timer, Bildabruf) an, solange der Bildschirm wirklich aus ist (Ausschaltbefehl, Sperre, Ein-/Aus-Taste, Zeitplan), damit eine Diashow nicht weiter herunterlädt. Beim Einschalten läuft sie weiter. Standardmäßig aus: Ein Dashboard, das aktuell bleiben muss, sollte es ausgeschaltet lassen.",
       "intercom": "Modus für bidirektionales Audio (Gegensprechanlage)",
-      "intercomHint": "Aktiviere dies für bidirektionales WebRTC-Audio / Rückkanal (z. B. eine Gegensprechanlagen-Karte einer Home-Assistant-/go2rtc-Türklingel). Solange die Webseite aktiv das Mikrofon nutzt, schaltet FreeKiosk das Gerät in den Kommunikations-Audiomodus, damit der Mikrofon-Rückkanal sendet, und stellt das normale Audio wieder her, wenn du aufhörst zu sprechen. Für normales Surfen deaktiviert lassen: Er greift nur, solange das Mikrofon genutzt wird."
+      "intercomHint": "Aktiviere dies für bidirektionales WebRTC-Audio / Rückkanal (z. B. eine Gegensprechanlagen-Karte einer Home-Assistant-/go2rtc-Türklingel). Solange die Webseite aktiv das Mikrofon nutzt, schaltet EasyKiosk das Gerät in den Kommunikations-Audiomodus, damit der Mikrofon-Rückkanal sendet, und stellt das normale Audio wieder her, wenn du aufhörst zu sprechen. Für normales Surfen deaktiviert lassen: Er greift nur, solange das Mikrofon genutzt wird."
     },
     "orientation": {
       "title": "Bildschirmausrichtung",
-      "hint": "Sperrt den Bildschirm von FreeKiosk in einer Ausrichtung oder folgt dem Gerät. Gilt nicht für eine externe App.",
+      "hint": "Sperrt den Bildschirm von EasyKiosk in einer Ausrichtung oder folgt dem Gerät. Gilt nicht für eine externe App.",
       "auto": "Dem Gerät folgen",
       "portrait": "Hochformat",
       "landscape": "Querformat",
@@ -480,7 +480,7 @@
       "enableHint": "Verhindert, dass Nutzer die Kiosk-App verlassen. Zum Beenden ist ein PIN-Code erforderlich.",
       "disabledWarning": "Bei deaktiviertem Sperrmodus können Nutzer die App normal verlassen",
       "screenPinningInfo": "Bildschirmfixierung aktiviert: Nur die 5-tap-Geste + PIN-Code erlauben das Beenden",
-      "noDeviceOwnerWarning": "Ohne Device Owner können Nutzer die App über die Geste Zurück + Letzte Apps verlassen. Richte FreeKiosk als Device Owner ein, um das Gerät vollständig zu sperren.",
+      "noDeviceOwnerWarning": "Ohne Device Owner können Nutzer die App über die Geste Zurück + Letzte Apps verlassen. Richte EasyKiosk als Device Owner ein, um das Gerät vollständig zu sperren.",
       "externalAppNoOwnerError": "Device Owner erforderlich: Der Sperrmodus funktioniert im Modus Externe App nicht ohne Device-Owner-Rechte.",
       "externalAppOwnerInfo": "Sperrmodus aktiviert: Nur 5-tap an beliebiger Stelle auf dem Bildschirm + PIN-Code erlauben das Beenden der externen App",
       "blockPowerMenu": "Ausschaltmenü blockieren",
@@ -500,19 +500,19 @@
     "autoLaunch": {
       "title": "Autostart",
       "launchOnBoot": "Beim Start öffnen",
-      "launchOnBootHint": "FreeKiosk automatisch starten, wenn das Gerät hochfährt",
+      "launchOnBootHint": "EasyKiosk automatisch starten, wenn das Gerät hochfährt",
       "appearOnTopInfo": "Stelle sicher, dass die Berechtigung „Über anderen Apps einblenden“ in den Systemeinstellungen aktiviert ist, damit der Autostart zuverlässig funktioniert.",
-      "tvBootBlocked": "Ohne „Über anderen Apps einblenden“ hindert Android FreeKiosk daran, auf diesem Fernseher beim Start zu starten: Nach einem Stromausfall bleibt der Startbildschirm des Fernsehers stehen und nichts wird abgespielt. Dieser Fernseher hat keinen Bildschirm, auf dem sich das gewähren lässt. Einmalig von einem Computer aus:",
-      "tvBootGranted": "„Über anderen Apps einblenden“ ist gewährt: FreeKiosk kann beim Start starten.",
+      "tvBootBlocked": "Ohne „Über anderen Apps einblenden“ hindert Android EasyKiosk daran, auf diesem Fernseher beim Start zu starten: Nach einem Stromausfall bleibt der Startbildschirm des Fernsehers stehen und nichts wird abgespielt. Dieser Fernseher hat keinen Bildschirm, auf dem sich das gewähren lässt. Einmalig von einem Computer aus:",
+      "tvBootGranted": "„Über anderen Apps einblenden“ ist gewährt: EasyKiosk kann beim Start starten.",
       "openSystemSettings": "Systemeinstellungen öffnen",
       "screenLockCompat": "Kompatibilität mit der System-Bildschirmsperre",
-      "screenLockCompatHint": "Nur aktivieren, wenn du auf diesem Gerät eine native Android-Bildschirmsperre (PIN/Passwort) eingerichtet hast. FreeKiosk (1) weicht dann beim Start dem sicheren Sperrbildschirm, statt sofort zu sperren, und verhindert so das Einfrieren beim Neustart, das durch den Konflikt zwischen Kiosk und sicherem Sperrbildschirm entsteht, und (2) lässt den System-Keyguard im fixierten Zustand aktiv, damit die Bildschirmsperre nach dem Aus- und Einschalten des Bildschirms tatsächlich abgefragt wird (ohne dies deaktiviert der Lock-Task-Modus den Keyguard und das Passwort erscheint nie). Mit einer System-Bildschirmsperre muss nach jedem Neustart, bevor der Kiosk startet, und bei jedem Aufwecken jemand das Passwort am Gerät eingeben. Das ist für unbeaufsichtigte Geräte ungeeignet. Für die Gerätesicherheit ist die FreeKiosk-Beenden-PIN + Device Owner meist die bessere Wahl.",
-      "screenLockCompatWarning": "Bei einer nativen Bildschirmsperre muss das Passwort nach jedem Neustart manuell eingegeben werden, bevor FreeKiosk startet. Ohne tatsächlich eingerichtete Android-Bildschirmsperre hat diese Option keine Wirkung.",
-      "defaultLauncher": "FreeKiosk als Standard-Launcher festlegen",
-      "defaultLauncherHintOwner": "Macht FreeKiosk über Device Owner zur dauerhaften Home-App. Das System startet FreeKiosk dann nach jedem Neustart und System-Update selbst neu, ohne auf die Berechtigungen „Über anderen Apps einblenden“ / Autostart der Hersteller angewiesen zu sein, die einige Marken (z. B. Samsung) bei OS-Updates zurücksetzen. Das ist die Hauptursache dafür, dass der Kiosk nach einem Neustart/Update ausfällt. Die Home-Taste führt ebenfalls hierher zurück. Wenn du das ausschaltest, wird dein normaler Launcher wiederhergestellt.",
-      "defaultLauncherHintNonOwner": "Öffnet die Auswahl der System-Home-App, damit du FreeKiosk als Standard-Launcher festlegen kannst. Das System startet FreeKiosk dann beim Start. Ohne Device Owner ist diese Auswahl nicht gesperrt: Der Nutzer kann sie zurückändern, und einige Marken setzen sie bei einem System-Update möglicherweise zurück (mit Device Owner ist sie dauerhaft).",
-      "defaultLauncherWarningOwner": "FreeKiosk wird zum Home-Bildschirm/Launcher des Geräts. Sollte die App beim Start abstürzen, gibt es keinen Ersatz-Launcher. Teste daher zuerst auf einem Gerät, bevor du die gesamte Flotte umstellst. Wenn du das deaktivierst (oder Device Owner entfernst), wird der normale Launcher wiederhergestellt.",
-      "defaultLauncherWarningNonOwner": "Wähle FreeKiosk auf dem Bildschirm zur Home-App-Auswahl, der sich öffnet. Ohne Device Owner wird das nicht erzwungen und kann durch ein System-Update zurückgesetzt werden. Um es später zu entfernen, wähle auf demselben Systembildschirm einen anderen Launcher."
+      "screenLockCompatHint": "Nur aktivieren, wenn du auf diesem Gerät eine native Android-Bildschirmsperre (PIN/Passwort) eingerichtet hast. EasyKiosk (1) weicht dann beim Start dem sicheren Sperrbildschirm, statt sofort zu sperren, und verhindert so das Einfrieren beim Neustart, das durch den Konflikt zwischen Kiosk und sicherem Sperrbildschirm entsteht, und (2) lässt den System-Keyguard im fixierten Zustand aktiv, damit die Bildschirmsperre nach dem Aus- und Einschalten des Bildschirms tatsächlich abgefragt wird (ohne dies deaktiviert der Lock-Task-Modus den Keyguard und das Passwort erscheint nie). Mit einer System-Bildschirmsperre muss nach jedem Neustart, bevor der Kiosk startet, und bei jedem Aufwecken jemand das Passwort am Gerät eingeben. Das ist für unbeaufsichtigte Geräte ungeeignet. Für die Gerätesicherheit ist die EasyKiosk-Beenden-PIN + Device Owner meist die bessere Wahl.",
+      "screenLockCompatWarning": "Bei einer nativen Bildschirmsperre muss das Passwort nach jedem Neustart manuell eingegeben werden, bevor EasyKiosk startet. Ohne tatsächlich eingerichtete Android-Bildschirmsperre hat diese Option keine Wirkung.",
+      "defaultLauncher": "EasyKiosk als Standard-Launcher festlegen",
+      "defaultLauncherHintOwner": "Macht EasyKiosk über Device Owner zur dauerhaften Home-App. Das System startet EasyKiosk dann nach jedem Neustart und System-Update selbst neu, ohne auf die Berechtigungen „Über anderen Apps einblenden“ / Autostart der Hersteller angewiesen zu sein, die einige Marken (z. B. Samsung) bei OS-Updates zurücksetzen. Das ist die Hauptursache dafür, dass der Kiosk nach einem Neustart/Update ausfällt. Die Home-Taste führt ebenfalls hierher zurück. Wenn du das ausschaltest, wird dein normaler Launcher wiederhergestellt.",
+      "defaultLauncherHintNonOwner": "Öffnet die Auswahl der System-Home-App, damit du EasyKiosk als Standard-Launcher festlegen kannst. Das System startet EasyKiosk dann beim Start. Ohne Device Owner ist diese Auswahl nicht gesperrt: Der Nutzer kann sie zurückändern, und einige Marken setzen sie bei einem System-Update möglicherweise zurück (mit Device Owner ist sie dauerhaft).",
+      "defaultLauncherWarningOwner": "EasyKiosk wird zum Home-Bildschirm/Launcher des Geräts. Sollte die App beim Start abstürzen, gibt es keinen Ersatz-Launcher. Teste daher zuerst auf einem Gerät, bevor du die gesamte Flotte umstellst. Wenn du das deaktivierst (oder Device Owner entfernst), wird der normale Launcher wiederhergestellt.",
+      "defaultLauncherWarningNonOwner": "Wähle EasyKiosk auf dem Bildschirm zur Home-App-Auswahl, der sich öffnet. Ohne Device Owner wird das nicht erzwungen und kann durch ein System-Update zurückgesetzt werden. Um es später zu entfernen, wähle auf demselben Systembildschirm einen anderen Launcher."
     },
     "returnToSettings": {
       "title": "Zurück zu den Einstellungen",
@@ -651,11 +651,11 @@
       "enabledNotConnected": "● Aktiviert (nicht verbunden)",
       "disabled": "○ Deaktiviert",
       "whyTitle": "Wozu ist das nötig?",
-      "whyInfo": "Der Bedienungshilfen-Dienst ermöglicht es FreeKiosk, Tastatureingaben (Fernbedienung, Texteingabe) an externe Apps zu senden.\n\nOhne ihn funktioniert die Tastaturemulation nur in der eigenen WebView von FreeKiosk.",
+      "whyInfo": "Der Bedienungshilfen-Dienst ermöglicht es EasyKiosk, Tastatureingaben (Fernbedienung, Texteingabe) an externe Apps zu senden.\n\nOhne ihn funktioniert die Tastaturemulation nur in der eigenen WebView von EasyKiosk.",
       "enableAuto": "Automatisch aktivieren (Device Owner)",
       "openSettings": "Bedienungshilfen-Einstellungen öffnen",
       "hintOwner": "Der Device-Owner-Modus kann den Dienst automatisch aktivieren, wenn die Berechtigung WRITE_SECURE_SETTINGS über ADB erteilt wurde. Andernfalls aktiviere ihn manuell in den Android-Einstellungen.",
-      "hintNonOwner": "Aktiviere „FreeKiosk“ unter Einstellungen → Bedienungshilfen → Installierte Dienste.",
+      "hintNonOwner": "Aktiviere „EasyKiosk“ unter Einstellungen → Bedienungshilfen → Installierte Dienste.",
       "runningHint": "Die Tastaturemulation ist für alle Apps verfügbar (WebView + Externe Apps).",
       "managedAppsTitle": "Bedienungshilfen für Verwaltete Apps",
       "managedAppsInfo": "Im Bereich „Verwaltete Apps“ auf dem Tab „Allgemein“ kannst du die Bedienungshilfen-Dienste anderer Apps zulassen.\nSchalte „Bedienungshilfen zulassen“ pro App ein, um deren Bedienungshilfen-Dienste über Device Owner in die Zulassungsliste aufzunehmen.",
@@ -671,7 +671,7 @@
       "title": "Android-Systemeinstellungen",
       "hint": "Öffnet die nativen Android-Einstellungen, um WiFi, Lautstärke, Anzeige und mehr zu ändern.\nPraktisch, wenn dein Gerät keine physischen Navigationstasten hat.",
       "kioskActiveTitle": "Kioskmodus aktiv",
-      "kioskActiveInfo": "Der Kioskmodus wird vorübergehend pausiert, um die Android-Einstellungen zu öffnen. Er wird automatisch wieder aktiviert, sobald du zu FreeKiosk zurückkehrst.",
+      "kioskActiveInfo": "Der Kioskmodus wird vorübergehend pausiert, um die Android-Einstellungen zu öffnen. Er wird automatisch wieder aktiviert, sobald du zu EasyKiosk zurückkehrst.",
       "openSettings": "Android-Einstellungen öffnen",
       "wifi": "WiFi",
       "sound": "Ton",
@@ -686,7 +686,7 @@
       "removeDeviceOwner": "Device Owner entfernen",
       "exitKioskMode": "Kioskmodus beenden"
     },
-    "versionFooter": "FreeKiosk v{{version}}"
+    "versionFooter": "EasyKiosk v{{version}}"
   },
   "dashboard": {
     "iconModes": {
@@ -769,7 +769,7 @@
       "fileBrowsingAndroidOnly": "Die Dateisuche ist nur unter Android verfügbar.",
       "selectedBackupDefault": "Ausgewählte Sicherung",
       "invalidBackup": "Ungültige Sicherung",
-      "notValidBackup": "Die ausgewählte Datei ist keine gültige FreeKiosk-Sicherung.",
+      "notValidBackup": "Die ausgewählte Datei ist keine gültige EasyKiosk-Sicherung.",
       "error": "Fehler",
       "browseFileFailed": "Die Datei konnte nicht gesucht werden: {{error}}",
       "restoreConfigTitle": "Konfiguration wiederherstellen",
@@ -820,7 +820,7 @@
       "on": "eingeschaltet",
       "off": "ausgeschaltet",
       "scanUnavailableTitle": "Wi-Fi-Suche nicht verfügbar",
-      "scanUnavailableDefault": "FreeKiosk hat keine Berechtigung, nach Wi-Fi-Netzwerken zu suchen.",
+      "scanUnavailableDefault": "EasyKiosk hat keine Berechtigung, nach Wi-Fi-Netzwerken zu suchen.",
       "savedPasswordFailedTitle": "Gespeichertes Wi-Fi-Passwort fehlgeschlagen",
       "enterPasswordAgain": "Gib das Passwort für \"{{ssid}}\" erneut ein.",
       "connectionFailedTitle": "Verbindung fehlgeschlagen",
@@ -1119,7 +1119,7 @@
       "running": "Die externe App wird ausgeführt",
       "waiting": "Warten auf die App...",
       "testModeTitle": "Testmodus aktiv",
-      "testModeText": "Mit der Android-Zurück-Taste kannst du zu FreeKiosk zurückkehren.",
+      "testModeText": "Mit der Android-Zurück-Taste kannst du zu EasyKiosk zurückkehren.",
       "returnToApp": "Zur App zurückkehren",
       "settings": "Einstellungen",
       "hint": "Tipp: In der externen App 5× auf die geheime Schaltfläche tippen, um hierher zurückzukehren (Position konfigurierbar)"
@@ -1152,7 +1152,7 @@
         },
         "usage": {
           "label": "Nutzungszugriff",
-          "description": "Ermöglicht FreeKiosk, die App im Vordergrund im Modus Externe App zu erkennen und neu zu starten."
+          "description": "Ermöglicht EasyKiosk, die App im Vordergrund im Modus Externe App zu erkennen und neu zu starten."
         },
         "battery": {
           "label": "Akku-Optimierungen ignorieren",
@@ -1170,16 +1170,7 @@
       "autoReloadText": "Automatisches Neuladen in 5 Sekunden...",
       "reloadNow": "Jetzt neu laden",
       "fallbackSettingsHint": "5× auf die Einstellungen-Schaltfläche tippen, um zu den Einstellungen zurückzukehren",
-      "welcomeSubtitle": "Professionelle Kiosk-Anwendung",
-      "featureSecureKiosk": "Sicherer Kioskmodus",
-      "featureOptimalPerformance": "Optimale Leistung",
-      "featureOpenSource": "100% kostenlos und Open Source",
-      "startConfiguration": "Konfiguration starten",
-      "supportOnGithub": "Unterstütze uns auf GitHub",
-      "tapHint": "Tipp: 5× irgendwo auf den Bildschirm tippen, um die Einstellungen zu öffnen",
-      "tapHintTv": "Tipp: 5× die Zurück-Taste der Fernbedienung drücken, um die Einstellungen zu öffnen",
-      "footerVersion": "Version {{version}} • von Rushb",
-      "footerByRushb": "von Rushb"
+      "startConfiguration": "Konfiguration starten"
     },
     "mediaPlayer": {
       "title": "Mediaplayer",
@@ -1237,7 +1228,7 @@
       "noOrigins": "Keine Herkunft erlaubt",
       "noOriginsHint": "Keine Seite kann drucken, bis du eine hinzufügst",
       "printTestPage": "Testseite drucken",
-      "info": "Webseiten drucken still, indem sie window.FreeKiosk.silentPrinter.print() oder printImage() aufrufen. print() legt die Seite so aus, dass ein CSS-Pixel einem Punkt entspricht.\n\nStandardmäßig öffnet window.print() den Android-Druckdialog, wenn der Seitendruck aktiviert ist, und tut sonst nichts. Ist „window.print() an diesen Drucker senden“ eingeschaltet, druckt es stattdessen ohne Dialog auf dem ESC/POS-Drucker.\n\nFür einen Zugriff, der Neustarts übersteht: Schließe den Drucker an, wähle dann FreeKiosk und setze ein Häkchen bei „Immer öffnen“. Die Schaltfläche oben erteilt den Zugriff nur, bis der Drucker getrennt wird, und der Lock-Task-Modus unterdrückt diesen Dialog vollständig.\n\nDrucker mit einer herstellerspezifischen USB-Schnittstelle statt der Standard-Druckerklasse drucken trotzdem, können aber den Papierstand nicht melden."
+      "info": "Webseiten drucken still, indem sie window.FreeKiosk.silentPrinter.print() oder printImage() aufrufen. print() legt die Seite so aus, dass ein CSS-Pixel einem Punkt entspricht.\n\nStandardmäßig öffnet window.print() den Android-Druckdialog, wenn der Seitendruck aktiviert ist, und tut sonst nichts. Ist „window.print() an diesen Drucker senden“ eingeschaltet, druckt es stattdessen ohne Dialog auf dem ESC/POS-Drucker.\n\nFür einen Zugriff, der Neustarts übersteht: Schließe den Drucker an, wähle dann EasyKiosk und setze ein Häkchen bei „Immer öffnen“. Die Schaltfläche oben erteilt den Zugriff nur, bis der Drucker getrennt wird, und der Lock-Task-Modus unterdrückt diesen Dialog vollständig.\n\nDrucker mit einer herstellerspezifischen USB-Schnittstelle statt der Standard-Druckerklasse drucken trotzdem, können aber den Papierstand nicht melden."
     }
   },
   "screens": {
@@ -1305,13 +1296,13 @@
       "checkUpdateFailed": "Suche nach Updates nicht möglich: {{error}}",
       "downloadUrlUnavailable": "Download-URL nicht verfügbar.",
       "permissionRequiredTitle": "Berechtigung erforderlich",
-      "permissionRequiredMessage": "FreeKiosk benötigt die Berechtigung, Updates zu installieren.\n\nBitte aktiviere auf dem nächsten Bildschirm „Aus dieser Quelle zulassen“, kehre dann zurück und versuche das Update erneut.",
+      "permissionRequiredMessage": "EasyKiosk benötigt die Berechtigung, Updates zu installieren.\n\nBitte aktiviere auf dem nächsten Bildschirm „Aus dieser Quelle zulassen“, kehre dann zurück und versuche das Update erneut.",
       "settingsUnavailableTitle": "Einstellungen nicht verfügbar",
-      "settingsUnavailableMessage": "Dieses Gerät unterstützt es nicht, App-Installationen in den Einstellungen zu aktivieren.\n\nAlternative: Verbinde dich über ADB und führe aus:\nadb install -r FreeKiosk-<version>.apk",
+      "settingsUnavailableMessage": "Dieses Gerät unterstützt es nicht, App-Installationen in den Einstellungen zu aktivieren.\n\nAlternative: Verbinde dich über ADB und führe aus:\nadb install -r EasyKiosk-<version>.apk",
       "updateReadyTitle": "Update bereit",
       "updateReadyMessage": "Das Update wurde erfolgreich heruntergeladen. Der Installationsbildschirm sollte gleich erscheinen.\n\nFalls nichts passiert:\n• Prüfe das Benachrichtigungsfeld\n• Suche nach „Paketinstaller“\n• Erteile die Installationsberechtigung, wenn du dazu aufgefordert wirst",
       "installPermissionNeededTitle": "Installationsberechtigung erforderlich",
-      "installPermissionNeededMessage": "Das Update wurde heruntergeladen, kann aber nicht installiert werden.\n\nBitte aktiviere „Installation aus unbekannten Quellen“ für FreeKiosk in den Geräteeinstellungen und versuche es dann erneut.\n\nBei eingeschränkten Geräten (z. B. Echo Show) verwende:\nadb install -r <apk>",
+      "installPermissionNeededMessage": "Das Update wurde heruntergeladen, kann aber nicht installiert werden.\n\nBitte aktiviere „Installation aus unbekannten Quellen“ für EasyKiosk in den Geräteeinstellungen und versuche es dann erneut.\n\nBei eingeschränkten Geräten (z. B. Echo Show) verwende:\nadb install -r <apk>",
       "downloadFailed": "Download fehlgeschlagen:\n\n{{error}}",
       "enterUrl": "Bitte gib eine URL ein",
       "addMediaItem": "Bitte füge mindestens ein Medium hinzu (Video- oder Bild-URL)",
@@ -1356,7 +1347,7 @@
       "removeDeviceOwnerTitle": "Device Owner entfernen",
       "removeDeviceOwnerMessage": "WARNUNG: Dadurch werden die Device-Owner-Rechte entfernt.\n\nDu verlierst:\n• Den vollständigen Kioskmodus\n• Die Navigationssperre\n• Den Sperrschutz\n\nAlle Einstellungen werden zurückgesetzt.\n\nFortfahren?",
       "remove": "Entfernen",
-      "deviceOwnerRemovedMessage": "Device Owner entfernt!\n\nDu kannst FreeKiosk jetzt ganz normal deinstallieren.",
+      "deviceOwnerRemovedMessage": "Device Owner entfernt!\n\nDu kannst EasyKiosk jetzt ganz normal deinstallieren.",
       "failedMessage": "Fehlgeschlagen: {{error}}",
       "removeCertificateTitle": "Zertifikat entfernen",
       "removeCertificateMessage": "Das akzeptierte Zertifikat entfernen für:\n\n{{url}}\n\nDu musst es bei deinem nächsten Besuch erneut akzeptieren.",
@@ -1382,11 +1373,11 @@
       "fileAccessOffTitle": "Dateizugriff ist deaktiviert",
       "fileAccessOffMessage": "Um eine lokale Datei zu öffnen, aktiviere zuerst Allgemein > PDF-Viewer > Integrierter PDF-Viewer. Diese Einstellung gibt dem Browser Zugriff auf Dateien auf dem Gerät.",
       "allFilesNeededTitle": "Zugriff auf alle Dateien erforderlich",
-      "allFilesNeededMessage": "Diese Datei liegt außerhalb des FreeKiosk-Ordners. Erlauben Sie FreeKiosk auf dem nächsten Bildschirm den Zugriff auf alle Dateien, kehren Sie dann zurück und speichern Sie erneut.",
+      "allFilesNeededMessage": "Diese Datei liegt außerhalb des EasyKiosk-Ordners. Erlauben Sie EasyKiosk auf dem nächsten Bildschirm den Zugriff auf alle Dateien, kehren Sie dann zurück und speichern Sie erneut.",
       "allFilesOpenSettings": "Einstellungen öffnen",
       "allFilesCancel": "Abbrechen",
-      "allFilesUnavailableTitle": "Datei außerhalb des FreeKiosk-Ordners",
-      "allFilesUnavailableMessage": "Diese Version von FreeKiosk kann keine Dateien außerhalb ihres eigenen Ordners lesen. Kopieren Sie die Datei nach Android/data/com.freekiosk/files/ auf dem Gerät oder wählen Sie sie mit „Lokale HTML-Datei auswählen“.",
+      "allFilesUnavailableTitle": "Datei außerhalb des EasyKiosk-Ordners",
+      "allFilesUnavailableMessage": "Diese Version von EasyKiosk kann keine Dateien außerhalb ihres eigenen Ordners lesen. Kopieren Sie die Datei nach Android/data/com.freekiosk/files/ auf dem Gerät oder wählen Sie sie mit „Lokale HTML-Datei auswählen“.",
       "passwordNotSavedTitle": "Passwort nicht gespeichert",
       "basicAuthNotSavedMessage": "Das HTTP-Basic-Auth-Passwort konnte nicht im sicheren Speicher dieses Geräts abgelegt werden. Alle anderen Einstellungen auf diesem Bildschirm wurden gespeichert. Das passiert bei Firmware mit defektem Android Keystore.",
       "downloadProgress": "{{percent}}% ({{done}} / {{total}} MB)",
