@@ -3,5 +3,3 @@ dependencyResolutionManagement { repositories { google(); mavenCentral() } }
 rootProject.name = 'EmbeddedChromiumProbe'
 include ':app', ':loader'
 project(':loader').projectDir = file('../../.engine-loader/core')
-
-include ':dexfilter'

@@ -14,5 +14,5 @@ android {
 }
 dependencies {
     compileOnly 'androidx.annotation:annotation:1.7.1'
-    compileOnly files(rootProject.file('build/embedded-chromium/renderer-stubs.jar'))
+
 }

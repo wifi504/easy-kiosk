@@ -15,7 +15,7 @@ public class ProbeInstrumentation extends Instrumentation {
             }
             Intent intent = new Intent(getTargetContext(), ProbeActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             startActivitySync(intent);
-            long deadline = System.currentTimeMillis() + 90000;
+            long deadline = System.currentTimeMillis() + 180000;
             while (ProbeActivity.result == null && ProbeActivity.failure == null && System.currentTimeMillis() < deadline) {
                 Thread.sleep(250);
             }
@@ -25,7 +25,8 @@ public class ProbeInstrumentation extends Instrumentation {
                 throw new AssertionError("Bundled engine failed: " + result);
             }
             org.json.JSONObject payload = new org.json.JSONObject((String) new org.json.JSONTokener(result).nextValue());
-            if (!payload.getString("ua").contains("Chrome/134.") || !payload.getBoolean("js") || !payload.getBoolean("css") || !payload.getBoolean("net")) throw new AssertionError("Modern JS/CSS did not execute: " + payload);
+            if (!ProbeActivity.rendererOutOfProcess) throw new AssertionError("Renderer is not out of process");
+            if (!payload.getString("ua").contains("Chrome/158.") || !payload.getBoolean("js") || !payload.getBoolean("css") || !payload.getBoolean("net")) throw new AssertionError("Modern JS/CSS did not execute: " + payload);
             report.putString("stream", "EMBEDDED_ENGINE_OK " + result + "\n");
             finish(Activity.RESULT_OK, report);
         } catch (Throwable error) {

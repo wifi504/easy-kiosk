@@ -70,7 +70,9 @@ public class EmbeddedChromiumInstrumentation extends Instrumentation {
    if(payload==null)throw new AssertionError("Full app did not render fixture: "+last);
    String major=expectedVersion.substring(0,expectedVersion.indexOf('.'));
    if(!payload.getString("ua").contains("Chrome/"+major+".") || !payload.getBoolean("js") || !payload.getBoolean("css") || !payload.getBoolean("net") || !payload.getBoolean("bridge"))throw new AssertionError("Browser checks failed: "+payload);
-   AtomicReference<String> actual=new AtomicReference<>();runOnMainSync(()->actual.set(WebView.getCurrentWebViewPackage().versionName));
+   AtomicReference<String> actual=new AtomicReference<>();runOnMainSync(()->{
+    if(findWebView(activity.getWindow().getDecorView()).getWebViewRenderProcess()==null)throw new AssertionError("Renderer is not out of process");
+    actual.set(WebView.getCurrentWebViewPackage().versionName);});
    if(!expectedVersion.equals(actual.get()))throw new AssertionError("Wrong actual engine: "+actual.get());
    Bitmap screenshot=getUiAutomation().takeScreenshot();
    if(screenshot!=null)try(FileOutputStream out=new FileOutputStream(new File(context.getExternalFilesDir(null),"engine-smoke.png"))){screenshot.compress(Bitmap.CompressFormat.PNG,100,out);}

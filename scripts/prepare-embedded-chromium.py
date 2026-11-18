@@ -31,6 +31,7 @@ with zipfile.ZipFile(engine) as archive:
         raise SystemExit('Kernel has no native library for ' + abi)
 assets = root / 'android/app/src/main/assets'; assets.mkdir(parents=True, exist_ok=True)
 shutil.copyfile(engine, assets / 'embedded-chromium.apk')
+subprocess.run([sys.executable, str(root / 'scripts/stage-renderer-assets.py'), str(engine), str(assets)], check=True)
 meta = dict(lock, abi=abi, package=package, sha256=sha)
 (assets / 'embedded-chromium.json').write_text(json.dumps(meta, indent=2) + '\n')
 notices = assets / 'third-party'; notices.mkdir(exist_ok=True)

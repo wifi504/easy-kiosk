@@ -22,4 +22,4 @@ android {
     androidResources { noCompress += ['apk'] }
     compileOptions { sourceCompatibility JavaVersion.VERSION_1_8; targetCompatibility JavaVersion.VERSION_1_8 }
 }
-dependencies { implementation project(':loader') }
+dependencies { implementation project(':loader'); implementation 'androidx.core:core:1.17.0' }

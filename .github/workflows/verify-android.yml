@@ -1,14 +1,11 @@
-name: 展台功能裁剪验证
+name: EasyKiosk APK 构建与验证
 
 on:
   push:
     branches: [dev]
     paths-ignore:
-      - 'tools/embedded-chromium-probe/**'
-      - 'scripts/*engine-probe*.py'
-      - '.github/workflows/embedded-chromium-probe.yml'
+      - 'docs/**'
       - '.github/workflows/prebuilt-chromium-audit.yml'
-      - 'docs/embedded-chromium.md'
   workflow_dispatch:
 
 permissions:
@@ -53,23 +50,15 @@ jobs:
           ./node_modules/.bin/eslint . -f json > "$RUNNER_TEMP/lint-dev.json" || test $? -eq 1
           node scripts/check-lint-regressions.mjs "$BASE" "$GITHUB_WORKSPACE" "$RUNNER_TEMP/lint-main.json" "$RUNNER_TEMP/lint-dev.json"
       - name: 构建辅助工具语法检查
-        run: python3 -m py_compile scripts/download-embedded-chromium.py scripts/prepare-embedded-chromium.py scripts/prepare-embedded-loader.py scripts/embed-chromium-apk.py scripts/engine-fixture-server.py scripts/generate-app-icons.py scripts/extract-chromium-notices.py
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '17'
-      - name: 编译内核合并工具（无需等待内核下载）
-        run: |
-          chmod +x android/gradlew
-          android/gradlew -p tools/engine-dex-tools --no-daemon compileJava
+        run: python3 -m py_compile scripts/download-embedded-chromium.py scripts/prepare-embedded-chromium.py scripts/prepare-embedded-loader.py scripts/embed-chromium-apk.py scripts/engine-fixture-server.py scripts/generate-app-icons.py scripts/extract-chromium-notices.py scripts/stage-renderer-assets.py scripts/prepare-independent-engine-probe.py
       - name: 单元测试
         if: success() || failure()
         run: npm test -- --runInBand --detectOpenHandles
-  native-checks:
-    name: 原生接入编译检查（无需等待内核）
+  engine-preflight:
+    name: Chromium 158 独立加载与隔离验证
     needs: checks
     runs-on: ubuntu-24.04
-    timeout-minutes: 35
+    timeout-minutes: 30
     env:
       GH_TOKEN: ${{ github.token }}
     steps:
@@ -80,10 +69,6 @@ jobs:
           ref: 5a5a7d11b5e67bba37787a697f45c9f5d45e6dda
           path: .engine-loader
           persist-credentials: false
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: npm
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -92,30 +77,59 @@ jobs:
           cache-dependency-path: |
             **/*.gradle*
             **/gradle-wrapper.properties
-            android/gradle.properties.template
-            android/app/proguard-rules.pro
       - uses: android-actions/setup-android@v3
         with:
           packages: platform-tools
-      - run: npm ci
       - uses: actions/cache@v4
         with:
           path: ${{ runner.temp }}/chromium
           key: embedded-chromium-x86_64-${{ hashFiles('config/chromium.json') }}
-      - name: 准备真实预编译内核及原生编译检查（不生成 APK）
+      - name: 使用生产工厂和真实 158 内核准备独立验证
         run: |
-          sdkmanager 'platforms;android-36' 'build-tools;36.0.0' 'ndk;27.1.12297006'
-          python3 -m pip install 'Pillow==11.3.0' 'Brotli==1.1.0'
-          python3 scripts/generate-app-icons.py
-          cp android/gradle.properties.template android/gradle.properties
-          chmod +x android/gradlew
+          sdkmanager 'platforms;android-36' 'build-tools;36.0.0'
+          python3 -m pip install 'Brotli==1.1.0'
+          cp tools/embedded-chromium-probe/gradle.properties.template tools/embedded-chromium-probe/gradle.properties
           python3 scripts/download-embedded-chromium.py x86_64 "$RUNNER_TEMP/chromium"
           python3 scripts/prepare-embedded-chromium.py x86_64 "$RUNNER_TEMP/chromium"
-      - name: 原生 Manifest、Kotlin 与单元测试
-        working-directory: android
-        run: ./gradlew --no-daemon :app:processReleaseMainManifest :app:compileReleaseKotlin :app:testReleaseUnitTest -PciUnsigned -PciCompileOnlyEngine -PreactNativeArchitectures=x86_64
+          python3 scripts/prepare-independent-engine-probe.py
+          chmod +x android/gradlew
+          android/gradlew -p tools/embedded-chromium-probe --no-daemon assembleDebug assembleDebugAndroidTest
+          python3 scripts/embed-chromium-apk.py tools/embedded-chromium-probe/app/build/outputs/apk/debug/app-debug.apk tools/embedded-chromium-probe/app/src/main/assets
+      - name: 开启模拟器加速
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Android 10 独立内核和私有文件隔离检查
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 29
+          target: default
+          arch: x86_64
+          ram-size: 1024M
+          heap-size: 256M
+          disk-size: 16384M
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          script: |
+            adb shell dumpsys webviewupdate > preflight-system-before.txt
+            adb install tools/embedded-chromium-probe/app/build/outputs/apk/debug/app-debug.apk
+            adb install tools/embedded-chromium-probe/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
+            adb shell am instrument -w com.wifi504.easykiosk.engineprobe.test/com.wifi504.easykiosk.engineprobe.ProbeInstrumentation | tee preflight-result.txt
+            adb logcat -d > preflight-logcat.txt
+            adb shell dumpsys webviewupdate > preflight-system-after.txt
+            grep -F 'EMBEDDED_ENGINE_OK' preflight-result.txt
+            grep -E 'ISOLATED_RENDERER_UID 9[0-9]{4}' preflight-logcat.txt
+            grep -E 'PRIVATE_DATA_ACCESS_DENIED 9[0-9]{4}' preflight-logcat.txt
+            diff preflight-system-before.txt preflight-system-after.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: isolated-engine-preflight
+          path: preflight-*.txt
+          retention-days: 7
   build:
-    needs: [checks, native-checks]
+    needs: checks
     runs-on: ubuntu-24.04
     timeout-minutes: 75
     strategy:
@@ -247,11 +261,10 @@ jobs:
             engine-*.txt
             engine-smoke.png
             system-webview-*.txt
-            android/app/build/outputs/apk/release/*.shared-runtime.txt
           retention-days: 7
   sign:
     name: 独立正式签名（不执行第三方源码）
-    needs: build
+    needs: [build, engine-preflight]
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:

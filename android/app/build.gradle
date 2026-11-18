@@ -9,7 +9,7 @@ def buildSha = providers.environmentVariable("GITHUB_SHA").orElse(
 ).get().trim().take(7)
 if (!(buildSha ==~ /[0-9a-f]{7}/)) { throw new GradleException("Expected a Git commit SHA") }
 def buildNumber = Integer.parseInt(System.getenv("GITHUB_RUN_NUMBER") ?: "1")
-// Generated and verified by Actions from the pinned source-build artifact.
+// Generated and verified by Actions from the pinned precompiled release.
 def engineConfigFile = rootProject.file('build/embedded-chromium/config.properties')
 if (!engineConfigFile.exists()) { throw new GradleException('Prepare embedded Chromium assets in Actions before building Android') }
 def engineConfig = new Properties()
@@ -149,11 +149,6 @@ android {
         }
     }
     gradle.taskGraph.whenReady { graph ->
-        if (project.hasProperty('ciCompileOnlyEngine') && graph.allTasks.any {
-            it.project == project && it.name in ['assembleRelease', 'bundleRelease', 'packageRelease', 'packageReleaseBundle']
-        }) {
-            throw new GradleException('Compile-only engine configuration must never produce an APK or bundle')
-        }
         if (graph.allTasks.any { it.name == "assembleRelease" || it.name == "bundleRelease" } &&
             (!project.hasProperty('ciUnsigned') || System.getenv('GITHUB_ACTIONS') != 'true')) {
             throw new GradleException('Release assembly is an Actions-only unsigned intermediate; signing is a separate job')
@@ -235,7 +230,7 @@ tasks.named('preBuild') { dependsOn(copyThirdPartyNotices) }
 
 dependencies {
     implementation project(':embedded-loader')
-    compileOnly files(rootProject.file('build/embedded-chromium/renderer-stubs.jar'))
+
     // The version of react-native is set by the React Native Gradle Plugin
     implementation("com.facebook.react:react-android")
     implementation("androidx.mediarouter:mediarouter:1.8.1")

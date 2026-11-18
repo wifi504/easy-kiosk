@@ -1,4 +1,0 @@
-plugins { id 'application' }
-application { mainClass = 'com.wifi504.easykiosk.tools.FilterEngineDex' }
-dependencies { implementation 'org.smali:dexlib2:2.5.2' }
-java { sourceCompatibility = JavaVersion.VERSION_1_8; targetCompatibility = JavaVersion.VERSION_1_8 }

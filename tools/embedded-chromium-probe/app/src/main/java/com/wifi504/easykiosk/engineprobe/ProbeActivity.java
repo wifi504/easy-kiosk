@@ -19,6 +19,7 @@ import java.nio.charset.StandardCharsets;
 public class ProbeActivity extends Activity {
     public static volatile String result;
     public static volatile String failure;
+    public static volatile boolean rendererOutOfProcess;
     private WebView view;
     private ServerSocket server;
     private UpgradeCallback callback;
@@ -68,7 +69,7 @@ public class ProbeActivity extends Activity {
                     view.getSettings().setJavaScriptEnabled(true);
                     view.addJavascriptInterface(new Object() {
                         @android.webkit.JavascriptInterface public void report(String payload) {
-                            result = org.json.JSONObject.quote(payload);
+                            runOnUiThread(() -> { rendererOutOfProcess = view.getWebViewRenderProcess() != null; result = org.json.JSONObject.quote(payload); });
                             Log.i("EasyKioskEngineProbe", "PAGE_RESULT " + result);
                         }
                         @android.webkit.JavascriptInterface public void fail(String message) { failed(new Exception(message)); }
@@ -79,7 +80,12 @@ public class ProbeActivity extends Activity {
             }
         };
         WebViewUpgrade.addUpgradeCallback(callback);
-        WebViewUpgrade.upgrade(new UpgradeAssetSource(this, "chromium-probe.apk", "134.0.6998.39-x86"));
+        try (java.io.InputStream in = getAssets().open("embedded-chromium.json")) {
+            java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream(); byte[] data = new byte[8192]; int count;
+            while ((count = in.read(data)) != -1) out.write(data, 0, count);
+            String hash = new org.json.JSONObject(out.toString("UTF-8")).getString("sha256");
+            WebViewUpgrade.upgrade(new UpgradeAssetSource(this, "embedded-chromium.apk", hash));
+        } catch (Exception error) { failed(error); }
     }
     @Override public void onDestroy() {
         if (callback != null) WebViewUpgrade.removeUpgradeCallback(callback);
