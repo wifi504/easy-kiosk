@@ -1,8 +1,5 @@
 name: Chromium 稳定版独立内核构建
 on:
-  push:
-    branches: [dev]
-    paths: ['.github/workflows/chromium-source-build.yml']
   workflow_dispatch:
     inputs:
       runner_label:
@@ -11,6 +8,7 @@ on:
         type: string
 permissions:
   contents: read
+  actions: read
 concurrency:
   group: chromium-source-${{ github.ref }}
   cancel-in-progress: true
@@ -23,12 +21,33 @@ jobs:
       matrix:
         cpu: [arm64, x64]
     steps:
+      - name: 复用已编译内核缓存
+        id: kernel-cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ runner.temp }}/Chromium-158.0.8127.42-${{ matrix.cpu }}.apk
+            ${{ runner.temp }}/Chromium-158.0.8127.42-${{ matrix.cpu }}.apk.sha256
+          key: chromium-158.0.8127.42-${{ matrix.cpu }}-no-pgo-afdo-lto-v1
+      - name: 优先复用首次官方构建的产物
+        id: previous-build
+        if: steps.kernel-cache.outputs.cache-hit != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          REUSED=false
+          STATE=$(gh api 'repos/wifi504/easy-kiosk/actions/runs/44278366744/jobs' --jq '.jobs[] | select(.name == "kernel (${{ matrix.cpu }})") | .conclusion')
+          if [ "$STATE" = success ] && gh run download 44278366744 --repo wifi504/easy-kiosk --name 'chromium-158-${{ matrix.cpu }}' --dir "$RUNNER_TEMP"; then
+            REUSED=true
+          fi
+          echo "reused=$REUSED" >> "$GITHUB_OUTPUT"
       - name: 清理一次性 runner 的闲置预装工具
-        if: runner.environment == 'github-hosted'
+        if: runner.environment == 'github-hosted' && steps.kernel-cache.outputs.cache-hit != 'true' && steps.previous-build.outputs.reused != 'true'
         run: |
           # Only this job's disposable GitHub-hosted VM. No user workspace or self-hosted machine.
           sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/boost /opt/hostedtoolcache
       - name: 检查构建容量
+        if: steps.kernel-cache.outputs.cache-hit != 'true' && steps.previous-build.outputs.reused != 'true'
         run: |
           df -h
           AVAILABLE=$(df --output=avail -BG "$RUNNER_TEMP" | tail -1 | tr -dc '0-9')
@@ -38,6 +57,7 @@ jobs:
             exit 1
           fi
       - name: 获取固定版本的官方 Chromium 源码
+        if: steps.kernel-cache.outputs.cache-hit != 'true' && steps.previous-build.outputs.reused != 'true'
         run: |
           git clone --depth=1 https://chromium.googlesource.com/chromium/tools/depot_tools.git "$RUNNER_TEMP/depot_tools"
           echo "$RUNNER_TEMP/depot_tools" >> "$GITHUB_PATH"
@@ -51,12 +71,27 @@ jobs:
           sudo build/install-build-deps.sh --no-prompt
           gclient runhooks
       - name: 构建独立 WebView（不是 Chrome 浏览器 APK）
+        if: steps.kernel-cache.outputs.cache-hit != 'true' && steps.previous-build.outputs.reused != 'true'
         working-directory: ${{ runner.temp }}/chromium/src
         run: |
           gn gen out/Release --args='target_os="android" target_cpu="${{ matrix.cpu }}" is_debug=false is_official_build=true is_component_build=false use_official_google_api_keys=false android_channel="stable" disable_fieldtrial_testing_config=true symbol_level=0 blink_symbol_level=0 v8_symbol_level=0 use_remoteexec=false v8_builtins_profiling_log_file="" chrome_pgo_phase=0 clang_use_default_sample_profile=false use_thin_lto=false'
           autoninja -C out/Release -j 4 system_webview_apk
           cp out/Release/apks/SystemWebView.apk "$RUNNER_TEMP/Chromium-158.0.8127.42-${{ matrix.cpu }}.apk"
           sha256sum "$RUNNER_TEMP/Chromium-158.0.8127.42-${{ matrix.cpu }}.apk" > "$RUNNER_TEMP/Chromium-158.0.8127.42-${{ matrix.cpu }}.apk.sha256"
+      - name: 校验复用或新编译的内核文件
+        env:
+          CPU: ${{ matrix.cpu }}
+        run: |
+          python3 - <<'PY'
+          import hashlib,os,pathlib,zipfile
+          apk=pathlib.Path(os.environ['RUNNER_TEMP']) / ('Chromium-158.0.8127.42-'+os.environ['CPU']+'.apk')
+          expected=pathlib.Path(str(apk)+'.sha256').read_text().split()[0]
+          with apk.open('rb') as stream: actual=hashlib.file_digest(stream,'sha256').hexdigest()
+          if actual != expected: raise SystemExit('Reused kernel checksum mismatch')
+          with zipfile.ZipFile(apk) as archive:
+              if archive.testzip() is not None: raise SystemExit('Corrupt kernel APK')
+          print('Verified reusable kernel', actual)
+          PY
       - uses: actions/upload-artifact@v4
         with:
           name: chromium-158-${{ matrix.cpu }}
@@ -64,4 +99,4 @@ jobs:
             ${{ runner.temp }}/Chromium-158.0.8127.42-${{ matrix.cpu }}.apk
             ${{ runner.temp }}/Chromium-158.0.8127.42-${{ matrix.cpu }}.apk.sha256
           if-no-files-found: error
-          retention-days: 7
+          retention-days: 90
