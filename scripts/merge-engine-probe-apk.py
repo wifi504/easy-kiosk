@@ -36,6 +36,6 @@ with tempfile.TemporaryDirectory() as temp:
                 out.writestr(item, engine.read(item.filename))
         for p in sorted(dex.glob('*.dex')): out.writestr(p.name, p.read_bytes())
     subprocess.run([str(tools / 'zipalign'), '-f', '4', str(merged), str(apk)], check=True)
-subprocess.run([str(tools / 'apksigner'), 'sign', '--ks', str(Path.home() / '.android/debug.keystore'), '--ks-pass', 'pass:android', '--key-pass', 'pass:android', str(apk)], check=True)
+subprocess.run([str(tools / 'apksigner'), 'sign', '--ks', str(root / 'android/app/debug.keystore'), '--ks-pass', 'pass:android', '--key-pass', 'pass:android', str(apk)], check=True)
 subprocess.run([str(tools / 'apksigner'), 'verify', str(apk)], check=True)
 print('Merged real engine classes/native/assets into disposable host APK for isolated renderer access.')

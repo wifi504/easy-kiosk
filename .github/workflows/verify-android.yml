@@ -3,6 +3,12 @@ name: 展台功能裁剪验证
 on:
   push:
     branches: [dev]
+    paths-ignore:
+      - 'tools/embedded-chromium-probe/**'
+      - 'scripts/*engine-probe*.py'
+      - '.github/workflows/embedded-chromium-probe.yml'
+      - '.github/workflows/chromium-source-build.yml'
+      - 'docs/embedded-chromium.md'
   workflow_dispatch:
 
 permissions:
