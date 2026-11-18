@@ -43,7 +43,6 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     env:
-      EASYKIOSK_KEYSTORE_FILE: ${{ runner.temp }}/easy-kiosk.jks
       EASYKIOSK_STORE_PASSWORD: ${{ secrets.EASYKIOSK_STORE_PASSWORD }}
       EASYKIOSK_KEY_ALIAS: ${{ secrets.EASYKIOSK_KEY_ALIAS }}
       EASYKIOSK_KEY_PASSWORD: ${{ secrets.EASYKIOSK_KEY_PASSWORD }}
