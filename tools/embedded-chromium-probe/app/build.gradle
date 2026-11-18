@@ -1,0 +1,16 @@
+plugins { id 'com.android.application' }
+android {
+    namespace 'com.wifi504.easykiosk.engineprobe'
+    compileSdk 36
+    defaultConfig {
+        applicationId 'com.wifi504.easykiosk.engineprobe'
+        minSdk 29
+        targetSdk 36
+        versionCode 1
+        versionName 'probe'
+        testInstrumentationRunner 'com.wifi504.easykiosk.engineprobe.ProbeInstrumentation'
+    }
+    androidResources { noCompress += ['apk'] }
+    compileOptions { sourceCompatibility JavaVersion.VERSION_1_8; targetCompatibility JavaVersion.VERSION_1_8 }
+}
+dependencies { implementation project(':loader') }

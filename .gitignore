@@ -104,3 +104,6 @@ ISSUE_TRIAGE.md
 *.jks
 *.p12
 keystore.properties
+
+# Embedded engine experiments downloaded only by Actions
+.engine-loader/

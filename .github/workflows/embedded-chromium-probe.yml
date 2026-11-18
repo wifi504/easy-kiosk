@@ -1,0 +1,73 @@
+name: 内嵌 Chromium 加载验证
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: JonaNorman/WebViewUpgrade
+          ref: 5a5a7d11b5e67bba37787a697f45c9f5d45e6dda
+          path: .engine-loader
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+      - name: 准备独立验证项目（旧内核仅验证加载机制）
+        run: |
+          sdkmanager 'platforms;android-36' 'build-tools;36.0.0'
+          cat > .engine-loader/core/build.gradle <<'GRADLE'
+          plugins { id 'com.android.library' }
+          android {
+            namespace 'com.norman.webviewup.lib'
+            compileSdk 36
+            defaultConfig { minSdk 21; consumerProguardFiles 'consumer-rules.pro' }
+            compileOptions { sourceCompatibility JavaVersion.VERSION_1_8; targetCompatibility JavaVersion.VERSION_1_8 }
+          }
+          dependencies { implementation 'androidx.appcompat:appcompat:1.6.1' }
+          GRADLE
+          mkdir -p tools/embedded-chromium-probe/app/src/main/assets
+          curl -fL --retry 3 'https://github.com/JonaNorman/WebViewPackage/releases/download/android/134.0.6998.39_min26_x86.apk' -o tools/embedded-chromium-probe/app/src/main/assets/chromium-probe.apk
+          echo 'db7070ce53379da9cf1e98920809884d021bea60ae919cc6cbf6d26a577d9ecf  tools/embedded-chromium-probe/app/src/main/assets/chromium-probe.apk' | sha256sum -c -
+          chmod +x android/gradlew
+          android/gradlew -p tools/embedded-chromium-probe --no-daemon assembleDebug assembleDebugAndroidTest
+      - name: 开启模拟器加速
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 29
+          target: default
+          arch: x86
+          ram-size: 1024M
+          heap-size: 256M
+          disk-size: 2048M
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          script: |
+            adb shell dumpsys webviewupdate > system-webview-before.txt
+            adb install tools/embedded-chromium-probe/app/build/outputs/apk/debug/app-debug.apk
+            adb install tools/embedded-chromium-probe/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
+            adb shell am instrument -w com.wifi504.easykiosk.engineprobe.test/com.wifi504.easykiosk.engineprobe.ProbeInstrumentation | tee engine-probe-result.txt
+            adb logcat -d > engine-probe-logcat.txt
+            adb shell dumpsys webviewupdate > system-webview-after.txt
+            grep -F 'EMBEDDED_ENGINE_OK' engine-probe-result.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: embedded-chromium-probe-${{ github.run_number }}
+          path: |
+            *webview*.txt
+            engine-probe-*.txt
+          retention-days: 7
