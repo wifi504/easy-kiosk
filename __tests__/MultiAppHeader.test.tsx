@@ -23,7 +23,7 @@ it('shows a custom heading and logo, and falls back when the logo fails', async 
     tree.root.findByType(Image).props.onError();
   });
   expect(tree.root.findByType(Image).props.source).toEqual(
-    require('../src/assets/images/logo_circle.png'),
+    require('../src/assets/images/easy-kiosk-logo.png'),
   );
   await act(async () => {
     tree.update(
