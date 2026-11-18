@@ -115,3 +115,6 @@ tools/embedded-chromium-probe/renderer-stubs-classes/
 android/app/src/main/assets/embedded-chromium.apk
 android/app/src/main/assets/embedded-chromium.json
 android/app/src/main/assets/third-party/
+
+# Launcher PNGs are generated from the supplied logo by Actions.
+android/app/src/main/res/mipmap-*/ic_launcher*.png

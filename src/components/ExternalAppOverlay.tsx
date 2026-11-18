@@ -303,7 +303,7 @@ const ExternalAppOverlay: React.FC<ExternalAppOverlayProps> = ({
           <View style={styles.logoContainer}>
             <View style={styles.logoCircle}>
               <Image
-                source={require('../assets/images/logo_circle.png')}
+                source={require('../assets/images/easy-kiosk-logo.png')}
                 style={styles.logoImage}
                 resizeMode="contain"
               />

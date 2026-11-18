@@ -1468,7 +1468,7 @@ const WebViewComponent = forwardRef<WebViewComponentRef, WebViewComponentProps>(
             <View style={styles.logoContainer}>
               <View style={styles.logoCircle}>
                 <Image 
-                  source={require('../assets/images/logo_circle.png')} 
+                  source={require('../assets/images/easy-kiosk-logo.png')} 
                   style={styles.logoImage}
                   resizeMode="contain"
                 />
@@ -1873,16 +1873,14 @@ const styles = StyleSheet.create({
   logoCircle: {
     width: 120,
     height: 120,
-    borderRadius: 60,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    borderRadius: 24,
+    overflow: 'hidden',
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 3,
-    borderColor: 'rgba(255, 255, 255, 0.4)',
   },
   logoImage: {
-    width: 80,
-    height: 80,
+    width: 120,
+    height: 120,
     tintColor: undefined,
   },
   rowCenter: {

@@ -25,7 +25,7 @@ const MultiAppHeader: React.FC<Props> = ({ appearance }) => {
           source={
             customLogo
               ? { uri: appearance.logoUri }
-              : require('../assets/images/logo_circle.png')
+              : require('../assets/images/easy-kiosk-logo.png')
           }
           style={[styles.logo, customLogo ? styles.customLogo : null]}
           resizeMode="contain"
