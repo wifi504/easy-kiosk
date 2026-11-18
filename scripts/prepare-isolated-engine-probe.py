@@ -9,9 +9,11 @@ for index in range(5):
     p = loader / f'src/main/java/com/norman/webviewup/lib/sandbox/stub/StubSandboxedProcessService{index}.java'
     p.write_text(f'''package com.norman.webviewup.lib.sandbox.stub;
 public class StubSandboxedProcessService{index} extends org.chromium.content.app.SandboxedProcessService0 {{
-    @Override public void onCreate() {{
-        android.util.Log.i("EasyKioskEngineProbe", "ISOLATED_RENDERER_UID " + android.os.Process.myUid());
-        super.onCreate();
+    public StubSandboxedProcessService{index}() {{
+        int uid = android.os.Process.myUid();
+        int appId = uid % 100000;
+        if (appId < 90000 || appId > 99999) throw new SecurityException("Renderer is not isolated: " + uid);
+        android.util.Log.i("EasyKioskEngineProbe", "ISOLATED_RENDERER_UID " + uid);
     }}
 }}
 ''')

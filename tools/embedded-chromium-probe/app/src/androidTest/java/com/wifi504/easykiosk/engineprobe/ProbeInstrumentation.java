@@ -18,9 +18,11 @@ public class ProbeInstrumentation extends Instrumentation {
             }
             if (ProbeActivity.failure != null) throw new AssertionError(ProbeActivity.failure);
             String result = ProbeActivity.result;
-            if (result == null || !result.contains("Chrome/134.") || !result.contains("true")) {
+            if (result == null || !result.contains("Chrome/134.")) {
                 throw new AssertionError("Bundled engine failed: " + result);
             }
+            org.json.JSONObject payload = new org.json.JSONObject((String) new org.json.JSONTokener(result).nextValue());
+            if (!payload.getBoolean("js") || !payload.getBoolean("css")) throw new AssertionError("Modern JS/CSS did not execute: " + payload);
             report.putString("stream", "EMBEDDED_ENGINE_OK " + result + "\n");
             finish(Activity.RESULT_OK, report);
         } catch (Throwable error) {
