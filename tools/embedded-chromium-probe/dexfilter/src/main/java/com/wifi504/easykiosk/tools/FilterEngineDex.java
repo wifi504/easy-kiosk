@@ -29,7 +29,8 @@ public final class FilterEngineDex {
                 report.append(type.getType()).append('\n');
             } else pool.internClass(type);
         }
-        try (FileDataStore store = new FileDataStore(new File(args[2]))) { pool.writeTo(store); }
+        FileDataStore store = new FileDataStore(new File(args[2]));
+        try { pool.writeTo(store); } finally { store.close(); }
         Files.write(Paths.get(args[3]), report.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8));
         System.out.println("Shared AndroidX engine definitions deduplicated:\n" + report);
     }
