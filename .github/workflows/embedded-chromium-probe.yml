@@ -1,6 +1,11 @@
 name: 内嵌 Chromium 加载验证
 on:
   workflow_dispatch:
+  push:
+    branches: [dev]
+    paths:
+      - 'tools/embedded-chromium-probe/**'
+      - '.github/workflows/embedded-chromium-probe.yml'
 permissions:
   contents: read
 jobs:
@@ -24,6 +29,7 @@ jobs:
           packages: platform-tools
       - name: 准备独立验证项目（旧内核仅验证加载机制）
         run: |
+          cp tools/embedded-chromium-probe/gradle.properties.template tools/embedded-chromium-probe/gradle.properties
           sdkmanager 'platforms;android-36' 'build-tools;36.0.0'
           cat > .engine-loader/core/build.gradle <<'GRADLE'
           plugins { id 'com.android.library' }
