@@ -24,16 +24,19 @@ const BluetoothDialog = require('../src/components/BluetoothDialog').default;
 const setTv = (value: boolean) =>
   Object.defineProperty(Platform, 'isTV', { configurable: true, get: () => value });
 
+const mounted: ReactTestRenderer.ReactTestRenderer[] = [];
+
 const render = async () => {
   let renderer!: ReactTestRenderer.ReactTestRenderer;
   await act(async () => {
     renderer = ReactTestRenderer.create(<BluetoothDialog visible onClose={() => {}} />);
   });
+  mounted.push(renderer);
   return renderer;
 };
 const toggle = async (r: ReactTestRenderer.ReactTestRenderer) => {
   await act(async () => {
-    r.root.findByType(Switch).props.onValueChange(!mockEnabled);
+    await r.root.findByType(Switch).props.onValueChange(!mockEnabled);
   });
 };
 
@@ -43,10 +46,16 @@ describe('BluetoothDialog toggle', () => {
 
   beforeEach(() => {
     mockSetEnabled.mockReset();
-    mockSetEnabled.mockResolvedValue({ success: true });
+    mockSetEnabled.mockImplementation(async (enabled: boolean) => {
+      mockEnabled = enabled;
+      return { success: true };
+    });
     alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
   });
-  afterEach(() => {
+  afterEach(async () => {
+    await act(async () => {
+      for (const tree of mounted.splice(0)) tree.unmount();
+    });
     alertSpy.mockRestore();
     Object.defineProperty(Platform, 'isTV', { configurable: true, get: () => original });
   });

@@ -25,6 +25,9 @@ jobs:
       - run: npm ci
       - name: TypeScript 检查
         run: npm run typecheck
+      - name: ESLint 检查
+        if: success() || failure()
+        run: npm run lint -- --quiet
       - name: 单元测试
         if: success() || failure()
         run: npm test -- --runInBand --detectOpenHandles
@@ -57,9 +60,18 @@ jobs:
       - name: 编译测试 APK（嵌入 JS，使用现有测试签名）
         working-directory: android
         run: ./gradlew --no-daemon testReleaseUnitTest assembleRelease -PreactNativeArchitectures=arm64-v8a,x86_64
+      - name: 核验签名和许可并生成校验和
+        run: |
+          APK=android/app/build/outputs/apk/release/app-release.apk
+          "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose "$APK"
+          unzip -p "$APK" assets/LICENSE | grep -F 'Copyright (c) 2025 Rushb'
+          unzip -p "$APK" assets/THIRD-PARTY-NOTICES.md > /dev/null
+          sha256sum "$APK" > "$APK.sha256"
       - uses: actions/upload-artifact@v4
         with:
           name: easy-kiosk-dev-${{ github.run_number }}
-          path: android/app/build/outputs/apk/release/app-release.apk
+          path: |
+            android/app/build/outputs/apk/release/app-release.apk
+            android/app/build/outputs/apk/release/app-release.apk.sha256
           if-no-files-found: error
           retention-days: 7

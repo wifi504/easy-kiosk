@@ -53,13 +53,6 @@ class KioskModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
 
     companion object {
 
-        fun androidId(context: android.content.Context): String? = try {
-            android.provider.Settings.Secure.getString(context.contentResolver, android.provider.Settings.Secure.ANDROID_ID)
-                ?.takeIf { it.isNotBlank() }
-        } catch (e: Exception) {
-            null
-        }
-
         /** The WebView in [view]'s subtree (a WebViewComponent's host view, or a tile wrapper). */
         internal fun findWebView(view: View?): WebView? {
             if (view == null) return null
@@ -111,15 +104,7 @@ class KioskModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
          * ways to capture an external app in multi-app mode. PixelCopy on our own window is
          * unaffected, which is why the local REST screenshot kept working until now.
          */
-        fun isScreenCapturePolicyBlocked(context: Context): Boolean {
-            return try {
-                val dpm = context.getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
-                dpm.isDeviceOwnerApp(context.packageName) && dpm.getScreenCaptureDisabled(null)
-            } catch (e: Exception) {
-                android.util.Log.w("KioskModule", "Could not read screen capture policy: ${e.message}")
-                false
-            }
-        }
+
 
         /**
          * #277 — Has the admin allowed Power+Volume Down screenshots while Lock Mode is on?
@@ -151,19 +136,7 @@ class KioskModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
          * milliseconds a remote screenshot takes, then put it straight back; callers MUST
          * restore it in a finally block. Returns true when the policy was actually changed.
          */
-        fun setScreenCapturePolicyBlocked(context: Context, blocked: Boolean): Boolean {
-            return try {
-                val dpm = context.getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
-                if (!dpm.isDeviceOwnerApp(context.packageName)) return false
-                val adminComponent = ComponentName(context, DeviceAdminReceiver::class.java)
-                dpm.setScreenCaptureDisabled(adminComponent, blocked)
-                android.util.Log.d("KioskModule", "Screen capture policy set to blocked=$blocked")
-                true
-            } catch (e: Exception) {
-                android.util.Log.e("KioskModule", "Could not set screen capture policy: ${e.message}")
-                false
-            }
-        }
+
     }
 
     init {
@@ -1031,62 +1004,7 @@ class KioskModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
         }
     }
 
-    @ReactMethod
-    fun sendRemoteKey(key: String, promise: Promise) {
-        try {
-            val keyCode = when (key) {
-                "up" -> KeyEvent.KEYCODE_DPAD_UP
-                "down" -> KeyEvent.KEYCODE_DPAD_DOWN
-                "left" -> KeyEvent.KEYCODE_DPAD_LEFT
-                "right" -> KeyEvent.KEYCODE_DPAD_RIGHT
-                "select", "center", "enter" -> KeyEvent.KEYCODE_DPAD_CENTER
-                "back" -> KeyEvent.KEYCODE_BACK
-                "home" -> KeyEvent.KEYCODE_HOME
-                "menu" -> KeyEvent.KEYCODE_MENU
-                "playpause" -> KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE
-                "play" -> KeyEvent.KEYCODE_MEDIA_PLAY
-                "pause" -> KeyEvent.KEYCODE_MEDIA_PAUSE
-                "stop" -> KeyEvent.KEYCODE_MEDIA_STOP
-                "next" -> KeyEvent.KEYCODE_MEDIA_NEXT
-                "previous" -> KeyEvent.KEYCODE_MEDIA_PREVIOUS
-                "volumeup" -> KeyEvent.KEYCODE_VOLUME_UP
-                "volumedown" -> KeyEvent.KEYCODE_VOLUME_DOWN
-                "mute" -> KeyEvent.KEYCODE_VOLUME_MUTE
-                else -> {
-                    promise.reject("INVALID_KEY", "Unknown key: $key")
-                    return
-                }
-            }
 
-            // Try AccessibilityService first (works cross-app on all ROMs)
-            if (FreeKioskAccessibilityService.isRunning()) {
-                FreeKioskAccessibilityService.sendKey(keyCode)
-                android.util.Log.d("KioskModule", "Sent remote key via AccessibilityService: $key (code: $keyCode)")
-                promise.resolve(true)
-                return
-            }
-            // Fallback to Activity dispatchKeyEvent (works only in FreeKiosk's own Activity)
-            UiThreadUtil.runOnUiThread {
-                try {
-                    val activity = reactApplicationContext.currentActivity
-                    if (activity != null) {
-                        activity.dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, keyCode))
-                        activity.dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_UP, keyCode))
-                        android.util.Log.d("KioskModule", "Sent remote key via activity: $key (code: $keyCode)")
-                    } else {
-                        android.util.Log.e("KioskModule", "Cannot send key: no activity and AccessibilityService not running")
-                    }
-                } catch (e: Exception) {
-                    android.util.Log.e("KioskModule", "Failed to send key: ${e.message}")
-                }
-            }
-
-            promise.resolve(true)
-        } catch (e: Exception) {
-            android.util.Log.e("KioskModule", "Failed to send remote key: ${e.message}")
-            promise.reject("ERROR", "Failed to send remote key: ${e.message}")
-        }
-    }
 
     /**
      * Turn screen ON using WakeLock
@@ -1894,161 +1812,19 @@ class KioskModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
     }
 
 
-    @ReactMethod
-    fun getBatteryStatus(promise: Promise) {
-        try {
-            val intentFilter = IntentFilter(Intent.ACTION_BATTERY_CHANGED)
-            val batteryIntent = reactApplicationContext.registerReceiver(null, intentFilter)
-            val level = batteryIntent?.getIntExtra(BatteryManager.EXTRA_LEVEL, -1) ?: 0
-            val scale = batteryIntent?.getIntExtra(BatteryManager.EXTRA_SCALE, 100) ?: 100
-            val percentage = (level * 100) / scale
-            val status = batteryIntent?.getIntExtra(BatteryManager.EXTRA_STATUS, -1) ?: -1
-            val isCharging = status == BatteryManager.BATTERY_STATUS_CHARGING ||
-                             status == BatteryManager.BATTERY_STATUS_FULL
-            val plugged = batteryIntent?.getIntExtra(BatteryManager.EXTRA_PLUGGED, -1) ?: -1
-            val pluggedType = when (plugged) {
-                BatteryManager.BATTERY_PLUGGED_USB -> "usb"
-                BatteryManager.BATTERY_PLUGGED_AC -> "ac"
-                BatteryManager.BATTERY_PLUGGED_WIRELESS -> "wireless"
-                else -> "none"
-            }
-            val temperature = (batteryIntent?.getIntExtra(BatteryManager.EXTRA_TEMPERATURE, 0) ?: 0) / 10.0
-            val map = Arguments.createMap()
-            map.putInt("level", percentage)
-            map.putBoolean("charging", isCharging)
-            map.putString("plugged", pluggedType)
-            map.putDouble("temperature", temperature)
-            map.putBoolean("present", batteryIntent?.getBooleanExtra(BatteryManager.EXTRA_PRESENT, true) ?: true)
-            promise.resolve(map)
-        } catch (e: Exception) {
-            val map = Arguments.createMap()
-            map.putInt("level", 0)
-            map.putBoolean("charging", false)
-            map.putString("plugged", "none")
-            map.putDouble("temperature", 0.0)
-            promise.resolve(map)
-        }
-    }
 
-    @ReactMethod
-    fun getWifiInfo(promise: Promise) {
-        try {
-            val connectivityManager = reactApplicationContext.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-            val network = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) connectivityManager.activeNetwork else null
-            val capabilities = if (network != null) connectivityManager.getNetworkCapabilities(network) else null
-            val isConnected = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                capabilities?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true
-            } else {
-                @Suppress("DEPRECATION")
-                connectivityManager.getNetworkInfo(ConnectivityManager.TYPE_WIFI)?.isConnected == true
-            }
-            val wifiInfoObj: WifiInfo? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && capabilities != null) {
-                capabilities.transportInfo as? WifiInfo
-            } else {
-                val wifiManager = reactApplicationContext.applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
-                @Suppress("DEPRECATION")
-                wifiManager.connectionInfo
-            }
-            val rawSsid = wifiInfoObj?.ssid?.replace("\"", "")?.trim() ?: ""
-            val ssid = if (rawSsid.isNotEmpty() && rawSsid != "<unknown ssid>" && rawSsid != "0x") rawSsid else ""
-            val rssi = wifiInfoObj?.rssi ?: -100
-            val map = Arguments.createMap()
-            map.putString("ssid", ssid)
-            map.putInt("rssi", rssi)
-            map.putBoolean("connected", isConnected)
-            // A TV box is often on Ethernet only: Wi-Fi then reads as disconnected while the device is online
-            map.putBoolean("ethernet", capabilities?.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) == true)
-            map.putString("ipAddress", getIpAddress())
-            promise.resolve(map)
-        } catch (e: Exception) {
-            val map = Arguments.createMap()
-            map.putString("ssid", "")
-            map.putInt("rssi", 0)
-            map.putBoolean("connected", false)
-            map.putString("ipAddress", "0.0.0.0")
-            promise.resolve(map)
-        }
-    }
 
-    @ReactMethod
-    fun getLocalIpAddress(promise: Promise) {
-        promise.resolve(getIpAddress())
-    }
 
-    @ReactMethod
-    fun getStorageInfo(promise: Promise) {
-        try {
-            val stat = StatFs(Environment.getDataDirectory().path)
-            val blockSize = stat.blockSizeLong
-            val totalMB = (stat.blockCountLong * blockSize / (1024 * 1024)).toInt()
-            val availableMB = (stat.availableBlocksLong * blockSize / (1024 * 1024)).toInt()
-            val map = Arguments.createMap()
-            map.putInt("totalMB", totalMB)
-            map.putInt("availableMB", availableMB)
-            map.putInt("usedMB", totalMB - availableMB)
-            promise.resolve(map)
-        } catch (e: Exception) {
-            val map = Arguments.createMap()
-            map.putInt("totalMB", 0)
-            map.putInt("availableMB", 0)
-            map.putInt("usedMB", 0)
-            promise.resolve(map)
-        }
-    }
 
-    @ReactMethod
-    fun getMemoryInfo(promise: Promise) {
-        try {
-            val am = reactApplicationContext.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
-            val memInfo = ActivityManager.MemoryInfo()
-            am.getMemoryInfo(memInfo)
-            val totalMB = (memInfo.totalMem / (1024 * 1024)).toInt()
-            val availableMB = (memInfo.availMem / (1024 * 1024)).toInt()
-            val map = Arguments.createMap()
-            map.putInt("totalMB", totalMB)
-            map.putInt("availableMB", availableMB)
-            map.putInt("usedMB", totalMB - availableMB)
-            promise.resolve(map)
-        } catch (e: Exception) {
-            val map = Arguments.createMap()
-            map.putInt("totalMB", 0)
-            map.putInt("availableMB", 0)
-            map.putInt("usedMB", 0)
-            promise.resolve(map)
-        }
-    }
 
-    @ReactMethod
-    fun getSystemInfo(promise: Promise) {
-        val map = Arguments.createMap()
-        map.putString("model", android.os.Build.MODEL ?: "")
-        map.putString("manufacturer", android.os.Build.MANUFACTURER ?: "")
-        map.putString("androidVersion", android.os.Build.VERSION.RELEASE ?: "")
-        map.putString("serial", if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) "unknown" else
-            @Suppress("DEPRECATION") (android.os.Build.SERIAL ?: ""))
-        map.putLong("uptimeSeconds", android.os.SystemClock.elapsedRealtime() / 1000)
-        map.putString("androidId", androidId(reactApplicationContext) ?: "")
-        promise.resolve(map)
-    }
 
-    private fun getIpAddress(): String {
-        try {
-            val interfaces = NetworkInterface.getNetworkInterfaces()
-            while (interfaces.hasMoreElements()) {
-                val iface = interfaces.nextElement()
-                val addresses = iface.inetAddresses
-                while (addresses.hasMoreElements()) {
-                    val addr = addresses.nextElement()
-                    if (!addr.isLoopbackAddress && addr is Inet4Address) {
-                        return addr.hostAddress ?: "0.0.0.0"
-                    }
-                }
-            }
-        } catch (e: Exception) {
-            android.util.Log.e("KioskModule", "Failed to get IP: ${e.message}")
-        }
-        return "0.0.0.0"
-    }
+
+
+
+
+
+
+
 
     @ReactMethod
     fun bringToFront(promise: Promise) {

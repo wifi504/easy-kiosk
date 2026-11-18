@@ -18,7 +18,6 @@ interface KioskModuleInterface {
   setFactoryResetBlocked(blocked: boolean): Promise<boolean>;
   setDefaultLauncherMode(enabled: boolean): Promise<boolean>;
   reboot(): Promise<boolean>;
-  sendRemoteKey(key: string): Promise<boolean>;
   launchEmergencyDial(): Promise<boolean>;
   isSafetyHubEnabled(): Promise<boolean>;
   disableSafetyHub(): Promise<boolean>;

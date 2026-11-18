@@ -219,6 +219,7 @@ apply from: file("../../node_modules/react-native-vector-icons/fonts.gradle")
 def thirdPartyNoticesDir = layout.buildDirectory.dir('generated/third-party-notices')
 def copyThirdPartyNotices = tasks.register('copyThirdPartyNotices', Copy) {
     from rootProject.file('../THIRD-PARTY-NOTICES.md')
+    from rootProject.file('../LICENSE')
     into thirdPartyNoticesDir
 }
 android.sourceSets.main.assets.srcDir(thirdPartyNoticesDir)
