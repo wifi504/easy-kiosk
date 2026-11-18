@@ -50,7 +50,7 @@ jobs:
           ./node_modules/.bin/eslint . -f json > "$RUNNER_TEMP/lint-dev.json" || test $? -eq 1
           node scripts/check-lint-regressions.mjs "$BASE" "$GITHUB_WORKSPACE" "$RUNNER_TEMP/lint-main.json" "$RUNNER_TEMP/lint-dev.json"
       - name: 构建辅助工具语法检查
-        run: python3 -m py_compile scripts/download-embedded-chromium.py scripts/prepare-embedded-chromium.py scripts/prepare-embedded-loader.py scripts/embed-chromium-apk.py scripts/engine-fixture-server.py scripts/generate-app-icons.py scripts/extract-chromium-notices.py scripts/stage-renderer-assets.py scripts/prepare-independent-engine-probe.py
+        run: python3 -m py_compile scripts/download-embedded-chromium.py scripts/prepare-embedded-chromium.py scripts/prepare-embedded-loader.py scripts/embed-chromium-apk.py scripts/engine-fixture-server.py scripts/generate-app-icons.py scripts/extract-chromium-notices.py scripts/stage-renderer-assets.py scripts/prepare-independent-engine-probe.py scripts/check-android-guest.py
       - name: 单元测试
         if: success() || failure()
         run: npm test -- --runInBand --detectOpenHandles
@@ -110,8 +110,11 @@ jobs:
           heap-size: 256M
           disk-size: 16384M
           disable-animations: true
-          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -qemu -m 1024
           script: |
+            adb shell wm size 1080x1920
+            adb shell wm density 144
+            python3 scripts/check-android-guest.py preflight-hardware.json
             adb shell dumpsys webviewupdate > preflight-system-before.txt
             adb install tools/embedded-chromium-probe/app/build/outputs/apk/debug/app-debug.apk
             adb install tools/embedded-chromium-probe/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
@@ -126,7 +129,9 @@ jobs:
         if: always()
         with:
           name: isolated-engine-preflight
-          path: preflight-*.txt
+          path: |
+            preflight-*.txt
+            preflight-*.json
           retention-days: 7
   build:
     needs: checks
@@ -217,16 +222,18 @@ jobs:
           heap-size: 256M
           disk-size: 16384M
           disable-animations: true
-          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -qemu -m 1024
           script: |
             adb shell wm size 1080x1920
             adb shell wm density 144
+            python3 scripts/check-android-guest.py engine-hardware.json
             adb shell dumpsys webviewupdate > system-webview-before.txt
             adb reverse tcp:8765 tcp:8765
-            adb install android/app/build/outputs/apk/release/app-release.apk
+            adb install -g android/app/build/outputs/apk/release/app-release.apk
             adb install $(find android/app/build/outputs/apk/androidTest/release -name '*.apk' -print -quit)
             adb shell am instrument -w com.freekiosk.test/com.freekiosk.EmbeddedChromiumInstrumentation | tee engine-first-start.txt
             adb logcat -d > engine-first-logcat.txt
+            adb shell test -f /sdcard/Android/data/com.freekiosk/files/engine-failure.png && adb pull /sdcard/Android/data/com.freekiosk/files/engine-failure.png engine-failure.png || true
             grep -F 'EASYKIOSK_EMBEDDED_ENGINE_OK' engine-first-start.txt
             grep -E 'ISOLATED_RENDERER_UID 9[0-9]{4}' engine-first-logcat.txt
             adb logcat -c
@@ -259,6 +266,8 @@ jobs:
           name: easy-kiosk-engine-validation-${{ github.run_number }}
           path: |
             engine-*.txt
+            engine-*.json
+            engine-failure.png
             engine-smoke.png
             system-webview-*.txt
           retention-days: 7

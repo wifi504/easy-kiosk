@@ -22,6 +22,12 @@ import org.json.JSONTokener;
 /** Runs the actual release application payload with a controlled loopback webpage. */
 public class EmbeddedChromiumInstrumentation extends Instrumentation {
  private String expectedVersion;
+ private void screenshot(String name) {
+  try {
+   Bitmap image=getUiAutomation().takeScreenshot();
+   if(image!=null)try(FileOutputStream out=new FileOutputStream(new File(getTargetContext().getExternalFilesDir(null),name))){image.compress(Bitmap.CompressFormat.PNG,100,out);}
+  }catch(Throwable ignored){}
+ }
  @Override public void onCreate(Bundle args) { super.onCreate(args); start(); }
  private WebView findWebView(View view) {
   if(view instanceof WebView) return (WebView)view;
@@ -77,6 +83,6 @@ public class EmbeddedChromiumInstrumentation extends Instrumentation {
    Bitmap screenshot=getUiAutomation().takeScreenshot();
    if(screenshot!=null)try(FileOutputStream out=new FileOutputStream(new File(context.getExternalFilesDir(null),"engine-smoke.png"))){screenshot.compress(Bitmap.CompressFormat.PNG,100,out);}
    report.putString("stream","EASYKIOSK_EMBEDDED_ENGINE_OK version="+actual.get()+" "+payload+"\n");finish(Activity.RESULT_OK,report);
-  } catch(Throwable error) {report.putString("stream","EASYKIOSK_EMBEDDED_ENGINE_FAILED "+android.util.Log.getStackTraceString(error));finish(Activity.RESULT_CANCELED,report);}
+  } catch(Throwable error) {screenshot("engine-failure.png");report.putString("stream","EASYKIOSK_EMBEDDED_ENGINE_FAILED "+android.util.Log.getStackTraceString(error));finish(Activity.RESULT_CANCELED,report);}
  }
 }
