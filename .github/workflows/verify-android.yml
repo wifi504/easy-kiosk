@@ -25,9 +25,17 @@ jobs:
       - run: npm ci
       - name: TypeScript 检查
         run: npm run typecheck
-      - name: ESLint 检查
+      - name: ESLint 新增错误检查（与 main 对比）
         if: success() || failure()
-        run: npm run lint -- --quiet
+        run: |
+          git fetch --no-tags origin main
+          BASE="$RUNNER_TEMP/lint-main"
+          mkdir -p "$BASE"
+          git archive FETCH_HEAD | tar -x -C "$BASE"
+          ln -s "$GITHUB_WORKSPACE/node_modules" "$BASE/node_modules"
+          (cd "$BASE" && ./node_modules/.bin/eslint . -f json > "$RUNNER_TEMP/lint-main.json") || test $? -eq 1
+          ./node_modules/.bin/eslint . -f json > "$RUNNER_TEMP/lint-dev.json" || test $? -eq 1
+          node scripts/check-lint-regressions.mjs "$BASE" "$GITHUB_WORKSPACE" "$RUNNER_TEMP/lint-main.json" "$RUNNER_TEMP/lint-dev.json"
       - name: 单元测试
         if: success() || failure()
         run: npm test -- --runInBand --detectOpenHandles

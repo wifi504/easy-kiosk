@@ -20,6 +20,8 @@ WebView、Device Owner、开机启动、展台看门狗、本地 PIN/设置/备�
 
 ## 验证入口
 
-运行 `.github/workflows/verify-android.yml`：TypeScript、Jest、Android JVM 测试和 release APK 编译。构建包嵌入 JS，可脱离 Metro；当前沿用上游 debug keystore 作为开发测试签名，仅通过 Actions artifact 交付，不作正式发布。
+运行 `.github/workflows/verify-android.yml`：TypeScript、相对 main 的 ESLint 新增错误检查、Jest、Android JVM 测试和 release APK 编译。构建包嵌入 JS，可脱离 Metro；当前沿用上游 debug keystore 作为开发测试签名，仅通过 Actions artifact 交付，不作正式发布。
 
 “安装即用”的环境变量预置、品牌/包名切换、纯展台界面和正式签名仍是后续阶段，见 [实施计划](implementation-plan.md)。
+
+ESLint 的存量问题以 main 的实际检查结果作为基线，不把第三方压缩脚本纳入本项目规则；流水线报告存量数量并阻止新增错误，不宣称整个上游已无 lint 问题。

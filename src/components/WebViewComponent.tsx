@@ -11,7 +11,6 @@ import {
   Linking,
   NativeModules,
   findNodeHandle,
-  DeviceEventEmitter,
   Platform,
   useColorScheme,
 } from 'react-native';

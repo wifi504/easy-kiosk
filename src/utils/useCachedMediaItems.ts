@@ -64,7 +64,7 @@ export function useCachedMediaItems(
     const syncOnce = async () => {
       try {
         apply(await cache.sync(urls, limitBytes));
-      } catch (e) {
+      } catch {
         // Offline or the check failed: what is on the device stays
       }
       if (!cancelled) timer = setTimeout(syncOnce, MEDIA_CACHE_RECHECK_MS);

@@ -1,12 +1,11 @@
 
 
 import React, { useState, useCallback, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Alert, AppState, NativeModules, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Alert, AppState, NativeModules } from 'react-native';
 import {
   SettingsSection,
   SettingsButton,
   SettingsInfoBox,
-  SettingsInput,
   BackupRestoreSection,
 } from '../../../components/settings';
 import { CertificateInfo } from '../../../utils/CertificateModule';

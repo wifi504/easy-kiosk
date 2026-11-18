@@ -74,7 +74,6 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
   // #242: what the panel is actually running at, as opposed to what we asked for.
 
   // the reporter saw (status said 100 while the panel sat at 14/255).
-  const [effectiveBrightness, setEffectiveBrightness] = useState<number>(0.5);
   const [screensaverBrightness, setScreensaverBrightness] = useState<number>(0);
   const [screensaverType, setScreensaverType] = useState<'dim' | 'url' | 'video'>('dim');
   const [screensaverUrl, setScreensaverUrl] = useState<string>('');
@@ -213,7 +212,6 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
   const screenSchedulerTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Keep Screen On setting
-  const [keepScreenOn, setKeepScreenOn] = useState<boolean>(true);
 
   // Inactivity Return to Home states
   const [inactivityReturnEnabled, setInactivityReturnEnabled] = useState<boolean>(false);
@@ -251,7 +249,6 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
 
   // JavaScript to execute in WebView (from API) - use object with counter to handle same code twice
   const [jsToExecute, setJsToExecute] = useState<string>('');
-  const jsExecuteCounterRef = useRef<number>(0);
 
   // WebView Back Button states
   const webViewRef = useRef<WebViewComponentRef>(null);
@@ -653,29 +650,6 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
   // made outside FreeKiosk between two of these transitions is still not picked up. A
   // poll would cost a wake-up every few seconds on a battery-powered kiosk for a value
   // that only moves when something asks it to.
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const actual = await RNBrightness.getBrightnessLevel();
-        if (!cancelled) {
-          // Fall back to the target rather than to the 0.5 initialiser: on a device
-          // where the native read fails we would otherwise report a flat 50% where the
-          // old code at least reported what had been asked for.
-          setEffectiveBrightness(typeof actual === 'number' ? actual : defaultBrightness);
-        }
-      } catch (error) {
-        console.warn('[KioskScreen] Could not read effective brightness:', error);
-        if (!cancelled) {
-          setEffectiveBrightness(defaultBrightness);
-        }
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [defaultBrightness, isScreensaverActive]);
-
   // Countdown timer effect (transparent - no UI)
   useEffect(() => {
     if (countdownActive && countdownSeconds > 0) {
@@ -1630,7 +1604,6 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
 
       // Load Keep Screen On setting
       const savedKeepScreenOn = bool(K.KEEP_SCREEN_ON, true);
-      setKeepScreenOn(savedKeepScreenOn);
       // Apply the flag natively
       try {
         await KioskModule.setKeepScreenOn(savedKeepScreenOn);
