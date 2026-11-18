@@ -252,6 +252,7 @@ class MainActivity : ReactActivity() {
   }
 
   private fun flushCookies() {
+    if (!EmbeddedChromium.isReady) return
     try {
       android.webkit.CookieManager.getInstance().flush()
     } catch (e: Exception) {
@@ -262,7 +263,27 @@ class MainActivity : ReactActivity() {
   override fun getMainComponentName(): String = "FreeKiosk"
 
   override fun createReactActivityDelegate(): ReactActivityDelegate =
-      DefaultReactActivityDelegate(this, mainComponentName, fabricEnabled)
+      object : DefaultReactActivityDelegate(this, mainComponentName, fabricEnabled) {
+        override fun loadApp(appKey: String?) {
+          val activity = this@MainActivity
+          val splash = android.widget.FrameLayout(activity).apply {
+            setBackgroundColor(android.graphics.Color.rgb(43, 127, 255))
+            addView(android.widget.ImageView(activity).apply { setImageResource(R.mipmap.ic_launcher) },
+              android.widget.FrameLayout.LayoutParams((120 * resources.displayMetrics.density).toInt(),
+                (120 * resources.displayMetrics.density).toInt(), android.view.Gravity.CENTER))
+          }
+          activity.setContentView(splash)
+          EmbeddedChromium.whenReady { error ->
+            if (!activity.isFinishing && !activity.isDestroyed) {
+              if (error == null) super.loadApp(appKey)
+              else android.app.AlertDialog.Builder(activity)
+                .setTitle("启动失败")
+                .setMessage("无法加载应用内置浏览器，请重新安装或联系管理员。")
+                .setPositiveButton("确定", null).setCancelable(false).show()
+            }
+          }
+        }
+      }
 
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(null)

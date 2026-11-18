@@ -286,3 +286,21 @@ SOFTWARE.
 
    END OF TERMS AND CONDITIONS
 ```
+
+## Bundled Chromium and app-scoped loader
+
+The Android APK bundles a pinned Chromium WebView build from the official Chromium source tag recorded in
+`config/chromium.json`. Chromium and its dependencies retain their upstream licenses; the engine's
+`assets/webview_licenses` and original engine APK travel with the application.
+
+The app-scoped loader is derived from JonaNorman/WebViewUpgrade at the commit recorded in that same lock file,
+under Apache License 2.0. Its full license is copied into `assets/third-party/WebViewUpgrade-LICENSE.txt`.
+The renderer-service integration is modified to use isolated Android processes and installed host code.
+
+## Bundled Chromium and app-scoped loader
+
+The Android APK bundles the official Chromium WebView source version pinned in `config/chromium.json`.
+Chromium and its dependencies retain their upstream licenses; `assets/webview_licenses` and the original
+engine APK travel with the application. The modified app-scoped loader is derived from
+JonaNorman/WebViewUpgrade at the commit pinned in that file, under Apache License 2.0.
+Its full license travels in `assets/third-party/WebViewUpgrade-LICENSE.txt`.

@@ -95,13 +95,15 @@ const makePrinterNonce = (): string =>
   Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
 
 /**
- * The user agent when none is set. Modern Chrome on Android, to avoid WAF blocks (e.g. SiteGround).
+ * The actual bundled engine UA when none is set; never claim a different Chromium version.
  * On a TV the "Mobile" token is left out: a site then serves its tablet or desktop layout, made
  * for a wide screen, instead of a phone layout stretched over 1920 pixels.
  */
 export function defaultUserAgent(): string {
-  const mobile = Platform.isTV ? '' : ' Mobile';
-  return `Mozilla/5.0 (Linux; Android 13; Pixel 6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0${mobile} Safari/537.36`;
+  const actual = NativeModules.EmbeddedChromiumModule?.userAgent;
+  if (typeof actual !== 'string') return '';
+  const browserUa = actual.replace(/; wv\b/, '').replace(/Version\/4\.0\s*/, '');
+  return Platform.isTV ? browserUa.replace(/ Mobile\b/, '') : browserUa;
 }
 
 /**

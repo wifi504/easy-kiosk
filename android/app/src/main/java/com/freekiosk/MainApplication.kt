@@ -27,7 +27,7 @@ class MainApplication : Application(), ReactApplication {
           add(UpdatePackage())
           add(SoundPlayerPackage())
           add(object : com.facebook.react.ReactPackage {
-            override fun createNativeModules(context: com.facebook.react.bridge.ReactApplicationContext): List<com.facebook.react.bridge.NativeModule> = listOf(DeviceUtilitiesModule(context))
+            override fun createNativeModules(context: com.facebook.react.bridge.ReactApplicationContext): List<com.facebook.react.bridge.NativeModule> = listOf(DeviceUtilitiesModule(context), EmbeddedChromiumModule(context))
             override fun createViewManagers(context: com.facebook.react.bridge.ReactApplicationContext): List<com.facebook.react.uimanager.ViewManager<*, *>> = emptyList()
           })
           add(BlockingOverlayPackage())
@@ -48,6 +48,9 @@ class MainApplication : Application(), ReactApplication {
 
   override fun onCreate() {
     super.onCreate()
+    // Isolated renderers only load Chromium; they must not initialize RN or read app data.
+    if (EmbeddedChromium.isIsolatedProcess()) return
+    EmbeddedChromium.prepare(this)
     loadReactNative(this)
   }
 }

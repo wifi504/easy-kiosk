@@ -11,6 +11,10 @@ NativeModules.DeviceUtilitiesModule = {
   captureScreenshotBase64: jest.fn(),
 };
 
+NativeModules.EmbeddedChromiumModule = {
+  userAgent: 'Mozilla/5.0 (Linux; Android 10; K; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/158.0.8127.42 Mobile Safari/537.36',
+};
+
 const { defaultUserAgent } = require('../src/components/WebViewComponent');
 
 describe('defaultUserAgent', () => {
@@ -23,17 +27,17 @@ describe('defaultUserAgent', () => {
     Object.defineProperty(Platform, 'isTV', { configurable: true, get: () => original });
   });
 
-  it('is the mobile Chrome it always was on a tablet or a phone', () => {
+  it('preserves the actual embedded Chromium version and Android version', () => {
     setTv(false);
     expect(defaultUserAgent()).toBe(
-      'Mozilla/5.0 (Linux; Android 13; Pixel 6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36',
+      'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/158.0.8127.42 Mobile Safari/537.36',
     );
   });
 
   it('drops only the Mobile token on a TV', () => {
     setTv(true);
     expect(defaultUserAgent()).toBe(
-      'Mozilla/5.0 (Linux; Android 13; Pixel 6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+      'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/158.0.8127.42 Safari/537.36',
     );
     expect(defaultUserAgent()).not.toContain('Mobile');
   });

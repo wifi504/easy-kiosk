@@ -3,16 +3,18 @@ apply plugin: "org.jetbrains.kotlin.android"
 apply plugin: "com.facebook.react"
 
 
-// Release signing is supplied by Actions Secrets, never a committed test key.
-def releaseStore = System.getenv("EASYKIOSK_KEYSTORE_FILE")
-def releaseStorePassword = System.getenv("EASYKIOSK_STORE_PASSWORD")
-def releaseKeyAlias = System.getenv("EASYKIOSK_KEY_ALIAS")
-def releaseKeyPassword = System.getenv("EASYKIOSK_KEY_PASSWORD")
+// Builds are unsigned CI intermediates. Production keys exist only in the isolated signing job.
 def buildSha = providers.environmentVariable("GITHUB_SHA").orElse(
     providers.exec { workingDir rootDir; commandLine "git", "rev-parse", "HEAD" }.standardOutput.asText
 ).get().trim().take(7)
 if (!(buildSha ==~ /[0-9a-f]{7}/)) { throw new GradleException("Expected a Git commit SHA") }
 def buildNumber = Integer.parseInt(System.getenv("GITHUB_RUN_NUMBER") ?: "1")
+// Generated and verified by Actions from the pinned source-build artifact.
+def engineConfigFile = rootProject.file('build/embedded-chromium/config.properties')
+if (!engineConfigFile.exists()) { throw new GradleException('Prepare embedded Chromium assets in Actions before building Android') }
+def engineConfig = new Properties()
+engineConfigFile.withInputStream { engineConfig.load(it) }
+
 
 /**
  * This is the configuration block to customize your React Native Android app.
@@ -98,6 +100,7 @@ android {
     compileSdk rootProject.ext.compileSdkVersion
 
     namespace "com.freekiosk"
+    testBuildType "release"
     testOptions {
         // android.util.Log in the code under test returns defaults instead of throwing
         unitTests.returnDefaultValues = true
@@ -108,6 +111,9 @@ android {
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode (100000 + buildNumber)
         versionName buildSha
+        testInstrumentationRunner "com.freekiosk.EmbeddedChromiumInstrumentation"
+        buildConfigField "String", "CHROMIUM_VERSION", "\"${engineConfig['version']}\""
+        buildConfigField "String", "CHROMIUM_SHA256", "\"${engineConfig['sha256']}\""
 
         // Expose self-update flag to both Kotlin (BuildConfig) and JS (via UpdateModule constants)
         buildConfigField "boolean", "ENABLE_SELF_UPDATE", "${enableSelfUpdate}"
@@ -130,6 +136,7 @@ android {
     // regions: androidx has no plain values-zh, only zh-rCN/-rHK/-rTW. A new app language
     // goes here too.
     androidResources {
+        noCompress += ["apk"]
         localeFilters += ["en", "de", "es", "fr", "it", "nl", "pt", "pt-rBR", "pl", "zh-rCN", "zh-rHK", "zh-rTW"]
     }
 
@@ -140,19 +147,11 @@ android {
             keyAlias 'androiddebugkey'
             keyPassword 'android'
         }
-        release {
-            if (releaseStore) {
-                storeFile file(releaseStore)
-                storePassword releaseStorePassword
-                keyAlias releaseKeyAlias
-                keyPassword releaseKeyPassword
-            }
-        }
     }
     gradle.taskGraph.whenReady { graph ->
         if (graph.allTasks.any { it.name == "assembleRelease" || it.name == "bundleRelease" } &&
-            (!releaseStore || !releaseStorePassword || !releaseKeyAlias || !releaseKeyPassword)) {
-            throw new GradleException("Release signing secrets are required; test signing fallback is disabled")
+            (!project.hasProperty('ciUnsigned') || System.getenv('GITHUB_ACTIONS') != 'true')) {
+            throw new GradleException('Release assembly is an Actions-only unsigned intermediate; signing is a separate job')
         }
     }
     
@@ -171,7 +170,7 @@ android {
             signingConfig signingConfigs.debug
         }
         release {
-            signingConfig signingConfigs.release
+            signingConfig null
             minifyEnabled enableProguardInReleaseBuilds
             shrinkResources true
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
@@ -230,6 +229,8 @@ android.sourceSets.main.assets.srcDir(thirdPartyNoticesDir)
 tasks.named('preBuild') { dependsOn(copyThirdPartyNotices) }
 
 dependencies {
+    implementation project(':embedded-loader')
+    compileOnly files(rootProject.file('build/embedded-chromium/renderer-stubs.jar'))
     // The version of react-native is set by the React Native Gradle Plugin
     implementation("com.facebook.react:react-android")
     implementation("androidx.mediarouter:mediarouter:1.8.1")

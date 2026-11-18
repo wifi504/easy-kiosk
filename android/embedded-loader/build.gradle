@@ -1,0 +1,18 @@
+apply plugin: 'com.android.library'
+android {
+    namespace 'com.norman.webviewup.lib'
+    compileSdk rootProject.ext.compileSdkVersion
+    defaultConfig {
+        minSdk 29
+        consumerProguardFiles 'consumer-rules.pro'
+    }
+    sourceSets.main {
+        java.srcDirs = [rootProject.file('../.engine-loader/core/src/main/java')]
+        manifest.srcFile rootProject.file('../.engine-loader/core/src/main/AndroidManifest.xml')
+    }
+    compileOptions { sourceCompatibility JavaVersion.VERSION_1_8; targetCompatibility JavaVersion.VERSION_1_8 }
+}
+dependencies {
+    compileOnly 'androidx.annotation:annotation:1.7.1'
+    compileOnly files(rootProject.file('build/embedded-chromium/renderer-stubs.jar'))
+}

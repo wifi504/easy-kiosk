@@ -110,3 +110,8 @@ keystore.properties
 
 tools/embedded-chromium-probe/renderer-stubs.jar
 tools/embedded-chromium-probe/renderer-stubs-classes/
+
+# Actions-generated embedded kernel assets (never commit browser binaries)
+android/app/src/main/assets/embedded-chromium.apk
+android/app/src/main/assets/embedded-chromium.json
+android/app/src/main/assets/third-party/
