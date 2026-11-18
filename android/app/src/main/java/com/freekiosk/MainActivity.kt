@@ -266,6 +266,7 @@ class MainActivity : ReactActivity() {
       object : DefaultReactActivityDelegate(this, mainComponentName, fabricEnabled) {
         override fun loadApp(appKey: String?) {
           val activity = this@MainActivity
+          EmbeddedChromium.prepare(activity.application)
           val splash = android.widget.FrameLayout(activity).apply {
             setBackgroundColor(android.graphics.Color.rgb(43, 127, 255))
             addView(android.widget.ImageView(activity).apply { setImageResource(R.mipmap.ic_launcher) },

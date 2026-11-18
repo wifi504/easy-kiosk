@@ -50,7 +50,8 @@ class MainApplication : Application(), ReactApplication {
     super.onCreate()
     // Isolated renderers only load Chromium; they must not initialize RN or read app data.
     if (EmbeddedChromium.isIsolatedProcess()) return
-    EmbeddedChromium.prepare(this)
+    // Direct-boot receivers and lock activities must not touch credential-protected WebView data.
+    // MainActivity starts the engine only when its React surface is actually requested.
     loadReactNative(this)
   }
 }
