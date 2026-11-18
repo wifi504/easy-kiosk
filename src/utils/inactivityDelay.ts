@@ -1,9 +1,4 @@
-/**
- * The screensaver inactivity delay is stored in milliseconds and edited in whole minutes. A config
- * pushed by ADB or the cloud can hold a value the minutes field cannot show (10 s, 90 s). Rounding
- * it when the settings open, then refusing or rewriting it on Save, made every Save fail or quietly
- * change a delay nobody touched.
- */
+
 
 /** The delay as the minutes field shows it: whole minutes as such, otherwise with up to two decimals. */
 export const formatInactivityMinutes = (ms: number): string =>

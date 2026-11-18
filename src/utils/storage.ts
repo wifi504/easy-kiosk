@@ -166,8 +166,8 @@ export const KEYS = {
   // #177 — Pause WebView audio/video when the page is hidden (screensaver / screen off / background)
   PAUSE_WEB_MEDIA_WHEN_HIDDEN: '@kiosk_pause_web_media_when_hidden',
   PAUSE_PAGE_WHEN_SCREEN_OFF: '@kiosk_pause_page_screen_off', // #215
-  // MQTT (Home Assistant integration)
-  // MQTT image publishing (screenshot / camera snapshots)
+
+
   // Beta Updates
   BETA_UPDATES_ENABLED: '@kiosk_beta_updates_enabled',
   // Managed Apps (multi-app mode, background apps, accessibility whitelist)
@@ -213,37 +213,6 @@ export const KEYS = {
   LOCKSCREEN_ROTATION_LOCK_ENABLED: '@kiosk_lockscreen_rotation_lock_enabled',
   // HTTP Basic Auth
   HTTP_BASIC_AUTH_USERNAME: '@kiosk_http_basic_auth_username',
-  // Cloud sync metadata (local tracking only, never synced)
-  // Full raw config last received from the cloud. Used to preserve fields this app
-  // version doesn't model yet, so unknown settings survive an export round-trip
-  // (prevents an older app from stripping newer settings when it echoes to the cloud).
-  // Command results that could not be POSTed back to the cloud (network down at the
-  // moment of reporting). Retried on the next poll: without this the server keeps the
-  // command in 'sent' forever, since it only ever hands out 'pending' ones.
-  // The command currently being executed, persisted before dispatch so a command that
-  // kills the process (reboot, self-update) can still be reported after the restart.
-  // Mirrors "this device is enrolled" as a plain boolean, because the credentials
-  // themselves live encrypted in the Keychain and KioskWatchdogService reads its flags
-  // straight out of the AsyncStorage SQLite file, with no JS bridge available.
-  // Set once the user closes the "manage your tablets from the cloud" banner in Settings.
-};
-
-const isPlainObject = (v: unknown): v is Record<string, unknown> =>
-  typeof v === 'object' && v !== null && !Array.isArray(v);
-
-/**
- * Deep-merge `overlay` onto `base`. Plain objects merge recursively; arrays and
- * primitives from `overlay` replace `base`. Keys present only in `base` are kept.
- * Used so exportConfig can overlay this app's known settings on top of the last raw
- * config from the cloud, preserving fields this version doesn't understand.
- */
-const deepMerge = (base: unknown, overlay: unknown): unknown => {
-  if (!isPlainObject(overlay) || !isPlainObject(base)) return overlay;
-  const out: Record<string, unknown> = { ...base };
-  for (const k of Object.keys(overlay)) {
-    out[k] = deepMerge(base[k], overlay[k]);
-  }
-  return out;
 };
 
 /**
@@ -256,7 +225,7 @@ export const toPrintOrigins = (value: unknown): string[] | null =>
 /** Longest screensaver fade-out in seconds; the settings slider stops here too. */
 export const MAX_SCREENSAVER_FADE_SECONDS = 30;
 
-/** A cloud config or backup can carry any number: keep the fade within 0..30 s. */
+
 export const clampScreensaverFadeSeconds = (value: unknown): number =>
   typeof value === 'number' && Number.isFinite(value)
     ? Math.min(Math.max(value, 0), MAX_SCREENSAVER_FADE_SECONDS)
@@ -414,7 +383,6 @@ export const StorageService = {
     }
   },
 
-  // REMOTE SCREENSHOT (#229) - opt-in; default false so the Device Owner screen-capture
   // policy (#172) is never lifted unless the admin asked for it.
   saveAllowHardwareScreenshot: async (value: boolean): Promise<void> => {
     try {
@@ -648,8 +616,8 @@ export const StorageService = {
         KEYS.WEBVIEW_ZOOM_MODE,
         // Custom User Agent
         KEYS.CUSTOM_USER_AGENT,
-        // MQTT
-        // MQTT image publishing
+
+
         // Dashboard
         KEYS.DASHBOARD_MODE_ENABLED,
         KEYS.DASHBOARD_TILES,
@@ -678,7 +646,7 @@ export const StorageService = {
         KEYS.MOTION_SENSITIVITY,
         KEYS.MOTION_DELAY,
       ]);
-      // Also clear secure API key and MQTT password from Keychain
+
     } catch (error) {
       console.error('Error clearing all storage keys:', error);
     }
@@ -1585,7 +1553,7 @@ export const StorageService = {
   },
 
   // ============ URL ROTATION ============
-  
+
   saveUrlRotationEnabled: async (value: boolean): Promise<void> => {
     try {
       await AsyncStorage.setItem(KEYS.URL_ROTATION_ENABLED, JSON.stringify(value));
@@ -1679,7 +1647,7 @@ export const StorageService = {
   },
 
   // ============ URL PLANNER ============
-  
+
   saveUrlPlannerEnabled: async (value: boolean): Promise<void> => {
     try {
       await AsyncStorage.setItem(KEYS.URL_PLANNER_ENABLED, JSON.stringify(value));
@@ -1717,7 +1685,7 @@ export const StorageService = {
   },
 
   // ============ REST API (Home Assistant) ============
-  
+
   saveAllowPowerButton: async (value: boolean): Promise<void> => {
     try {
       await AsyncStorage.setItem(KEYS.ALLOW_POWER_BUTTON, JSON.stringify(value));
@@ -2761,7 +2729,6 @@ export const StorageService = {
     }
   },
 
-  // ============ MQTT (Home Assistant) ============
 
   saveBetaUpdatesEnabled: async (value: boolean): Promise<void> => {
     try {
@@ -3214,7 +3181,7 @@ export const StorageService = {
     };
     // A stored 0 is a real value (camera rotation 0, "no limit" for a width, a button at
     // the left edge): only a missing or unreadable value falls back to the default.
-    // `parseFloat(v) || def` turned every 0 into the default, so the cloud saw a config
+
     // that differed from the one it had pushed and kept pushing it.
     const num = (key: string, def = 0): number => {
       const v = s.get(key);

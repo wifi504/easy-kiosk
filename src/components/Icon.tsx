@@ -180,7 +180,7 @@ export type IconName =
   | 'folder'
   | 'folder-open-outline'
   | 'file-document-outline'
-  // Network & MQTT
+
   | 'lan-connect'
   | 'lan-disconnect'
   | 'home-search'
@@ -210,8 +210,6 @@ export type IconName =
   | 'screen-rotation'
   | 'phone'
   | 'content-save'
-  | 'cloud-check'
-  | 'cloud-cog'
   | 'lock-reset'
   | 'shield-alert'
   | 'shield-off'

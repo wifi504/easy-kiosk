@@ -130,7 +130,7 @@ const StatusBar: React.FC<StatusBarProps> = ({
   const cellularType = systemInfo?.cellular?.networkType ?? '';
   // No dedicated toggle: the item appears only on a device that actually has cellular
   // in play, so a WiFi-only kiosk is unchanged and no new setting had to cross the app
-  // and the cloud to ship this.
+
   const cellularPresent = cellularConnected || airplaneMode;
   const bluetoothEnabled = systemInfo?.bluetooth?.isEnabled ?? false;
   const bluetoothDevices = systemInfo?.bluetooth?.connectedDevices ?? 0;

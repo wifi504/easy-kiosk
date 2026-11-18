@@ -358,7 +358,6 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation, route })
     checkLightSensor();
   }, []);
 
-  // A config pushed from the cloud while this screen is open used to leave it showing
   // the old values, so an operator concluded the push had failed when it had not.
   // Reloading in their back would throw away whatever they are typing, since this screen
   // does not track unsaved edits, so ask. Keeping the edits and saving them later is a
@@ -1561,7 +1560,6 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation, route })
       return;
     }
 
-    // Inactivity delay validation: a delay set by ADB or the cloud that the minutes field cannot
     // show (10 s) is kept as it is when the field was not touched, not refused or rounded
     const inactivityDelayMs = resolveInactivityDelayMs(inactivityDelay, storedInactivityDelayRef.current);
     if (inactivityDelayMs === null) {
@@ -2555,7 +2553,6 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation, route })
         </View>
       </View>
 
-      {/* Cloud banner: hidden once the tablet is enrolled or the banner is closed */}
 
       {/* Tab Content */}
       <ScrollView 

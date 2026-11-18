@@ -271,23 +271,7 @@ class WifiControlModule(private val reactContext: ReactApplicationContext) :
         }
     }
 
-    /**
-     * Save a Wi-Fi network for later, without touching the one in use. Pushed from the
-     * cloud (add_wifi_network), so a planned network change can be staged on remote
-     * tablets while they are still online.
-     *
-     * Deliberately NOT connectToNetwork(), which disconnects and forces a switch: that is
-     * right for someone picking a network on the tablet, and wrong from a dashboard, where
-     * a wrong password would take a remote kiosk off the air with no way back.
-     *
-     * The rule is that this only ever ADDS a network under a name the device does not
-     * already know. Android keeps a single saved configuration per network name, so
-     * "the same name with a new password" cannot be staged ahead of time: saving it
-     * replaces the credentials the tablet is connected with, and it drops off right away,
-     * before the router has even changed. So a name that is in use, or already saved, is
-     * refused. When the saved networks cannot be read, it is refused too, since that is
-     * exactly the case where we could not tell.
-     */
+
     @ReactMethod
     fun saveNetworkForLater(ssid: String, password: String, promise: Promise) {
         try {

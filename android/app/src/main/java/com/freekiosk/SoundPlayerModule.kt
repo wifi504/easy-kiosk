@@ -9,11 +9,7 @@ import com.facebook.react.bridge.ReactContextBaseJavaModule
 import com.facebook.react.bridge.ReactMethod
 import com.facebook.react.bridge.UiThreadUtil
 
-/**
- * Plays a one-off remote sound (cloud `play_sound` command) and stops it
- * (`audio_stop`). Backed by a single reusable MediaPlayer, managed on the UI
- * thread so its async prepare/completion callbacks have a Looper.
- */
+
 class SoundPlayerModule(reactContext: ReactApplicationContext) :
     ReactContextBaseJavaModule(reactContext) {
 

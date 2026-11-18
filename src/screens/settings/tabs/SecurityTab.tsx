@@ -295,10 +295,9 @@ const SecurityTab: React.FC<SecurityTabProps> = ({
           </>
         )}
 
-        {/* Allow remote screenshots (#229) - Device Owner only */}
+        {/* Hardware screenshots - Device Owner only */}
         {isDeviceOwner && (
           <>
-            <View style={styles.divider} />
             <View style={styles.divider} />
             <SettingsSwitch
               label={t('security.lockMode.allowHardwareScreenshots')}

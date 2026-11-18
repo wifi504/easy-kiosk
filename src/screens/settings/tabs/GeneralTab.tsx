@@ -364,7 +364,7 @@ const GeneralTab: React.FC<GeneralTabProps> = ({
             { value: 'external_app', label: t('general.displayMode.app'), icon: 'android' },
           ] as React.ComponentProps<typeof SettingsModeSelector>['options']).filter(
             // On a TV there is no remote escape from another app, so the option is not offered.
-            // A device already in that mode (set from the cloud or adb) keeps it visible.
+
             option => !(Platform.isTV && option.value === 'external_app' && displayMode !== 'external_app'),
           )}
           value={displayMode}

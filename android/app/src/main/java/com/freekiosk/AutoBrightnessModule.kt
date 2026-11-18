@@ -260,19 +260,7 @@ class AutoBrightnessModule(private val reactContext: ReactApplicationContext) :
         promise.resolve(sensor != null)
     }
 
-    /**
-     * Set the level FreeKiosk should hold, as opposed to a transient one (#242).
-     *
-     * setBrightnessLevel() is also how the light sensor and the screensaver drive the
-     * panel, so it cannot persist anything: it would store the screensaver's 0 as the
-     * user's chosen default. This is the deliberate-intent entry point, called from the
-     * brightness dialog, the settings screen and the REST/MQTT/cloud setBrightness
-     * action.
-     *
-     * Resolves with systemWrite = whether Settings.System could be updated. false is
-     * not a failure: the window override still applies, it just will not survive a
-     * reboot on a device with neither Device Owner nor WRITE_SETTINGS.
-     */
+
     @ReactMethod
     fun setDefaultBrightness(brightnessLevel: Double, promise: Promise) {
         try {

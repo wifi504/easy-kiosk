@@ -9,7 +9,6 @@ const { KioskModule } = NativeModules;
 const PIN_SERVICE = 'freekiosk_pin';
 const WIFI_PASSWORD_SERVICE_PREFIX = 'freekiosk_wifi_password:';
 const BASIC_AUTH_PASSWORD_SERVICE = 'freekiosk_basic_auth_password';
-const LEGACY_API_KEY = '@kiosk_rest_api_key'; // Legacy AsyncStorage key for migration
 const ATTEMPTS_KEY = '@kiosk_pin_attempts';
 const LOCKOUT_KEY = '@kiosk_pin_lockout';
 // AsyncStorage fallback for the PIN hash+salt, used when the device's Keychain
@@ -474,7 +473,7 @@ async function getPinAttempts(): Promise<PinAttempts> {
     if (data) {
       const attempts: PinAttempts = JSON.parse(data);
       const now = Date.now();
-      
+
       // Reset attempts if more than 1 hour has passed since last attempt
       if (attempts.lastAttempt > 0 && (now - attempts.lastAttempt) > ATTEMPTS_RESET_DURATION) {
         // Reset and persist to storage
@@ -486,7 +485,7 @@ async function getPinAttempts(): Promise<PinAttempts> {
         await AsyncStorage.setItem(ATTEMPTS_KEY, JSON.stringify(resetAttempts));
         return resetAttempts;
       }
-      
+
       return attempts;
     }
   } catch (error) {
@@ -649,7 +648,7 @@ export async function clearSecurePin(): Promise<void> {
     await clearLegacyPlaintextPin(); // Also clear any plaintext PIN
     await clearPinFallback(); // And the AsyncStorage fallback (issue #200)
     await AsyncStorage.removeItem(PIN_SET_KEY); // The default PIN applies again
-    
+
     // Also clear ADB PIN hash
     if (Platform.OS === 'android' && KioskModule?.clearAdbPinHash) {
       try {
@@ -693,78 +692,7 @@ async function clearLegacyPlaintextPin(): Promise<void> {
 }
 
 // ============================================
-// REST API KEY SECURE STORAGE
-// ============================================
-
-/**
- * Save REST API key securely in Keychain
- * Migrates from AsyncStorage if exists (backward compatibility)
- */
-
-
-/**
- * Get REST API key from secure storage
- * Supports migration from legacy AsyncStorage (backward compatibility)
- */
-/**
- * The outcome of reading a secret, with the one distinction that matters for security:
- * a secret that is not set is not the same thing as a secret we could not read.
- *
- * Both used to come back as an empty string. On a device whose Keystore HAL is broken
- * (issue #258) every Keychain call throws, the REST API key read as "", and
- * KioskHttpServer skips its auth check entirely when no key is set: the server then
- * served every endpoint unauthenticated on the LAN, for a configuration whose owner had
- * deliberately set a key. Nothing said so. Telling the two apart lets the caller fail
- * closed on a read failure while leaving a deliberately keyless setup alone.
- */
-
-
-
-
-
-/**
- * Clear REST API key from secure storage
- */
-
-
-/**
- * Check for legacy API key in AsyncStorage
- */
-
-
-/**
- * Clear legacy API key from AsyncStorage
- */
-async function clearLegacyApiKey(): Promise<void> {
-  try {
-    await AsyncStorage.removeItem(LEGACY_API_KEY);
-  } catch (error) {
-    console.error('[SecureStorage] Error clearing legacy API key:', error);
-  }
-}
-
-// ============================================
-// MQTT PASSWORD SECURE STORAGE
-// ============================================
-
-/**
- * Save MQTT password securely in Keychain
- */
-
-
-/**
- * Get MQTT password from secure storage
- */
-
-
-/**
- * Clear MQTT password from secure storage
- */
-
-
-// ============================================
-// HTTP Basic Auth Password
-// ============================================
+// 网页 HTTP Basic Auth 密码存储
 
 export async function saveSecureBasicAuthPassword(password: string): Promise<boolean> {
   try {
@@ -802,27 +730,7 @@ export async function clearSecureBasicAuthPassword(): Promise<void> {
 }
 
 // ============================================
-// CLOUD CREDENTIALS
-// ============================================
-
-
-
-/**
- * True only when the Keystore took the credentials and gives the same value back (#321).
- * On some boards the Keystore refuses the write, or accepts it and returns nothing: the
- * error used to be swallowed, so enrollment reported success with nothing stored. They
- * are never written anywhere else: a device API key in app storage is a bearer token
- * anyone with a backup or root can replay (the same rule as the MQTT password, #258).
- */
-
-
-
-
-
-
-// ============================================
-// SENSITIVE CONFIG EXPORT / IMPORT
-// ============================================
+// 本地敏感配置导入与导出
 
 export interface SensitiveConfig {
   pin?: string | null;

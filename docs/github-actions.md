@@ -1,6 +1,6 @@
 # GitHub Actions APK 编译设计
 
-状态：准备方案。当前没有可运行的 APK 编译 workflow；本次删除上游 Wiki 同步流程，不触发编译或发布。待配置生成、初始化及签名接入完成后，才创建 `.github/workflows/build-apk.yml`。
+状态：正式预置 APK 的准备方案。当前已有 dev 分支 `verify-android.yml`，用于功能裁剪的检查和开发测试 APK 编译，不包含预置配置或正式签名，不自动发布。待配置生成、初始化及正式签名接入完成后，再创建 `build-apk.yml`。
 
 ## 触发和输入
 

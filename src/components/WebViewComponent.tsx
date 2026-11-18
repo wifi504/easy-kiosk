@@ -1407,7 +1407,6 @@ const WebViewComponent = forwardRef<WebViewComponentRef, WebViewComponentProps>(
       return;
     }
 
-    // 4xx responses carry a page body the site wants shown, notably Cloudflare's
     // JS challenge, served as 403. Let it render like a browser would.
     if (statusCode >= 400 && statusCode < 500) {
       return;
@@ -1462,7 +1461,6 @@ const WebViewComponent = forwardRef<WebViewComponentRef, WebViewComponentProps>(
     navigation.navigate('Pin');
   };
 
-  // The PIN screen forwards the tab, so Settings opens on Advanced, where Cloud lives.
 
 
 
@@ -1515,7 +1513,6 @@ const WebViewComponent = forwardRef<WebViewComponentRef, WebViewComponentProps>(
               />
             </View>
 
-            {/* Cloud enrolment state for a QR-provisioned device */}
             {/* Action Button */}
             <TouchableOpacity
               style={[styles.setupButton, styles.rowCenter]}
@@ -1993,19 +1990,8 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     flex: 1,
   },
-  provisioningBox: {
-    backgroundColor: 'rgba(255, 255, 255, 0.18)',
-    borderRadius: 10,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    marginBottom: 16,
-    maxWidth: 480,
-  },
-  provisioningText: {
-    color: '#ffffff',
-    fontSize: 14,
-    textAlign: 'center',
-  },
+
+
   setupButton: {
     backgroundColor: '#fff',
     paddingVertical: 18,
@@ -2039,59 +2025,15 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 18,
   },
-  cloudPromoBox: {
-    width: '100%',
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.35)',
-    padding: 16,
-    marginBottom: 16,
-  },
-  cloudPromoHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 6,
-  },
-  cloudPromoTitle: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '700',
-    flexShrink: 1,
-  },
-  cloudPromoText: {
-    color: 'rgba(255, 255, 255, 0.9)',
-    fontSize: 13,
-    lineHeight: 18,
-    marginBottom: 12,
-  },
-  cloudPromoActions: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    alignItems: 'center',
-  },
-  cloudPromoPrimary: {
-    backgroundColor: 'rgba(255, 255, 255, 0.25)',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.5)',
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    marginRight: 12,
-  },
-  cloudPromoPrimaryText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  cloudPromoSecondary: {
-    paddingVertical: 10,
-  },
-  cloudPromoSecondaryText: {
-    color: '#fff',
-    fontSize: 14,
-    textDecorationLine: 'underline',
-  },
+
+
+
+
+
+
+
+
+
   githubLink: {
     flexDirection: 'row',
     alignItems: 'center',

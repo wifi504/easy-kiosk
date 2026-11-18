@@ -3,7 +3,6 @@
  * Defines types for the Media Player display mode (videos, images, playlists)
  */
 
-// A web page and a YouTube video only come from a cloud playlist (digital signage)
 export type MediaItemType = 'video' | 'image' | 'web' | 'youtube';
 
 export interface MediaItem {

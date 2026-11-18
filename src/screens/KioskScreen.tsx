@@ -72,7 +72,7 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
   const [isScreensaverActive, setIsScreensaverActive] = useState(false);
   const [defaultBrightness, setDefaultBrightness] = useState<number>(0.5);
   // #242: what the panel is actually running at, as opposed to what we asked for.
-  // Status and MQTT used to report the target, which is exactly what hid the mismatch
+
   // the reporter saw (status said 100 while the panel sat at 14/255).
   const [effectiveBrightness, setEffectiveBrightness] = useState<number>(0.5);
   const [screensaverBrightness, setScreensaverBrightness] = useState<number>(0);
@@ -90,9 +90,7 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
   const [inactivityEnabled, setInactivityEnabled] = useState(true);
   const [inactivityDelay, setInactivityDelay] = useState(600000);
   const [motionEnabled, setMotionEnabled] = useState(false);
-  const [motionAlwaysOn, setMotionAlwaysOn] = useState(false);
   // A live MJPEG stream holds the camera: motion detection must stand down while it runs
-  const [cameraStreamActive, setCameraStreamActive] = useState(false);
   // onMotionDetected is defined further down; the API callbacks are registered on mount and
   // would otherwise capture a stale closure.
   const onMotionDetectedRef = useRef<(() => void) | null>(null);
@@ -173,7 +171,7 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
   const [autoBrightnessMax, setAutoBrightnessMax] = useState<number>(1.0);
   const [autoBrightnessOffset, setAutoBrightnessOffset] = useState<number>(0.0);
   const [autoBrightnessInterval, setAutoBrightnessInterval] = useState<number>(1000);
-  // The REST/MQTT handlers are registered once on mount: they read these through the ref,
+
   // or they would see the first render's values
   const brightnessStateRef = useRef({ defaultBrightness, autoBrightnessEnabled, autoBrightnessOffset, autoBrightnessInterval });
   brightnessStateRef.current = { defaultBrightness, autoBrightnessEnabled, autoBrightnessOffset, autoBrightnessInterval };
@@ -182,7 +180,6 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
   const [brightnessManagementEnabled, setBrightnessManagementEnabled] = useState<boolean>(true);
   const brightnessManagementRef = useRef<boolean>(true);
 
-  // Fade-out of the dim screensaver, clamped since a cloud config or backup can carry any
   // number. None with "Keep the app in front": FreeKiosk stays in the background there,
   // where its JS timers stall a ramp halfway, and the overlay dims at once anyway.
   const screensaverFadeMs = displayMode === 'external_app' && screensaverKeepExternalApp
@@ -226,7 +223,7 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
   const [inactivityReturnScrollTop, setInactivityReturnScrollTop] = useState<boolean>(true);
   const inactivityReturnTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const currentWebViewUrlRef = useRef<string>(''); // Track current WebView URL for return logic
-  // Read by the cloud config-sync listener, which is registered once and would otherwise
+
   // close over the mode as it was at mount.
   const displayModeRef = useRef(displayMode);
   // What launchExternalApp hands to the overlay when its caller passes nothing. The AppState
@@ -340,8 +337,8 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
   const [mediaPlayerUnattended, setMediaPlayerUnattended] = useState<boolean>(defaultMediaUnattended());
   const [mediaPlayerCacheLimitMb, setMediaPlayerCacheLimitMb] = useState<number>(DEFAULT_MEDIA_CACHE_LIMIT_MB);
   // Digital signage: the other playlists of a schedule (kept in the cache ahead of their time),
-  // whether the cloud gave a schedule, and which playlist plays now
-  // True while the screen plays a playlist FreeKiosk Cloud gave it. Nobody touches such a screen, so
+
+
   // "no touch for a while" says nothing about it: the screensaver must not cover the playlist.
 
   // AppState listener - detects when the app returns to the foreground
@@ -531,7 +528,7 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
   // mode) stays up because the screen never physically turns off in "Keep Screen On"
   // mode, so ACTION_SCREEN_OFF never fires. The native hideKeyboard() acts on the
   // activity window and closes it regardless of origin. Covers every activation path
-  // (inactivity timer, motion pre-check, MQTT/REST screen off, scheduled sleep).
+
   useEffect(() => {
     if (isScreensaverActive) {
       Keyboard.dismiss();
@@ -1293,7 +1290,7 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
   }, [autoRelaunchApp, displayMode, externalAppPackage, appCrashCount, navigation]);
 
   // Pending ADB config is written by MainActivity and moved into storage here. Both
-  // loadSettings() and the API start-up (REST server, MQTT client) read settings on launch
+
   // and ran in parallel, so the API often read them before the config landed: a
   // rest_api_enabled or mqtt_broker_url sent over ADB only took effect on the next launch.
   // Whichever gets here first applies it; the other awaits the same run.
@@ -1318,7 +1315,7 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
         // successes: the save returned false, the return value was thrown away, and the
         // line below said it had worked. On a device whose Keystore is broken (#258)
         // that cost the reporter hours, because the app, the settings screen and the
-        // logs all agreed and only the MQTT broker disagreed.
+
         const failedSecrets: string[] = [];
         for (const [key, value] of Object.entries(pendingConfig)) {
           if (typeof value === 'string') {
@@ -1398,7 +1395,6 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
       const savedInactivityEnabled = bool(K.SCREENSAVER_INACTIVITY_ENABLED, true);
       const savedInactivityDelay = num(K.SCREENSAVER_INACTIVITY_DELAY, 600000);
       const savedMotionEnabled = bool(K.SCREENSAVER_MOTION_ENABLED, false);
-      const savedMotionAlwaysOn = false;
       const savedMotionCameraPosition = (str(K.MOTION_CAMERA_POSITION) ?? 'front') as 'front' | 'back';
       const savedMotionSensitivity = (str(K.SCREENSAVER_MOTION_SENSITIVITY) ?? 'medium') as 'low' | 'medium' | 'high';
       const savedMotionRequireFace = bool(K.SCREENSAVER_MOTION_REQUIRE_FACE, false);
@@ -1461,7 +1457,6 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
       setInactivityEnabled(savedInactivityEnabled);
       setInactivityDelay(savedInactivityDelay);
       setMotionEnabled(savedMotionEnabled);
-      setMotionAlwaysOn(savedMotionAlwaysOn);
       setMotionCameraPosition(savedMotionCameraPosition);
       setMotionSensitivity(savedMotionSensitivity);
       setMotionRequireFace(savedMotionRequireFace);
@@ -1971,7 +1966,7 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
   const triggerScreensaverTimeout = useCallback(() => {
     if (isScheduledSleep) return;
     if (!(screensaverEnabled && inactivityEnabled)) return;
-    // A playlist from the cloud is on: inactivity is its normal state, not a reason to cover it (a
+
     // sleep schedule, a command or the schedule's own blank screen still can)
     // #190 — No motion pre-check in External App mode: FreeKiosk is backgrounded there,
     // so the 10s pre-check setTimeout below is frozen by RN (the exact timer freeze the
@@ -2452,8 +2447,8 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
   // face check, so with "Only wake for a face" they do not wake the screen.
   useEffect(() => {
     streamMotionAllowedRef.current = !motionRequireFace &&
-      (motionAlwaysOn || (motionEnabled && (isPreCheckingMotion || isScreensaverActive)));
-  }, [motionRequireFace, motionAlwaysOn, motionEnabled, isPreCheckingMotion, isScreensaverActive]);
+      (motionEnabled && (isPreCheckingMotion || isScreensaverActive));
+  }, [motionRequireFace, motionEnabled, isPreCheckingMotion, isScreensaverActive]);
 
   // Proximity wake: a hand/body moving close to the front sensor. Behaves like motion
   // (cancels the pre-check or wakes an active screensaver) but is a short-range, binary
@@ -2715,7 +2710,7 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
   const keepTilesActive = displayMode === 'webview' && dashboardModeEnabled && dashboardKeepTilesLoaded;
   // The kept tile on screen (null on the grid or when tiles are not kept). Mirrored in a ref
   // for the per-tile handlers, which stay stable and read it when they run.
-  // A URL set from elsewhere (REST/MQTT setUrl, URL planner) is not a tile's: no tile shows.
+
   const activeTileUrl = dashboardTiles.find(t => t.id === activeTileId)?.url;
   const shownTileId = keepTilesActive && !dashboardShowGrid && activeTileUrl === url ? activeTileId : null;
   const shownTileIdRef = useRef<string | null>(null);
@@ -2949,7 +2944,7 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
   };
 
   // The one WebView of the non-kept path. With tiles kept it also shows a URL that is not
-  // the open tile's (REST/MQTT setUrl, URL planner), over the hidden tiles.
+
   const singleWebView = (
     <WebViewComponent
       ref={webViewRef}
@@ -3117,7 +3112,7 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
 
       {/* Motion Detector - Active during pre-check OR when screensaver is ON (only if screen is focused) */}
       <MotionDetector
-        enabled={isFocused && !cameraStreamActive && (motionAlwaysOn || (motionEnabled && (isPreCheckingMotion || isScreensaverActive)))}
+        enabled={isFocused && (motionEnabled && (isPreCheckingMotion || isScreensaverActive))}
         onMotionDetected={onMotionDetected}
         sensitivity={motionSensitivity}
         cameraPosition={motionCameraPosition}

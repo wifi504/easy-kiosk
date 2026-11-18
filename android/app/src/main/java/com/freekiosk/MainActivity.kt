@@ -190,11 +190,11 @@ class MainActivity : ReactActivity() {
     val ADB_SPECIAL_KEYS = setOf(
       "pin", "url", "lock_package", "config", "managed_apps", "dashboard_tiles",
       "pin_mode", "external_app_mode", "status_bar",
-      // Cloud enrollment over ADB. The dashboard's "Headless install (ADB)" snippet
-      // has advertised --es cloud_token since the cloud shipped, but nothing read it.
+
+
     )
 
-    /** Where a cloud_token enrolls when the command does not say. */
+
 
     /** Never log these values: they are credentials, not settings. */
     val ADB_SENSITIVE_KEYS = setOf("pin")
@@ -1803,8 +1803,7 @@ class MainActivity : ReactActivity() {
         KioskWatchdogService.startForKiosk(this)
       } else {
         // No Lock Mode: the process is an ordinary background app, so keep it alive when
-        // MQTT is on (no-op otherwise). Never relaunches anything.
-        KioskWatchdogService.startKeepAliveIfNeeded(this)
+
       }
     } catch (e: Exception) {
       DebugLog.d("MainActivity", "Error starting KioskWatchdogService: ${e.message}")
@@ -1840,8 +1839,7 @@ class MainActivity : ReactActivity() {
       val nm = getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
       nm.cancel(2002) // KioskWatchdogService.NOTIFICATION_ID
       DebugLog.d("MainActivity", "KioskWatchdogService stopped and notification cleared")
-      // #234: keep the process alive for MQTT after the guard is stopped (see KioskModule).
-      KioskWatchdogService.startKeepAliveIfNeeded(this, force = true)
+
     } catch (e: Exception) {
       DebugLog.d("MainActivity", "Error stopping KioskWatchdogService: ${e.message}")
     }
@@ -2332,7 +2330,6 @@ class MainActivity : ReactActivity() {
       editor.putString("@kiosk_display_mode", "external_app")
     }
 
-    // MQTT password requires special handling (goes to secure Keychain, not AsyncStorage)
 
 
     // Managed apps: validate packages and resolve display names

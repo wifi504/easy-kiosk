@@ -1610,11 +1610,7 @@ class OverlayService : Service() {
         }
     }
 
-    /**
-     * Start periodic MQTT health-check watchdog.
-     * Runs every 60s inside the foreground service — survives Doze mode.
-     * If MQTT was started but is disconnected, triggers a reconnect.
-     */
+
 
 
 

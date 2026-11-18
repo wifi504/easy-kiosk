@@ -11,16 +11,7 @@ import android.util.Log
 import android.view.WindowManager
 import java.lang.ref.WeakReference
 
-/**
- * BroadcastReceiver to detect screen ON/OFF events
- * Used to track actual screen state for REST API
- *
- * Note: This receiver stores the screen state and can be queried by KioskModule
- * to get the current screen state for the REST API.
- *
- * When "Auto Wake on Screen Off" is enabled in SharedPreferences, this receiver
- * will immediately re-wake the screen after detecting ACTION_SCREEN_OFF.
- */
+
 class ScreenStateReceiver(activity: Activity? = null) : BroadcastReceiver() {
 
     // #317: the activity that registered this receiver. Reaching it through
@@ -49,16 +40,7 @@ class ScreenStateReceiver(activity: Activity? = null) : BroadcastReceiver() {
         var isScreenOn = true  // Assume screen is on initially
             private set
 
-        /**
-         * Record that FreeKiosk itself is about to turn the screen off, so auto-wake does
-         * not immediately undo it.
-         *
-         * Auto-wake exists to bring the tablet back when *Android* sleeps it. It read
-         * ACTION_SCREEN_OFF with no idea who caused it, so an admin sending a screen-off
-         * over MQTT, REST or the cloud got the screen straight back on, with the two
-         * features fighting each other and no way to tell from the outside. Reported by a
-         * beta tester as "the screen just pops back on again".
-         */
+
         fun markDeliberateScreenOff(context: Context) {
             try {
                 context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
@@ -110,15 +92,7 @@ class ScreenStateReceiver(activity: Activity? = null) : BroadcastReceiver() {
         }
     }
 
-    /**
-     * #155: push the new screen state to MQTT immediately.
-     *
-     * The state topic is retained and otherwise only refreshed by the 30s timer, so Home
-     * Assistant kept the old value and its Screen Power toggle snapped back to ON a couple
-     * of seconds after being switched off. This is the authoritative moment: the screen has
-     * actually changed state, whoever asked for it, and this runs natively so it also works
-     * once lockNow() has suspended the JS thread.
-     */
+
 
 
     private fun dismissKeyboard(context: Context) {

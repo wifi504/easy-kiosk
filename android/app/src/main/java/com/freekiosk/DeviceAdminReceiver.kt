@@ -9,14 +9,7 @@ import android.os.Bundle
 import android.os.PersistableBundle
 import android.util.Log
 
-/**
- * Device admin receiver. Besides the standard admin lifecycle, this is where a
- * device provisioned as Device Owner via the setup-wizard QR receives the
- * enrollment token: the cloud packs { enroll_token, cloud_url, org_id } into the
- * provisioning admin-extras bundle, and we persist it so the JS layer can
- * auto-enroll on first launch (see KioskModule.getPendingCloudEnrollment and
- * KioskScreen startup).
- */
+
 // The supertype is spelled out rather than imported on purpose. An explicit
 // import outranks a same-package declaration in Kotlin, so
 // `import android.app.admin.DeviceAdminReceiver` made every

@@ -176,7 +176,7 @@ export function generatePlayerHTML(settings: {
     url: i.url,
     type: i.type,
     duration: i.duration || imageDuration,
-    // A YouTube video has no duration of its own to show: this is only a cap, set when the cloud gave one
+
     capSeconds: i.type === 'youtube' && i.duration ? i.duration : 0,
     videoId: i.videoId || '',
     title: i.title || '',
@@ -551,7 +551,7 @@ export function generatePlayerHTML(settings: {
     showLoading();
     var shown = false;
     var finished = false;
-    // The cloud's page plays the video (YouTube refuses a page without an origin, like this one) and
+
     // tells us what the player says: its own address is where the messages must come from
     var src = item.url + (item.url.indexOf('?') >= 0 ? '&' : '?') + 'mute=' + (SETTINGS.muteVideo ? '1' : '0');
     var playerOrigin = '';

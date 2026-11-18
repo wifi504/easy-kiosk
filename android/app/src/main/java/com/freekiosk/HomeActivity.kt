@@ -42,7 +42,6 @@ class HomeActivity : AppCompatActivity() {
             // Démarrer l'OverlayService avec le bouton de retour
             startOverlayService(tapCount, tapTimeout, returnMode, buttonPosition)
 
-            // Start MainActivity in background (for REST API server, MQTT, etc.)
             startMainActivityInBackground()
 
             // Lancer l'application externe
@@ -56,11 +55,7 @@ class HomeActivity : AppCompatActivity() {
         finish()
     }
 
-    /**
-     * Start MainActivity in background to ensure REST API server, MQTT,
-     * and other services are running even in External App Mode.
-     * Uses FLAG_ACTIVITY_NO_ANIMATION to avoid visual flash.
-     */
+
     private fun startMainActivityInBackground() {
         try {
             val intent = Intent(this, MainActivity::class.java).apply {

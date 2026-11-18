@@ -112,12 +112,12 @@ const BACKUP_KEYS = [
   '@kiosk_webview_zoom_mode',
   // Custom User Agent
   '@kiosk_custom_user_agent',
-  // MQTT
+
   // Beta Updates
   '@kiosk_beta_updates_enabled',
   // Managed Apps (Multi-App mode, accessibility, keep-alive)
   '@kiosk_managed_apps',
-  // Note: MQTT password is handled separately via Keychain (secure storage)
+
   // Legacy keys
   '@screensaver_delay',
   '@motion_detection_enabled',
@@ -125,7 +125,7 @@ const BACKUP_KEYS = [
   '@motion_delay',
   // Added: previously-missing settings (media player, lockscreen controls, screensaver
   // media, status bar theme, dashboard, print, and other toggles). Secrets (PIN, REST
-  // API key) and cloud-sync metadata stay excluded on purpose.
+
   '@kiosk_auto_wake_on_screen_off',
   '@kiosk_dashboard_mode_enabled',
   '@kiosk_dashboard_tiles',
@@ -175,7 +175,6 @@ const BACKUP_KEYS = [
   '@screensaver_fade_seconds',
   '@kiosk_language',
   '@kiosk_screen_lock_compat',
-  '@kiosk_allow_remote_screenshot',
   '@kiosk_allow_hardware_screenshot',
   '@kiosk_allow_usb_debug_dialog',
   '@screensaver_proximity_enabled',
@@ -214,7 +213,7 @@ async function requestStoragePermission(): Promise<boolean> {
     // For Android 13+ (API 33+), we don't need READ/WRITE_EXTERNAL_STORAGE for app-specific directories
     // But for Downloads folder, we might need MANAGE_EXTERNAL_STORAGE or use SAF
     // Using app's cache/files directory is simpler and doesn't require special permissions
-    
+
     // For older Android versions
     if (Platform.Version < 33) {
       const writeGranted = await PermissionsAndroid.request(
@@ -227,7 +226,7 @@ async function requestStoragePermission(): Promise<boolean> {
           buttonPositive: 'OK',
         }
       );
-      
+
       const readGranted = await PermissionsAndroid.request(
         PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE,
         {
@@ -244,7 +243,7 @@ async function requestStoragePermission(): Promise<boolean> {
         readGranted === PermissionsAndroid.RESULTS.GRANTED
       );
     }
-    
+
     return true;
   } catch (err) {
     console.error('Permission request error:', err);

@@ -247,22 +247,7 @@ class BootReceiver : BroadcastReceiver() {
     /**
      * Read kiosk_enabled from AsyncStorage.
      */
-    /**
-     * The app was just updated (sideload, Play Store, or a cloud `install_apk` that
-     * replaces FreeKiosk itself).
-     *
-     * Android restarts the process only for what it still binds, in practice the
-     * accessibility service, and never recreates MainActivity. In External App mode the
-     * launched app keeps the foreground, so nothing brings FreeKiosk back: the device is
-     * left with no watchdog, no overlay and no cloud heartbeat until somebody returns to
-     * it by hand, which on an unattended kiosk means never. Observed on a release build:
-     * after `install -r` the log reads "Start proc for service FreeKioskAccessibilityService"
-     * and MainActivity is simply never created.
-     *
-     * Restart the services, and bring the activity back when the device is configured to
-     * run unattended. A plain user who just updated from the Play Store is left alone:
-     * yanking the app to the foreground unprompted would be worse than the problem.
-     */
+
     private fun handlePackageReplaced(context: Context) {
         DebugLog.d("BootReceiver", "Package replaced - restoring kiosk services")
         startKioskWatchdogIfNeeded(context)
@@ -411,11 +396,6 @@ class BootReceiver : BroadcastReceiver() {
         try {
             if (isKioskEnabled(context)) {
                 KioskWatchdogService.startForKiosk(context)
-            } else {
-                // #234: without Lock Mode there is no foreground service at all, so the
-                // process (and the MQTT connection with it) is fair game for the OEM
-                // battery manager. Keep it alive when MQTT is on; no-op otherwise.
-                KioskWatchdogService.startKeepAliveIfNeeded(context)
             }
         } catch (e: Exception) {
             DebugLog.errorProduction("BootReceiver", "Failed to start KioskWatchdogService: ${e.message}")

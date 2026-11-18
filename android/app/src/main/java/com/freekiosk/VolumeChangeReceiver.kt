@@ -8,18 +8,7 @@ import android.media.AudioManager
 import android.database.sqlite.SQLiteDatabase
 import android.util.Log
 
-/**
- * BroadcastReceiver to detect volume changes from hardware buttons
- * Used to track volume state for REST API and 5-tap gesture detection.
- * 
- * The 5-tap gesture works by detecting rapid volume CHANGES (up or down).
- * If volume is at max, press Volume Down 5 times.
- * If volume is at min, press Volume Up 5 times.
- * Any rapid sequence of 5 volume changes in 2 seconds triggers the PIN screen.
- * 
- * NOTE: This gesture only works when kiosk mode (lock task) is active.
- * When not in lock task mode, users can access settings normally.
- */
+
 class VolumeChangeReceiver : BroadcastReceiver() {
 
     companion object {

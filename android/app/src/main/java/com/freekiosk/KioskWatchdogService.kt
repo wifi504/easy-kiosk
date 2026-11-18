@@ -50,73 +50,23 @@ class KioskWatchdogService : Service() {
 
 
 
-        /**
-         * #234: the service runs in one of two modes, persisted because START_STICKY
-         * restarts it with a null intent.
-         *
-         *  • kiosk guard (default): the #96 behaviour, relaunches MainActivity if it dies.
-         *  • keep-alive only: no relaunch whatsoever, the foreground notification is the
-         *    whole point. Started when MQTT is on without Lock Mode, where the process was
-         *    an ordinary background app and OEM battery managers killed it, taking the
-         *    broker connection with it (device "unavailable" in Home Assistant for good).
-         */
+
         private const val PREFS_NAME = "FreeKioskSettings"
-        private const val KEY_KEEPALIVE_ONLY = "watchdog_keepalive_only"
 
         /** Start (or keep) the kiosk guard. Unchanged #96 behaviour. */
-        fun startForKiosk(context: Context) = start(context, keepAliveOnly = false)
+        fun startForKiosk(context: Context) = start(context)
 
-        /**
-         * #234: start the keep-alive service for the features that need the process to
-         * survive being backgrounded: MQTT, and since the cloud integration, an enrolled
-         * device.
-         *
-         * The cloud case is the #234 rationale, not the timer one: an enrolled device left
-         * as an ordinary background app gets killed by OEM battery managers, and this
-         * service is also what owns the ticker that drives the background heartbeat. It
-         * does *not* by itself keep the heartbeat running: JS timers stop on host pause
-         * whatever the process priority, which is what CloudHeartbeatTaskService fixes.
-         *
-         * Does nothing when Lock Mode is enabled, since the kiosk guard is already running
-         * and holds the process up. [force] is for the admin-exit path, which stops the
-         * guard while @kiosk_enabled is still true: there we do want the keep-alive, and we
-         * must not fall back to guard mode or the watchdog would drag the admin back into
-         * the kiosk.
-         */
-        fun startKeepAliveIfNeeded(context: Context, force: Boolean = false) {
-            if (!needsKeepAlive(context)) return
-            if (!force && readFlag(context, "@kiosk_enabled")) return
-            start(context, keepAliveOnly = true)
-        }
+
+
 
         /** True when something in the app needs the process alive while backgrounded. */
-        private fun needsKeepAlive(context: Context): Boolean =
-            false
+
 
         /** #376: at most one restore this often, so a crash at start-up cannot become a loop. */
         internal const val RESTORE_MIN_INTERVAL_MS = 5 * 60_000L
         private const val KEY_LAST_RESTORE_MS = "watchdog_last_restore_ms"
 
-        /**
-         * #376: should the watchdog bring MainActivity back after the process died and the
-         * system restarted only this service (START_STICKY)? Observed after the Android
-         * System WebView updated overnight: the process came back with the watchdog and
-         * nothing else, so MQTT and the REST API (both started from the activity's React
-         * context) stayed offline until somebody opened the app by hand.
-         *
-         * Every condition narrows it, on purpose:
-         *  - [activityStarted]: MainActivity ran in this process (a user who left the app,
-         *    or a launch already under way) -> nothing to restore.
-         *  - [runsUnattended]: Lock Mode, MQTT or a cloud enrolment; an ordinary install is
-         *    left alone.
-         *  - [deviceInteractive]: with the screen on someone may be using another app, and
-         *    #234 forbids dragging FreeKiosk over it. Lock Mode already relaunches on a lit
-         *    screen through [checkAndRelaunch].
-         *  - the interval: no restore loop if the activity crashes at start.
-         *
-         * The one visible effect is that the screen lights up once, since MainActivity turns
-         * it on; the device is reachable again afterwards.
-         */
+
         internal fun shouldRestoreAfterProcessDeath(
             activityStarted: Boolean,
             runsUnattended: Boolean,
@@ -129,17 +79,15 @@ class KioskWatchdogService : Service() {
                 !deviceInteractive &&
                 (lastRestoreMs <= 0L || nowMs - lastRestoreMs >= RESTORE_MIN_INTERVAL_MS)
 
-        private fun start(context: Context, keepAliveOnly: Boolean) {
+        private fun start(context: Context) {
             try {
-                context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-                    .edit().putBoolean(KEY_KEEPALIVE_ONLY, keepAliveOnly).apply()
                 val intent = Intent(context, KioskWatchdogService::class.java)
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                     context.startForegroundService(intent)
                 } else {
                     context.startService(intent)
                 }
-                DebugLog.d(TAG, "Watchdog start requested (keepAliveOnly=$keepAliveOnly)")
+                DebugLog.d(TAG, "Kiosk watchdog start requested")
             } catch (e: Exception) {
                 // ForegroundServiceStartNotAllowedException on Android 12+ when the app is
                 // in the background and not exempt. Nothing to recover: the next launch or
@@ -169,7 +117,6 @@ class KioskWatchdogService : Service() {
     private val handler = Handler(Looper.getMainLooper())
     private var isRunning = false
     /** #234: true when this instance only holds the process up (no relaunching). */
-    private var keepAliveOnly = false
     private var lastRelaunchTime = 0L
     private var screenOnReceiver: BroadcastReceiver? = null
 
@@ -193,22 +140,12 @@ class KioskWatchdogService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         // Read from prefs, not from the intent: START_STICKY restarts us with a null one.
-        keepAliveOnly = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-            .getBoolean(KEY_KEEPALIVE_ONLY, false)
-
         // startForeground() must run before any early return: the caller used
         // startForegroundService(), and stopping without it throws
         // ForegroundServiceDidNotStartInTimeException on Android 12+.
         startForeground(NOTIFICATION_ID, buildNotification())
 
-        if (keepAliveOnly) {
-            // #234: nothing to guard, we are only here so the process is not killed.
-            if (!keepAliveStillNeeded()) {
-                DebugLog.d(TAG, "Nothing left to keep alive - stopping keep-alive watchdog")
-                stopSelf()
-                return START_NOT_STICKY
-            }
-        } else if (!isKioskEnabled()) {
+        if (!isKioskEnabled()) {
             // Only run when kiosk mode is enabled
             DebugLog.d(TAG, "Kiosk mode disabled — stopping watchdog")
             stopSelf()
@@ -243,7 +180,7 @@ class KioskWatchdogService : Service() {
         val powerManager = getSystemService(Context.POWER_SERVICE) as? android.os.PowerManager
         val restore = shouldRestoreAfterProcessDeath(
             activityStarted = MainActivity.hasStarted,
-            runsUnattended = isKioskEnabled() || needsKeepAlive(this),
+            runsUnattended = isKioskEnabled(),
             deviceInteractive = powerManager?.isInteractive != false,
             lastRestoreMs = prefs.getLong(KEY_LAST_RESTORE_MS, 0L),
             nowMs = now,
@@ -286,14 +223,6 @@ class KioskWatchdogService : Service() {
         // #234: keep-alive mode never relaunches anything. FreeKiosk is a normal app here,
         // the user is free to leave it, and dragging it back to the foreground every 10s
         // would be far worse than the problem this service solves.
-        if (keepAliveOnly) {
-            if (!keepAliveStillNeeded()) {
-                DebugLog.d(TAG, "Nothing left to keep alive - stopping keep-alive watchdog")
-                stopSelf()
-            }
-            return
-        }
-
         // Re-check kiosk setting each cycle (user may have turned it off)
         if (!isKioskEnabled()) {
             DebugLog.d(TAG, "Kiosk mode disabled — stopping watchdog")
@@ -560,7 +489,6 @@ class KioskWatchdogService : Service() {
         }
     }
 
-    private fun keepAliveStillNeeded(): Boolean = needsKeepAlive(this)
 
     /**
      * #268: whether the admin allowed the system USB debugging prompt in lock mode, and
@@ -628,9 +556,9 @@ class KioskWatchdogService : Service() {
     private fun buildNotification(): Notification {
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("FreeKiosk")
-            // Keep-alive now covers MQTT and cloud enrolment, so name what it does rather
+
             // than one of the two features that ask for it.
-            .setContentText(if (keepAliveOnly) "Staying connected" else "Kiosk mode active")
+            .setContentText("Kiosk mode active")
             .setSmallIcon(R.mipmap.ic_launcher)
             .setPriority(NotificationCompat.PRIORITY_MIN)
             .setOngoing(true)

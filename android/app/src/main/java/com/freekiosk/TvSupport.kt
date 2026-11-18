@@ -20,11 +20,7 @@ object TvSupport {
         return context.packageManager.hasSystemFeature(PackageManager.FEATURE_LEANBACK)
     }
 
-    /**
-     * False on a device with no battery (a TV or a box). Without this check such a device
-     * still reports some level, often 0 or 100, and the cloud raises a critical-battery
-     * alert for it. Unknown counts as present, so a tablet is never hidden by mistake.
-     */
+
     fun hasBattery(context: Context): Boolean {
         val intent = context.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
         return intent?.getBooleanExtra(BatteryManager.EXTRA_PRESENT, true) ?: true

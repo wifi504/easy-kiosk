@@ -17,10 +17,7 @@ import java.io.ByteArrayOutputStream
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
-/**
- * Camera Photo Module - Captures photos via Camera2 API
- * Used by the REST API to serve photos via GET /api/camera/photo
- */
+
 class CameraPhotoModule(private val context: Context) {
 
     companion object {
@@ -297,14 +294,7 @@ class CameraPhotoModule(private val context: Context) {
         return resultStream
     }
 
-    /**
-     * #253: rotation that makes the picture upright, from the formula documented on
-     * CaptureRequest.JPEG_ORIENTATION. The pixels are rotated rather than setting that key,
-     * because the frame also goes to consumers that ignore EXIF (Home Assistant's generic
-     * camera, MQTT image entities). Some sensors are mounted against what the formula
-     * assumes (a Xiaomi front camera measured 180 off); the Camera Rotation setting and
-     * the REST `rotate` parameter cover those.
-     */
+
     private fun autoRotation(characteristics: CameraCharacteristics): Int {
         val sensor = characteristics.get(CameraCharacteristics.SENSOR_ORIENTATION) ?: 0
         val front = characteristics.get(CameraCharacteristics.LENS_FACING) == CameraCharacteristics.LENS_FACING_FRONT

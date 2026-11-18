@@ -1,7 +1,4 @@
-/**
- * FreeKiosk v1.2 - Advanced Tab
- * SSL Certificates, Updates, Reset, Device Owner, REST API
- */
+
 
 import React, { useState, useCallback, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Alert, AppState, NativeModules, Platform } from 'react-native';

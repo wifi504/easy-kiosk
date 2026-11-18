@@ -4,6 +4,7 @@
 
 | 文档 | 内容 |
 | --- | --- |
+| [远程功能裁剪](remote-removal.md) | 此轮删除范围、共享能力和 Actions 验证 |
 | [改造范围](product-scope.md) | 单网页展台、首次启动、可修改配置及边界 |
 | [构建变量](build-configuration.md) | 变量、类型、校验、默认值与配置优先级 |
 | [Actions 编译设计](github-actions.md) | 触发、签名、校验、产物与失败处理 |

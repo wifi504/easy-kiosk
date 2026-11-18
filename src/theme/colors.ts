@@ -1,11 +1,7 @@
-/**
- * FreeKiosk v1.2 - Color Palette
- * Centralized color system for consistent UI.
- * Brand-aligned with FreeKiosk Cloud: primary #2b7fff, navy content, soft blue-tinted surfaces.
- */
+
 
 export const Colors = {
-  // Primary brand colors (FreeKiosk Cloud blue)
+
   primary: '#2b7fff',
   primaryLight: '#e8f1ff',
   primaryDark: '#1e63d6',
@@ -32,12 +28,10 @@ export const Colors = {
   infoLight: '#e8f1ff',
   infoDark: '#1e63d6',
 
-  // Neutral colors (soft blue-tinted, echoing cloud light theme)
   background: '#f3f6ff',
   surface: '#ffffff',
   surfaceVariant: '#f8faff',
 
-  // Text colors (navy content, like cloud base-content)
   textPrimary: '#1b2a4d',
   textSecondary: '#5a6b8c',
   textHint: '#8b99b5',

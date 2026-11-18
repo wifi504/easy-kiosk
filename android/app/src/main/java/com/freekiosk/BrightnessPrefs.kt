@@ -256,11 +256,7 @@ object BrightnessPrefs {
         }
     }
 
-    /**
-     * The level the panel is actually running at, as 0f..1f, or [UNSET] when it cannot
-     * be read. This is the honest answer for status and MQTT, which until #242 reported
-     * the level FreeKiosk had asked for and so hid the mismatch entirely.
-     */
+
     fun systemLevel(context: Context): Float =
         try {
             val raw = Settings.System.getInt(

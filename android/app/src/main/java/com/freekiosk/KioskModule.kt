@@ -39,7 +39,7 @@ import java.net.NetworkInterface
 class KioskModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaModule(reactContext) {
 
     private var wakeLock: PowerManager.WakeLock? = null
-    // Cloud sync keep-alive: CPU + WiFi locks so the RN JS heartbeat/poll loop keeps
+
 
 
     // #234: state for the temporary lock-task whitelist around the battery dialog.
@@ -52,11 +52,7 @@ class KioskModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
     private val safetyHubPackage = "com.google.android.apps.safetyhub"
 
     companion object {
-        /**
-         * #300: Settings.Secure.ANDROID_ID, a stable identifier per tablet, to match it with its entry in
-         * FreeKiosk Cloud. On Android 8+ it is scoped to the app's signing key and the user: stable across
-         * reboots and updates, changed by a factory reset. Null when it cannot be read.
-         */
+
         fun androidId(context: android.content.Context): String? = try {
             android.provider.Settings.Secure.getString(context.contentResolver, android.provider.Settings.Secure.ANDROID_ID)
                 ?.takeIf { it.isNotBlank() }
@@ -276,16 +272,11 @@ class KioskModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
     // and silently replaced by LOW_LATENCY, which the SDK documents as active only while the
     // screen is on AND the app is in the foreground. The PARTIAL_WAKE_LOCK is what carries
     // screen-off operation.
-    // Cloud sync must survive screen-off. The heartbeat/command-poll loop runs on the RN
+
     // JS thread, which the OS freezes once the CPU sleeps (screen off, Device Owner). Holding
     // a PARTIAL_WAKE_LOCK (CPU) + WifiLock (network) keeps that loop alive, so the device
     // stays reachable and a `wake`/`screenOn` command can still land to turn the screen back
 
-
-
-
-
-    // Exempt the app from Doze/battery optimization so the cloud loop holds up on
     // battery-powered devices (the PARTIAL_WAKE_LOCK keeps the CPU awake, but Doze can still
     // defer network/wakelocks once the device is unplugged and idle). Uses the public
     // ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS intent (a one-time system dialog; grant it
@@ -294,10 +285,10 @@ class KioskModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
     // builds, so there startActivity throws, is caught, and the wake lock alone is relied upon.
     // No-op once already exempted.
     // #234: report whether the app is already exempt from Doze/battery optimization.
-    // MQTT holds a PARTIAL_WAKE_LOCK + WifiLock while connected, but Doze still defers its
+
     // network once the device is unplugged and idle, so the broker misses the keepalive and
     // Home Assistant shows the device as unavailable after a couple of hours. Used by the
-    // MQTT settings section to warn about it instead of leaving the user to discover it.
+
     @ReactMethod
     fun isIgnoringBatteryOptimizations(promise: Promise) {
         try {
@@ -548,23 +539,8 @@ class KioskModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
      * Stop the KioskWatchdogService and cancel its notification.
      * Called on intentional kiosk exit to prevent the watchdog from relaunching the app.
      */
-    /**
-     * Start the keep-alive foreground service if something now needs it. Called by the
-     * cloud sync layer right after enrolling or starting: MainActivity already does this
-     * on every launch, but on a first enrolment the flag is written after that point, so
-     * without this the process would stay freezable until the next restart.
-     *
-     * No-op when the flag is not set or when Lock Mode already runs the kiosk guard.
-     */
-    @ReactMethod
-    fun ensureKeepAliveWatchdog(promise: Promise) {
-        try {
-            KioskWatchdogService.startKeepAliveIfNeeded(reactApplicationContext)
-            promise.resolve(true)
-        } catch (e: Exception) {
-            promise.reject("KEEPALIVE_FAILED", e.message ?: "Unknown error")
-        }
-    }
+
+
 
     private fun stopKioskWatchdog() {
         try {
@@ -574,10 +550,9 @@ class KioskModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
             val nm = reactApplicationContext.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
             nm.cancel(2002) // KioskWatchdogService.NOTIFICATION_ID
             android.util.Log.d("KioskModule", "KioskWatchdogService stopped and notification cleared")
-            // #234: the kiosk guard is gone, but an MQTT user still needs the process kept
+
             // alive. force=true because @kiosk_enabled stays true across an admin exit, and
             // keep-alive mode never relaunches, so the admin is not dragged back in.
-            KioskWatchdogService.startKeepAliveIfNeeded(reactApplicationContext, force = true)
         } catch (e: Exception) {
             android.util.Log.e("KioskModule", "Error stopping KioskWatchdogService: ${e.message}")
         }
@@ -1420,16 +1395,10 @@ class KioskModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
         }
     }
 
-    /**
-     * Get a pending cloud enrollment left by Device Owner provisioning (the
-     * setup-wizard QR). Returns { enroll_token, cloud_url, org_id } or null.
-     * Consumed by KioskScreen on startup to auto-enroll.
-     */
 
 
-    /**
-     * Clear the pending cloud enrollment after it has been consumed.
-     */
+
+
 
 
     /**
@@ -1924,7 +1893,6 @@ class KioskModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
         }
     }
 
-    // ==================== DEVICE STATUS (for Cloud Sync) ====================
 
     @ReactMethod
     fun getBatteryStatus(promise: Promise) {

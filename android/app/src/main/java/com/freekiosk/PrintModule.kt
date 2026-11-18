@@ -16,20 +16,7 @@ import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.bridge.ReactContextBaseJavaModule
 import com.facebook.react.bridge.ReactMethod
 
-/**
- * PrintModule - Enables printing from WebView content
- *
- * Intercepts window.print() calls from web pages and uses Android's
- * PrintManager to print the current WebView content.
- *
- * Features:
- * - Print current WebView page via Android Print Framework
- * - Supports all connected printers (WiFi, Bluetooth, USB, Cloud Print)
- * - Automatic page title detection for print job naming
- * - Works with any website that calls window.print()
- * - Dynamic print spooler package discovery for lock task whitelisting
- * - isPrintActive flag to suspend immersive mode during print dialog
- */
+
 class PrintModule(reactContext: ReactApplicationContext) :
     ReactContextBaseJavaModule(reactContext) {
 
