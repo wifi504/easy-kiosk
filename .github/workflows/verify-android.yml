@@ -53,7 +53,7 @@ jobs:
           ./node_modules/.bin/eslint . -f json > "$RUNNER_TEMP/lint-dev.json" || test $? -eq 1
           node scripts/check-lint-regressions.mjs "$BASE" "$GITHUB_WORKSPACE" "$RUNNER_TEMP/lint-main.json" "$RUNNER_TEMP/lint-dev.json"
       - name: 构建辅助工具语法检查
-        run: python3 -m py_compile scripts/download-embedded-chromium.py scripts/prepare-embedded-chromium.py scripts/prepare-embedded-loader.py scripts/embed-chromium-apk.py scripts/engine-fixture-server.py scripts/generate-app-icons.py
+        run: python3 -m py_compile scripts/download-embedded-chromium.py scripts/prepare-embedded-chromium.py scripts/prepare-embedded-loader.py scripts/embed-chromium-apk.py scripts/engine-fixture-server.py scripts/generate-app-icons.py scripts/extract-chromium-notices.py
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -221,7 +221,7 @@ jobs:
           "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify "$APK"
           "$ANDROID_HOME/build-tools/36.0.0/aapt" dump badging "$APK" | grep -F "versionName='${GITHUB_SHA:0:7}'"
           unzip -p "$APK" assets/LICENSE | grep -F 'Copyright (c) 2025 Rushb'
-          unzip -p "$APK" 'assets/webview_licenses*' > /dev/null
+          unzip -p "$APK" assets/third-party/Chromium-CREDITS.html > /dev/null
           unzip -p "$APK" assets/third-party/WebViewUpgrade-LICENSE.txt > /dev/null
       - uses: actions/upload-artifact@v4
         with:

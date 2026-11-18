@@ -29,13 +29,12 @@ if service not in xml: raise SystemExit('Kernel renderer service changed; review
 with zipfile.ZipFile(engine) as archive:
     if not any(n.startswith(f'lib/{abi}/') and n.endswith('.so') for n in archive.namelist()):
         raise SystemExit('Kernel has no native library for ' + abi)
-    if not any('webview_licenses' in n for n in archive.namelist()):
-        raise SystemExit('Kernel third-party license asset is missing')
 assets = root / 'android/app/src/main/assets'; assets.mkdir(parents=True, exist_ok=True)
 shutil.copyfile(engine, assets / 'embedded-chromium.apk')
 meta = dict(lock, abi=abi, package=package, sha256=sha)
 (assets / 'embedded-chromium.json').write_text(json.dumps(meta, indent=2) + '\n')
 notices = assets / 'third-party'; notices.mkdir(exist_ok=True)
 shutil.copyfile(root / '.engine-loader/LICENSE', notices / 'WebViewUpgrade-LICENSE.txt')
+subprocess.run([sys.executable, str(root / 'scripts/extract-chromium-notices.py'), str(engine), str(notices / 'Chromium-CREDITS.html')], check=True)
 subprocess.run([sys.executable, str(root / 'scripts/prepare-embedded-loader.py'), version, sha, abi], check=True)
 print(f'Verified bundled Chromium {version}, ABI={abi}, SHA256={sha}, minSdk={min_sdk} provider={lock["provider_repository"]} release={lock["provider_release_id"]}')

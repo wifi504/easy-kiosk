@@ -25,6 +25,7 @@ jobs:
           "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --print-certs "$APK" >> kernel-audit.txt
           unzip -l "$APK" >> kernel-audit.txt
           "$ANDROID_HOME/build-tools/36.0.0/aapt" dump resources "$APK" | grep -i -E 'licen[cs]e|notice|raw/' >> kernel-audit.txt || true
+          python3 scripts/extract-chromium-notices.py "$APK" "$RUNNER_TEMP/Chromium-CREDITS.html"
           cat kernel-audit.txt
       - uses: actions/upload-artifact@v4
         with:
