@@ -14,8 +14,12 @@ if not re.fullmatch('[0-9a-f]{64}', expected): raise SystemExit('Invalid kernel 
 sha = hashlib.file_digest(engine.open('rb'), 'sha256').hexdigest()
 if sha != expected: raise SystemExit('Kernel SHA-256 mismatch')
 run = json.loads(subprocess.check_output(['gh', 'api', f"repos/wifi504/easy-kiosk/actions/runs/{lock['source_run']}"]))
-if run['conclusion'] != 'success' or run['head_branch'] != 'dev' or run['head_sha'] != lock['source_workflow_commit'] or run['path'] != '.github/workflows/chromium-source-build.yml':
+if run['head_branch'] != 'dev' or run['head_sha'] != lock['source_workflow_commit'] or run['path'] != '.github/workflows/chromium-source-build.yml':
     raise SystemExit('Unexpected kernel source workflow provenance')
+jobs = json.loads(subprocess.check_output(['gh', 'api', f"repos/wifi504/easy-kiosk/actions/runs/{lock['source_run']}/jobs"]))['jobs']
+if not any(job['name'] == f'kernel ({cpu})' and job['conclusion'] == 'success' for job in jobs):
+    raise SystemExit('The matching architecture source-build job has not succeeded')
+
 tools = Path(os.environ['ANDROID_HOME']) / 'build-tools/36.0.0'
 subprocess.run([str(tools / 'apksigner'), 'verify', str(engine)], check=True)
 badging = subprocess.check_output([str(tools / 'aapt'), 'dump', 'badging', str(engine)], text=True)

@@ -39,7 +39,7 @@ public class EmbeddedChromiumInstrumentation extends Instrumentation {
   File file=context.getDatabasePath("RKStorage");file.getParentFile().mkdirs();
   try(SQLiteDatabase db=SQLiteDatabase.openOrCreateDatabase(file,null)) {
    db.execSQL("CREATE TABLE IF NOT EXISTS catalystLocalStorage (key TEXT PRIMARY KEY, value TEXT)");db.setVersion(1);
-   put(db,"@kiosk_url","http://127.0.0.1:8765/");put(db,"@kiosk_enabled","false");put(db,"@kiosk_auto_reload","false");
+   put(db,"@kiosk_url","http://127.0.0.1:8765/");put(db,"@kiosk_enabled","false");put(db,"@kiosk_allow_hardware_screenshot","true");put(db,"@kiosk_auto_reload","false");
   }
   try(java.io.InputStream in=context.getAssets().open("embedded-chromium.json")) {
    java.io.ByteArrayOutputStream out=new java.io.ByteArrayOutputStream();byte[] buf=new byte[8192];int n;

@@ -65,7 +65,13 @@ jobs:
       - name: 等待固定版本的官方内核产物
         run: |
           SOURCE_RUN=$(python3 -c 'import json; print(json.load(open("config/chromium.json"))["source_run"])')
-          gh run watch "$SOURCE_RUN" --repo "$GITHUB_REPOSITORY" --exit-status --interval 60
+          while true; do
+            STATE=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$SOURCE_RUN/jobs" --jq '.jobs[] | select(.name == "kernel (${{ matrix.cpu }})") | .conclusion')
+            if [ "$STATE" = success ]; then break; fi
+            case "$STATE" in failure|cancelled|timed_out|action_required) echo "Kernel build failed: $STATE"; exit 1;; esac
+            echo "Waiting for pinned Chromium ${{ matrix.cpu }} source build..."
+            sleep 30
+          done
           gh run download "$SOURCE_RUN" --repo "$GITHUB_REPOSITORY" --name 'chromium-158-${{ matrix.cpu }}' --dir "$RUNNER_TEMP/chromium"
       - uses: actions/checkout@v4
         with:
@@ -155,7 +161,7 @@ jobs:
           "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify "$APK"
           "$ANDROID_HOME/build-tools/36.0.0/aapt" dump badging "$APK" | grep -F "versionName='${GITHUB_SHA:0:7}'"
           unzip -p "$APK" assets/LICENSE | grep -F 'Copyright (c) 2025 Rushb'
-          unzip -p "$APK" assets/webview_licenses > /dev/null
+          unzip -p "$APK" 'assets/webview_licenses*' > /dev/null
           unzip -p "$APK" assets/third-party/WebViewUpgrade-LICENSE.txt > /dev/null
       - uses: actions/upload-artifact@v4
         with:
