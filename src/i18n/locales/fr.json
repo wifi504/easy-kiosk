@@ -662,7 +662,7 @@
       "successTitle": "Succès",
       "successEnabled": "Le service d'accessibilité a été activé automatiquement via Device Owner.",
       "permissionRequiredTitle": "Autorisation requise",
-      "permissionRequiredMessage": "Pour activer automatiquement le service d'accessibilité, l'autorisation WRITE_SECURE_SETTINGS doit être accordée via ADB (configuration unique) :\n\nadb shell pm grant com.freekiosk android.permission.WRITE_SECURE_SETTINGS\n\nSinon, appuyez sur « Ouvrir les réglages d'accessibilité » ci-dessous pour l'activer manuellement.",
+      "permissionRequiredMessage": "Pour activer automatiquement le service d'accessibilité, l'autorisation WRITE_SECURE_SETTINGS doit être accordée via ADB (configuration unique) :\n\nadb shell pm grant top.lhlnb.easykiosk android.permission.WRITE_SECURE_SETTINGS\n\nSinon, appuyez sur « Ouvrir les réglages d'accessibilité » ci-dessous pour l'activer manuellement.",
       "failedEnable": "Échec de l'activation via Device Owner"
     },
     "androidSettings": {
@@ -1374,7 +1374,7 @@
       "allFilesOpenSettings": "Ouvrir les réglages",
       "allFilesCancel": "Annuler",
       "allFilesUnavailableTitle": "Fichier hors du dossier de EasyKiosk",
-      "allFilesUnavailableMessage": "Cette version de EasyKiosk ne peut pas lire de fichiers hors de son propre dossier. Copiez le fichier dans Android/data/com.freekiosk/files/ sur l'appareil, ou choisissez-le avec « Choisir un fichier HTML local ».",
+      "allFilesUnavailableMessage": "Cette version de EasyKiosk ne peut pas lire de fichiers hors de son propre dossier. Copiez le fichier dans Android/data/top.lhlnb.easykiosk/files/ sur l'appareil, ou choisissez-le avec « Choisir un fichier HTML local ».",
       "passwordNotSavedTitle": "Mot de passe non enregistré",
       "basicAuthNotSavedMessage": "Le mot de passe HTTP Basic Auth n'a pas pu être écrit dans le stockage sécurisé de cet appareil. Tous les autres réglages de cet écran ont été enregistrés. Cela arrive sur les firmwares dont le Keystore Android est défaillant.",
       "downloadProgress": "{{percent}} % ({{done}} / {{total}} Mo)",

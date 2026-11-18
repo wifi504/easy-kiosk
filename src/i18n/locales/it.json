@@ -662,7 +662,7 @@
       "successTitle": "Operazione riuscita",
       "successEnabled": "Il servizio di accessibilità è stato attivato automaticamente tramite Device Owner.",
       "permissionRequiredTitle": "Autorizzazione richiesta",
-      "permissionRequiredMessage": "Per attivare automaticamente il servizio di accessibilità, l'autorizzazione WRITE_SECURE_SETTINGS deve essere concessa tramite ADB (configurazione una tantum):\n\nadb shell pm grant com.freekiosk android.permission.WRITE_SECURE_SETTINGS\n\nIn alternativa, tocca \"Apri impostazioni di accessibilità\" qui sotto per attivarlo manualmente.",
+      "permissionRequiredMessage": "Per attivare automaticamente il servizio di accessibilità, l'autorizzazione WRITE_SECURE_SETTINGS deve essere concessa tramite ADB (configurazione una tantum):\n\nadb shell pm grant top.lhlnb.easykiosk android.permission.WRITE_SECURE_SETTINGS\n\nIn alternativa, tocca \"Apri impostazioni di accessibilità\" qui sotto per attivarlo manualmente.",
       "failedEnable": "Attivazione tramite Device Owner non riuscita"
     },
     "androidSettings": {
@@ -1375,7 +1375,7 @@
       "allFilesOpenSettings": "Apri impostazioni",
       "allFilesCancel": "Annulla",
       "allFilesUnavailableTitle": "File fuori dalla cartella di EasyKiosk",
-      "allFilesUnavailableMessage": "Questa versione di EasyKiosk non può leggere file fuori dalla propria cartella. Copia il file in Android/data/com.freekiosk/files/ sul dispositivo, oppure scegli il file con «Scegli un file HTML locale».",
+      "allFilesUnavailableMessage": "Questa versione di EasyKiosk non può leggere file fuori dalla propria cartella. Copia il file in Android/data/top.lhlnb.easykiosk/files/ sul dispositivo, oppure scegli il file con «Scegli un file HTML locale».",
       "passwordNotSavedTitle": "Password non salvata",
       "basicAuthNotSavedMessage": "Non è stato possibile scrivere la password HTTP Basic Auth nell'archivio sicuro di questo dispositivo. Tutte le altre impostazioni di questa schermata sono state salvate. Succede su firmware con Android Keystore difettoso.",
       "downloadProgress": "{{percent}}% ({{done}} / {{total}} MB)",

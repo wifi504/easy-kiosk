@@ -19,7 +19,7 @@
 # /system/etc/init/freekiosk-autostart.rc. Remove both and reboot to undo.
 # Requires a userdebug/eng ROM (adb root). See scripts/install-boot-autostart.ps1.
 
-PKG=com.freekiosk
+PKG=top.lhlnb.easykiosk
 ACT=$PKG/.MainActivity
 
 # Wait for user 0 to be unlocked. Before that MainActivity cannot be resolved and

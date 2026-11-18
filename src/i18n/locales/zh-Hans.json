@@ -662,7 +662,7 @@
       "successTitle": "成功",
       "successEnabled": "已通过 Device Owner 自动启用无障碍服务。",
       "permissionRequiredTitle": "需要权限",
-      "permissionRequiredMessage": "要自动启用无障碍服务，必须通过 ADB 授予 WRITE_SECURE_SETTINGS 权限（一次性设置）：\n\nadb shell pm grant com.freekiosk android.permission.WRITE_SECURE_SETTINGS\n\n也可以点按下方的“打开无障碍设置”手动启用。",
+      "permissionRequiredMessage": "要自动启用无障碍服务，必须通过 ADB 授予 WRITE_SECURE_SETTINGS 权限（一次性设置）：\n\nadb shell pm grant top.lhlnb.easykiosk android.permission.WRITE_SECURE_SETTINGS\n\n也可以点按下方的“打开无障碍设置”手动启用。",
       "failedEnable": "无法通过 Device Owner 启用"
     },
     "androidSettings": {
@@ -1374,7 +1374,7 @@
       "allFilesOpenSettings": "打开设置",
       "allFilesCancel": "取消",
       "allFilesUnavailableTitle": "文件位于 EasyKiosk 文件夹之外",
-      "allFilesUnavailableMessage": "此版本的 EasyKiosk 无法读取自己文件夹之外的文件。请将文件复制到设备上的 Android/data/com.freekiosk/files/，或使用“选择本地 HTML 文件”选择它。",
+      "allFilesUnavailableMessage": "此版本的 EasyKiosk 无法读取自己文件夹之外的文件。请将文件复制到设备上的 Android/data/top.lhlnb.easykiosk/files/，或使用“选择本地 HTML 文件”选择它。",
       "passwordNotSavedTitle": "密码未保存",
       "basicAuthNotSavedMessage": "无法将 HTTP Basic Auth 密码写入此设备的安全存储。此界面上的其他设置均已保存。这种情况出现在 Android Keystore 损坏的固件上。",
       "downloadProgress": "{{percent}}%（{{done}} / {{total}} MB）",

@@ -11,7 +11,7 @@
 | `src/screens/KioskScreen.tsx` | `loadSettings()` 先处理待应用 ADB 配置，再批量读 `getAllSettings()`；存在本地默认值，AUTO_RELOAD 与单独 getter 的默认值不一致，不能只改一个 getter |
 | `src/screens/settings/SettingsScreenNew.tsx` | 设置读取与保存入口，后续保留维护必需项与可修改能力 |
 | `src/utils/secureStorage.ts`、`src/screens/PinScreen.tsx` | 管理员认证；预置 PIN 要沿用安全存储，不另造明文认证路径 |
-| `android/app/src/main/java/com/freekiosk/BootReceiver.kt` | 原生开机路径直接读取 `@kiosk_*`；不能只让 JS 看到默认参数 |
+| `android/app/src/main/java/top/lhlnb/easykiosk/BootReceiver.kt` | 原生开机路径直接读取 `@kiosk_*`；不能只让 JS 看到默认参数 |
 | `KioskModule.kt`、`KioskWatchdogService.kt`（同目录） | 锁定、Device Owner 与恢复；保留系统边界，检查初始化顺序 |
 | `android/app/build.gradle` | 包名与版本写死；签名缺失回退 debug；会把第三方声明复制进 APK |
 | `android/build.gradle`、`android/gradle/wrapper/gradle-wrapper.properties` | SDK/NDK/Kotlin 与 Gradle 版本来源 |

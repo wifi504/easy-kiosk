@@ -120,4 +120,4 @@ android/app/src/main/assets/third-party/
 android/app/src/main/res/mipmap-*/ic_launcher*.png
 
 android/app/src/main/assets/embedded-renderer/
-tools/embedded-chromium-probe/app/src/main/java/com/freekiosk/
+tools/embedded-chromium-probe/app/src/main/java/top/lhlnb/easykiosk/

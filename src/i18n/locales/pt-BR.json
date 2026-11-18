@@ -662,7 +662,7 @@
       "successTitle": "Sucesso",
       "successEnabled": "O serviço de acessibilidade foi ativado automaticamente via Device Owner.",
       "permissionRequiredTitle": "Permissão necessária",
-      "permissionRequiredMessage": "Para ativar automaticamente o serviço de acessibilidade, a permissão WRITE_SECURE_SETTINGS precisa ser concedida via ADB (configuração única):\n\nadb shell pm grant com.freekiosk android.permission.WRITE_SECURE_SETTINGS\n\nOu toque em \"Abrir configurações de acessibilidade\" abaixo para ativá-lo manualmente.",
+      "permissionRequiredMessage": "Para ativar automaticamente o serviço de acessibilidade, a permissão WRITE_SECURE_SETTINGS precisa ser concedida via ADB (configuração única):\n\nadb shell pm grant top.lhlnb.easykiosk android.permission.WRITE_SECURE_SETTINGS\n\nOu toque em \"Abrir configurações de acessibilidade\" abaixo para ativá-lo manualmente.",
       "failedEnable": "Não foi possível ativar via Device Owner"
     },
     "androidSettings": {
@@ -1374,7 +1374,7 @@
       "allFilesOpenSettings": "Abrir configurações",
       "allFilesCancel": "Cancelar",
       "allFilesUnavailableTitle": "Arquivo fora da pasta do EasyKiosk",
-      "allFilesUnavailableMessage": "Esta versão do EasyKiosk não consegue ler arquivos fora da sua própria pasta. Copie o arquivo para Android/data/com.freekiosk/files/ no dispositivo ou escolha-o com \"Escolher um arquivo HTML local\".",
+      "allFilesUnavailableMessage": "Esta versão do EasyKiosk não consegue ler arquivos fora da sua própria pasta. Copie o arquivo para Android/data/top.lhlnb.easykiosk/files/ no dispositivo ou escolha-o com \"Escolher um arquivo HTML local\".",
       "passwordNotSavedTitle": "Senha não salva",
       "basicAuthNotSavedMessage": "Não foi possível gravar a senha do HTTP Basic Auth no armazenamento seguro deste dispositivo. Todas as outras configurações desta tela foram salvas. Isso acontece em firmwares com o Android Keystore com defeito.",
       "downloadProgress": "{{percent}}% ({{done}} / {{total}} MB)",

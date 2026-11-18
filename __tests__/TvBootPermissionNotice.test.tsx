@@ -64,6 +64,6 @@ describe('TvBootPermissionNotice', () => {
   });
 
   it('gives a command that grants the permission to this app', () => {
-    expect(OVERLAY_GRANT_COMMAND).toBe('adb shell appops set com.freekiosk SYSTEM_ALERT_WINDOW allow');
+    expect(OVERLAY_GRANT_COMMAND).toBe('adb shell appops set top.lhlnb.easykiosk SYSTEM_ALERT_WINDOW allow');
   });
 });

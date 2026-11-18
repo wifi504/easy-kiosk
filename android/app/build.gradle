@@ -99,19 +99,19 @@ android {
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
 
-    namespace "com.freekiosk"
+    namespace "top.lhlnb.easykiosk"
     testBuildType "release"
     testOptions {
         // android.util.Log in the code under test returns defaults instead of throwing
         unitTests.returnDefaultValues = true
     }
     defaultConfig {
-        applicationId "com.freekiosk"
+        applicationId "top.lhlnb.easykiosk"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode (100000 + buildNumber)
         versionName buildSha
-        testInstrumentationRunner "com.freekiosk.EmbeddedChromiumInstrumentation"
+        testInstrumentationRunner "top.lhlnb.easykiosk.EmbeddedChromiumInstrumentation"
         buildConfigField "String", "CHROMIUM_VERSION", "\"${engineConfig['version']}\""
         buildConfigField "String", "CHROMIUM_SHA256", "\"${engineConfig['sha256']}\""
 

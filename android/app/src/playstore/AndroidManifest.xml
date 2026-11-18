@@ -73,7 +73,7 @@
 
         <!-- Strip AccessibilityService (BIND_ACCESSIBILITY_SERVICE) -->
         <service
-            android:name="com.freekiosk.FreeKioskAccessibilityService"
+            android:name="top.lhlnb.easykiosk.FreeKioskAccessibilityService"
             tools:node="remove" />
     </application>
 

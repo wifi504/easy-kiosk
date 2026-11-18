@@ -36,7 +36,7 @@ describe('Multi-App appearance', () => {
     const appearance = {
       backgroundColor: '#ffffff',
       title: 'Mawson Technology',
-      logoUri: 'file:///data/user/0/com.freekiosk/files/logo.png',
+      logoUri: 'file:///data/user/0/top.lhlnb.easykiosk/files/logo.png',
       showTitle: false,
       showLogo: false,
     };

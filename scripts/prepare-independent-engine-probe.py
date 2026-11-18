@@ -5,8 +5,8 @@ if os.environ.get('GITHUB_ACTIONS') != 'true': raise SystemExit('Probe preparati
 root = Path(__file__).resolve().parents[1]
 probe = root / 'tools/embedded-chromium-probe/app/src/main'
 shutil.copytree(root / 'android/app/src/main/assets', probe / 'assets', dirs_exist_ok=True)
-java = probe / 'java/com/freekiosk'; java.mkdir(parents=True, exist_ok=True)
-shutil.copyfile(root / 'android/app/src/main/java/com/freekiosk/EmbeddedChromiumComponentFactory.java', java / 'EmbeddedChromiumComponentFactory.java')
+java = probe / 'java/top/lhlnb/easykiosk'; java.mkdir(parents=True, exist_ok=True)
+shutil.copyfile(root / 'android/app/src/main/java/top/lhlnb/easykiosk/EmbeddedChromiumComponentFactory.java', java / 'EmbeddedChromiumComponentFactory.java')
 loader = root / '.engine-loader/core'
 (loader / 'build.gradle').write_text('''plugins { id 'com.android.library' }
 android {

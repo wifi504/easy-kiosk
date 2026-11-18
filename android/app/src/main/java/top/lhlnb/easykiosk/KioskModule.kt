@@ -1,0 +1,1852 @@
+package top.lhlnb.easykiosk
+
+import android.app.ActivityManager
+import android.app.admin.DevicePolicyManager
+import android.content.ComponentName
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
+import android.content.pm.PackageManager
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
+import android.net.wifi.WifiInfo
+import android.net.wifi.WifiManager
+import android.os.BatteryManager
+import android.os.Environment
+import android.os.StatFs
+import android.os.SystemClock
+import android.view.KeyEvent
+import android.view.View
+import android.view.ViewGroup
+import android.webkit.WebView
+import com.facebook.react.bridge.Arguments
+import com.facebook.react.uimanager.UIManagerHelper
+import com.facebook.react.uimanager.common.UIManagerType
+import com.facebook.react.bridge.ReactApplicationContext
+import com.facebook.react.bridge.ReactContextBaseJavaModule
+import com.facebook.react.bridge.ReactMethod
+import com.facebook.react.bridge.Promise
+import com.facebook.react.bridge.WritableMap
+import android.accessibilityservice.AccessibilityService
+import android.os.Build
+import android.os.PowerManager
+import android.view.WindowManager
+import com.facebook.react.bridge.UiThreadUtil
+import com.facebook.react.modules.core.DeviceEventManagerModule
+import java.net.Inet4Address
+import java.net.NetworkInterface
+
+class KioskModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaModule(reactContext) {
+
+    private var wakeLock: PowerManager.WakeLock? = null
+
+
+
+    // #234: state for the temporary lock-task whitelist around the battery dialog.
+    private val mainHandler = android.os.Handler(android.os.Looper.getMainLooper())
+    private var batteryDialogOriginalLockTaskPackages: Array<String>? = null
+    private var batteryDialogRestoreRunnable: Runnable? = null
+    private var batteryDialogLifecycleListener: com.facebook.react.bridge.LifecycleEventListener? = null
+    private val emergencyDialAction = "android.intent.action.DIAL_EMERGENCY"
+    private val emergencyDialerAction = "com.android.phone.EmergencyDialer.DIAL"
+    private val safetyHubPackage = "com.google.android.apps.safetyhub"
+
+    companion object {
+
+        /** The WebView in [view]'s subtree (a WebViewComponent's host view, or a tile wrapper). */
+        internal fun findWebView(view: View?): WebView? {
+            if (view == null) return null
+            if (view is WebView) return view
+            if (view is ViewGroup) {
+                for (i in 0 until view.childCount) {
+                    findWebView(view.getChildAt(i))?.let { return it }
+                }
+            }
+            return null
+        }
+
+        // #234: how long the battery dialog may stay whitelisted if we never see the user
+        // come back (dialog dismissed by the system, activity never resumed).
+        private const val BATTERY_DIALOG_WHITELIST_TIMEOUT_MS = 60_000L
+
+        /**
+         * #238: set once JS has completed a full settings load. Read by MainActivity's
+         * startup safety valve.
+         */
+        @Volatile
+        var jsReachedSettingsLoaded = false
+
+        // Store the current instance to allow sending events from MainActivity
+        @Volatile
+        private var currentInstance: KioskModule? = null
+
+        /**
+         * Send an event to React Native from outside the module (e.g., from MainActivity)
+         * This is used for the 5-tap Volume Up gesture
+         */
+        fun sendEventFromNative(eventName: String, params: Any? = null) {
+            try {
+                currentInstance?.reactApplicationContext
+                    ?.getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
+                    ?.emit(eventName, params)
+                android.util.Log.d("KioskModule", "Event '$eventName' sent to React Native")
+            } catch (e: Exception) {
+                android.util.Log.e("KioskModule", "Failed to send event '$eventName': ${e.message}")
+            }
+        }
+
+        /**
+         * #229 — Is the Device Owner screen-capture policy currently blocking screenshots?
+         *
+         * startLockTask() calls setScreenCaptureDisabled(true) (#172) so end users cannot
+         * grab the screen with Power+Volume Down. That policy is user-wide: it also blacks
+         * out MediaProjection and AccessibilityService.takeScreenshot(), which are the only
+         * ways to capture an external app in multi-app mode. PixelCopy on our own window is
+         * unaffected, which is why the local REST screenshot kept working until now.
+         */
+
+
+        /**
+         * #277 — Has the admin allowed Power+Volume Down screenshots while Lock Mode is on?
+         * Read straight from the AsyncStorage database, like ScreenCapture does for #229:
+         * lock task can start while JS is not around to be asked.
+         */
+        fun isHardwareScreenshotAllowed(context: Context): Boolean {
+            return try {
+                val dbPath = context.getDatabasePath("RKStorage").absolutePath
+                val db = android.database.sqlite.SQLiteDatabase.openDatabase(
+                    dbPath, null, android.database.sqlite.SQLiteDatabase.OPEN_READONLY
+                )
+                val cursor = db.rawQuery(
+                    "SELECT value FROM catalystLocalStorage WHERE key = ?",
+                    arrayOf("@kiosk_allow_hardware_screenshot")
+                )
+                val result = if (cursor.moveToFirst()) cursor.getString(0) == "true" else false
+                cursor.close()
+                db.close()
+                result
+            } catch (e: Exception) {
+                android.util.Log.w("KioskModule", "Could not read hardware screenshot setting: ${e.message}")
+                false
+            }
+        }
+
+        /**
+         * #229 — Toggle the screen-capture policy. Used to lift it for the few hundred
+         * milliseconds a remote screenshot takes, then put it straight back; callers MUST
+         * restore it in a finally block. Returns true when the policy was actually changed.
+         */
+
+    }
+
+    init {
+        currentInstance = this
+    }
+
+    override fun getName(): String {
+        return "KioskModule"
+    }
+
+    override fun invalidate() {
+        super.invalidate()
+        // Release WakeLock when module is destroyed to prevent battery drain
+        wakeLock?.release()
+        wakeLock = null
+        if (currentInstance == this) {
+            currentInstance = null
+        }
+        android.util.Log.d("KioskModule", "Module invalidated, WakeLock released")
+    }
+
+    // Dashboard: report two-finger swipes as "onNavGesture" events (MainActivity).
+    @ReactMethod
+    fun setNavGestureEnabled(enabled: Boolean, promise: Promise) {
+        try {
+            val activity = reactApplicationContext.currentActivity
+            if (activity is MainActivity) {
+                activity.navGestureEnabled = enabled
+            }
+            promise.resolve(true)
+        } catch (e: Exception) {
+            promise.resolve(false)
+        }
+    }
+
+    // Android TV: tells MainActivity the screensaver is showing, so a remote key wakes it.
+    @ReactMethod
+    fun setScreensaverShowing(active: Boolean, promise: Promise) {
+        try {
+            MainActivity.screensaverShowing = active
+            promise.resolve(true)
+        } catch (e: Exception) {
+            promise.resolve(false)
+        }
+    }
+
+    // Dashboard: the tile views a sideways drag slides (TileSlider). Each is a React tag:
+    // -1 = no tile that way, -2 = a tile that is not mounted. current -1 = tiles not kept.
+    @ReactMethod
+    fun setNavSlideTiles(current: Int, prev: Int, next: Int, promise: Promise) {
+        UiThreadUtil.runOnUiThread {
+            try {
+                val activity = reactApplicationContext.currentActivity as? MainActivity
+                val uiManager = UIManagerHelper.getUIManager(reactApplicationContext, UIManagerType.FABRIC)
+                val view = { tag: Int -> if (tag > 0) runCatching { uiManager?.resolveView(tag) }.getOrNull() else null }
+                activity?.tileSlider?.setTiles(view(current), view(prev), view(next), prev != -1, next != -1)
+                promise.resolve(activity != null)
+            } catch (e: Exception) {
+                promise.resolve(false)
+            }
+        }
+    }
+
+    // #180 — Tells MainActivity whether the Kiosk screen is the active route, so the
+    // native tap-to-settings fallback (dispatchTouchEvent) only fires on the kiosk
+    // screen and not while the user is inside Pin/Settings. Revert: delete this method.
+    @ReactMethod
+    fun setKioskScreenActive(active: Boolean, promise: Promise) {
+        try {
+            MainActivity.kioskScreenActive = active
+            promise.resolve(true)
+        } catch (e: Exception) {
+            promise.resolve(false)
+        }
+    }
+
+    // #135 — Dismiss the soft keyboard at the window level. React Native's
+    // Keyboard.dismiss() only affects RN TextInput components, so a keyboard
+    // raised by an <input> inside the WebView stays up when the screensaver
+    // activates (screen on, no ACTION_SCREEN_OFF). This closes it regardless.
+    @ReactMethod
+    fun hideKeyboard(promise: Promise) {
+        try {
+            val activity = reactApplicationContext.currentActivity
+            if (activity != null) {
+                KeyboardUtils.dismiss(activity)
+            }
+            promise.resolve(true)
+        } catch (e: Exception) {
+            promise.resolve(false)
+        }
+    }
+
+    // #177 — Pause/resume the Android WebView identified by [tag] (its React node handle).
+    // react-native-webview's onHostPause() is a no-op, so WebView media keeps playing when the
+    // app is backgrounded / the screen is off / the screensaver overlay is shown. WebView.onPause()
+    // suspends the renderer (media, animations, WebRTC). Targeted by tag so only the main content
+    // WebView is affected — never the screensaver's own WebView.
+    @ReactMethod
+    fun pauseWebView(tag: Int, promise: Promise) = setWebViewPaused(tag, true, promise)
+
+    @ReactMethod
+    fun resumeWebView(tag: Int, promise: Promise) = setWebViewPaused(tag, false, promise)
+
+    // #234: the WifiLock is near-useless and must not be trusted. HIGH_PERF is deprecated
+    // and silently replaced by LOW_LATENCY, which the SDK documents as active only while the
+    // screen is on AND the app is in the foreground. The PARTIAL_WAKE_LOCK is what carries
+    // screen-off operation.
+
+    // JS thread, which the OS freezes once the CPU sleeps (screen off, Device Owner). Holding
+    // a PARTIAL_WAKE_LOCK (CPU) + WifiLock (network) keeps that loop alive, so the device
+    // stays reachable and a `wake`/`screenOn` command can still land to turn the screen back
+
+    // battery-powered devices (the PARTIAL_WAKE_LOCK keeps the CPU awake, but Doze can still
+    // defer network/wakelocks once the device is unplugged and idle). Uses the public
+    // ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS intent (a one-time system dialog; grant it
+    // during provisioning, before lock task). No public silent path exists even for a Device
+    // Owner (setApplicationExemptions is a @SystemApi). The permission is stripped from Play
+    // builds, so there startActivity throws, is caught, and the wake lock alone is relied upon.
+    // No-op once already exempted.
+    // #234: report whether the app is already exempt from Doze/battery optimization.
+
+    // network once the device is unplugged and idle, so the broker misses the keepalive and
+    // Home Assistant shows the device as unavailable after a couple of hours. Used by the
+
+    @ReactMethod
+    fun isIgnoringBatteryOptimizations(promise: Promise) {
+        try {
+            val ctx = reactApplicationContext
+            val pm = ctx.getSystemService(Context.POWER_SERVICE) as PowerManager
+            promise.resolve(pm.isIgnoringBatteryOptimizations(ctx.packageName))
+        } catch (e: Exception) {
+            android.util.Log.e("KioskModule", "isIgnoringBatteryOptimizations failed: ${e.message}")
+            promise.resolve(false)
+        }
+    }
+
+    @ReactMethod
+    fun requestIgnoreBatteryOptimizations(promise: Promise) {
+        try {
+            val ctx = reactApplicationContext
+            val pkg = ctx.packageName
+            val pm = ctx.getSystemService(Context.POWER_SERVICE) as PowerManager
+            if (pm.isIgnoringBatteryOptimizations(pkg)) {
+                promise.resolve(true)
+                return
+            }
+            val intent = Intent(android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+                data = android.net.Uri.parse("package:$pkg")
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            // #234: without this the dialog silently never appears on a pinned kiosk.
+            allowBatteryDialogInLockTask()
+            ctx.startActivity(intent)
+            scheduleBatteryDialogRestore()
+            promise.resolve(true)
+        } catch (e: Exception) {
+            // Play builds have the permission stripped, so startActivity throws here. Put the
+            // lock task whitelist back rather than leaving it open until the next kiosk start.
+            restoreBatteryDialogLockTaskPackages()
+            android.util.Log.e("KioskModule", "requestIgnoreBatteryOptimizations failed: ${e.message}")
+            promise.resolve(false)
+        }
+    }
+
+    /**
+     * #234: the battery-optimization dialog is a system activity, and lock task blocks any
+     * activity outside the whitelist, so on a pinned kiosk the request simply did nothing
+     * and the only way left was `adb shell dumpsys deviceidle whitelist +top.lhlnb.easykiosk`.
+     *
+     * Same approach WifiControlModule and BluetoothControlModule already use for their own
+     * system dialogs: whitelist the handling package for the few seconds the dialog is up,
+     * then restore. If the process dies in between, the next startLockTask() rebuilds the
+     * whitelist from scratch, so the opening cannot outlive a restart.
+     */
+    private fun allowBatteryDialogInLockTask() {
+        try {
+            val dpm = reactApplicationContext.getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
+            val admin = ComponentName(reactApplicationContext, DeviceAdminReceiver::class.java)
+            if (!dpm.isDeviceOwnerApp(reactApplicationContext.packageName)) return
+
+            // Android 7 cannot read the whitelist back: leave it as the lock task start built it.
+            val currentPackages = LockTaskCompat.readPackages(dpm, admin) ?: return
+            if (batteryDialogOriginalLockTaskPackages == null) {
+                batteryDialogOriginalLockTaskPackages = currentPackages
+            }
+
+            val updated = (currentPackages.toList() + resolveBatteryDialogPackages()).distinct()
+            if (updated.size != currentPackages.size) {
+                dpm.setLockTaskPackages(admin, updated.toTypedArray())
+                android.util.Log.d("KioskModule", "Temporarily whitelisted battery optimization dialog packages")
+            }
+        } catch (e: Exception) {
+            android.util.Log.w("KioskModule", "Could not update lock task whitelist for battery dialog: ${e.message}")
+        }
+    }
+
+    private fun restoreBatteryDialogLockTaskPackages() {
+        batteryDialogRestoreRunnable?.let { mainHandler.removeCallbacks(it) }
+        batteryDialogRestoreRunnable = null
+        batteryDialogLifecycleListener?.let {
+            try {
+                reactApplicationContext.removeLifecycleEventListener(it)
+            } catch (_: Exception) {}
+        }
+        batteryDialogLifecycleListener = null
+
+        val original = batteryDialogOriginalLockTaskPackages ?: return
+        try {
+            val dpm = reactApplicationContext.getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
+            val admin = ComponentName(reactApplicationContext, DeviceAdminReceiver::class.java)
+            if (dpm.isDeviceOwnerApp(reactApplicationContext.packageName)) {
+                dpm.setLockTaskPackages(admin, original)
+                android.util.Log.d("KioskModule", "Restored lock task packages after battery dialog")
+            }
+        } catch (e: Exception) {
+            android.util.Log.w("KioskModule", "Could not restore lock task packages after battery dialog: ${e.message}")
+        } finally {
+            batteryDialogOriginalLockTaskPackages = null
+        }
+    }
+
+    /**
+     * Restore as soon as FreeKiosk is back in the foreground (the user answered or dismissed
+     * the dialog), with a timeout in case that event never comes.
+     */
+    private fun scheduleBatteryDialogRestore() {
+        if (batteryDialogOriginalLockTaskPackages == null) return
+
+        val listener = object : com.facebook.react.bridge.LifecycleEventListener {
+            override fun onHostResume() = restoreBatteryDialogLockTaskPackages()
+            override fun onHostPause() {}
+            override fun onHostDestroy() = restoreBatteryDialogLockTaskPackages()
+        }
+        batteryDialogLifecycleListener = listener
+        reactApplicationContext.addLifecycleEventListener(listener)
+
+        val timeout = Runnable { restoreBatteryDialogLockTaskPackages() }
+        batteryDialogRestoreRunnable = timeout
+        mainHandler.postDelayed(timeout, BATTERY_DIALOG_WHITELIST_TIMEOUT_MS)
+    }
+
+    private fun resolveBatteryDialogPackages(): List<String> {
+        val packages = mutableSetOf("com.android.settings")
+        try {
+            val intent = Intent(android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+                data = android.net.Uri.parse("package:${reactApplicationContext.packageName}")
+            }
+            reactApplicationContext.packageManager
+                .queryIntentActivities(intent, PackageManager.MATCH_DEFAULT_ONLY)
+                .forEach { info -> info.activityInfo?.packageName?.let { packages.add(it) } }
+        } catch (_: Exception) {}
+        return packages.toList()
+    }
+
+    private fun setWebViewPaused(tag: Int, paused: Boolean, promise: Promise) {
+        UiThreadUtil.runOnUiThread {
+            try {
+                val uiManager = UIManagerHelper.getUIManager(reactApplicationContext, UIManagerType.FABRIC)
+                val webView = findWebView(uiManager?.resolveView(tag))
+                if (webView == null) {
+                    promise.resolve(false)
+                    return@runOnUiThread
+                }
+                if (paused) webView.onPause() else webView.onResume()
+                promise.resolve(true)
+            } catch (e: Exception) {
+                // Never crash: the view may have been unmounted (race) or resolveView may throw.
+                promise.resolve(false)
+            }
+        }
+    }
+
+    @ReactMethod
+    fun exitKioskMode(promise: Promise) {
+        try {
+            val activity = reactApplicationContext.currentActivity
+            if (activity != null && activity is MainActivity) {
+                // Do NOT write @kiosk_enabled=false here — the watchdog is stopped
+                // explicitly below, so the AsyncStorage write is unnecessary for that.
+                // Writing false was permanently disabling Lock Mode after an admin exit,
+                // which is a regression: kiosk mode should re-engage on the next FK launch.
+                // (#124, #138)
+                //
+                // Only clear the DE fast-boot flag so BootLockActivity does not
+                // hard-lock the device on the next reboot (the admin just exited
+                // intentionally; normal kiosk start via MainActivity still fires
+                // because @kiosk_enabled remains true in AsyncStorage).
+                try {
+                    BootReceiver.updateDeBootFlag(reactApplicationContext, false)
+                } catch (e: Exception) {
+                    android.util.Log.e("KioskModule", "Failed to clear DE boot flag: ${e.message}")
+                }
+
+                // Explicitly stop KioskWatchdogService (#96 fix)
+                stopKioskWatchdog()
+
+                activity.runOnUiThread {
+                    try {
+                        val dpm = reactApplicationContext.getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
+                        val adminComponent = ComponentName(reactApplicationContext, DeviceAdminReceiver::class.java)
+                        if (dpm.isDeviceOwnerApp(reactApplicationContext.packageName)) {
+                            dpm.setScreenCaptureDisabled(adminComponent, false)
+                        }
+                        activity.disableKioskRestrictions()
+                        activity.stopLockTask()
+                        activity.finish()
+                        promise.resolve(true)
+                    } catch (e: Exception) {
+                        promise.reject("ERROR", "Failed to exit kiosk mode: ${e.message}")
+                    }
+                }
+            } else {
+                promise.reject("ERROR", "Activity not available")
+            }
+        } catch (e: Exception) {
+            promise.reject("ERROR", "Failed to exit kiosk mode: ${e.message}")
+        }
+    }
+
+    /**
+     * #199 — Persist the opt-in "system screen-lock compatibility" flag to device-encrypted
+     * storage the moment the user toggles it, so BootReceiver can honour it at the very next
+     * LOCKED_BOOT_COMPLETED (before AsyncStorage/CE is available). No-op effect on boot unless
+     * the user also has a secure screen-lock set.
+     */
+    @ReactMethod
+    fun setScreenLockCompatMode(enabled: Boolean, promise: Promise) {
+        try {
+            BootReceiver.updateScreenLockCompatFlag(reactApplicationContext, enabled)
+            promise.resolve(true)
+        } catch (e: Exception) {
+            promise.reject("ERROR", "Failed to set screen-lock compat mode: ${e.message}")
+        }
+    }
+
+    /**
+     * #199 — Opt-in: register/unregister FreeKiosk as the PERSISTENT default Home launcher via the
+     * Device Owner policy, applied the instant the user toggles the setting. When ON, the system
+     * relaunches FreeKiosk at boot/Home without relying on OEM "appear on top" / autostart
+     * permissions (which Samsung resets on OS updates). Requires Device Owner. MainActivity also
+     * re-applies this on every launch (self-healing); clearing on toggle-OFF here restores the
+     * normal launcher immediately.
+     */
+    @ReactMethod
+    fun setDefaultLauncherMode(enabled: Boolean, promise: Promise) {
+        try {
+            val dpm = reactApplicationContext.getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
+            val admin = ComponentName(reactApplicationContext, DeviceAdminReceiver::class.java)
+            if (!dpm.isDeviceOwnerApp(reactApplicationContext.packageName)) {
+                promise.reject("NOT_DEVICE_OWNER", "Default launcher mode requires Device Owner")
+                return
+            }
+            // Clear our own persistent preferences first (idempotent), then re-add when enabling.
+            dpm.clearPackagePersistentPreferredActivities(admin, reactApplicationContext.packageName)
+            if (enabled) {
+                val filter = android.content.IntentFilter(Intent.ACTION_MAIN).apply {
+                    addCategory(Intent.CATEGORY_HOME)
+                    addCategory(Intent.CATEGORY_DEFAULT)
+                }
+                dpm.addPersistentPreferredActivity(
+                    admin, filter, ComponentName(reactApplicationContext, MainActivity::class.java)
+                )
+            }
+            android.util.Log.d("KioskModule", "Default launcher mode set: $enabled")
+            promise.resolve(true)
+        } catch (e: Exception) {
+            promise.reject("ERROR", "Failed to set default launcher mode: ${e.message}")
+        }
+    }
+
+    /**
+     * Stop the KioskWatchdogService and cancel its notification.
+     * Called on intentional kiosk exit to prevent the watchdog from relaunching the app.
+     */
+
+
+
+    private fun stopKioskWatchdog() {
+        try {
+            val serviceIntent = Intent(reactApplicationContext, KioskWatchdogService::class.java)
+            reactApplicationContext.stopService(serviceIntent)
+            // Also cancel the notification in case stopService races with onDestroy
+            val nm = reactApplicationContext.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
+            nm.cancel(2002) // KioskWatchdogService.NOTIFICATION_ID
+            android.util.Log.d("KioskModule", "KioskWatchdogService stopped and notification cleared")
+
+            // alive. force=true because @kiosk_enabled stays true across an admin exit, and
+            // keep-alive mode never relaunches, so the admin is not dragged back in.
+        } catch (e: Exception) {
+            android.util.Log.e("KioskModule", "Error stopping KioskWatchdogService: ${e.message}")
+        }
+    }
+
+    /**
+     * Block (or unblock) the factory reset option in system Settings via a Device Owner
+     * user restriction (#201). Unlike lock-task features, DISALLOW_FACTORY_RESET is a
+     * persistent restriction that survives reboots, so it just needs to be set/cleared here.
+     * No-op (resolves false) when not Device Owner.
+     */
+    @ReactMethod
+    fun setFactoryResetBlocked(blocked: Boolean, promise: Promise) {
+        try {
+            val dpm = reactApplicationContext.getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
+            val adminComponent = ComponentName(reactApplicationContext, DeviceAdminReceiver::class.java)
+
+            if (!dpm.isDeviceOwnerApp(reactApplicationContext.packageName)) {
+                android.util.Log.d("KioskModule", "setFactoryResetBlocked: not Device Owner, no-op")
+                promise.resolve(false)
+                return
+            }
+
+            if (blocked) {
+                dpm.addUserRestriction(adminComponent, android.os.UserManager.DISALLOW_FACTORY_RESET)
+            } else {
+                dpm.clearUserRestriction(adminComponent, android.os.UserManager.DISALLOW_FACTORY_RESET)
+            }
+            android.util.Log.d("KioskModule", "Factory reset restriction ${if (blocked) "applied" else "cleared"}")
+            promise.resolve(true)
+        } catch (e: Exception) {
+            android.util.Log.e("KioskModule", "setFactoryResetBlocked error: ${e.message}")
+            promise.resolve(false)
+        }
+    }
+
+    /**
+     * Block (or unblock) airplane mode via a Device Owner user restriction (#130).
+     *
+     * A beta tester had a tablet hang on startup after someone enabled airplane mode:
+     * the kiosk sat on a URL it could not load. He asked for airplane mode to be turned
+     * off at boot, and DISALLOW_AIRPLANE_MODE is better than that, because it stops the
+     * user reaching the toggle at all rather than undoing the damage one reboot later.
+     * Persistent across reboots, like DISALLOW_FACTORY_RESET above.
+     *
+     * Device Owner only, and there is no fallback: switching airplane mode from a
+     * third-party app has been closed off since Android 4.2, the broadcast is the
+     * system's. No-op (resolves false) when not Device Owner or below API 28.
+     */
+    @ReactMethod
+    fun setAirplaneModeBlocked(blocked: Boolean, promise: Promise) {
+        try {
+            if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.P) {
+                android.util.Log.d("KioskModule", "setAirplaneModeBlocked: needs API 28, no-op")
+                promise.resolve(false)
+                return
+            }
+
+            val dpm = reactApplicationContext.getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
+            val adminComponent = ComponentName(reactApplicationContext, DeviceAdminReceiver::class.java)
+
+            if (!dpm.isDeviceOwnerApp(reactApplicationContext.packageName)) {
+                android.util.Log.d("KioskModule", "setAirplaneModeBlocked: not Device Owner, no-op")
+                promise.resolve(false)
+                return
+            }
+
+            if (blocked) {
+                dpm.addUserRestriction(adminComponent, android.os.UserManager.DISALLOW_AIRPLANE_MODE)
+            } else {
+                dpm.clearUserRestriction(adminComponent, android.os.UserManager.DISALLOW_AIRPLANE_MODE)
+            }
+            android.util.Log.d("KioskModule", "Airplane mode restriction ${if (blocked) "applied" else "cleared"}")
+            promise.resolve(true)
+        } catch (e: Exception) {
+            android.util.Log.e("KioskModule", "setAirplaneModeBlocked error: ${e.message}")
+            promise.resolve(false)
+        }
+    }
+
+    @ReactMethod
+    fun startLockTask(externalAppPackage: String?, allowPowerButton: Boolean, allowNotifications: Boolean, allowSystemInfo: Boolean, allowEmergencyCall: Boolean, promise: Promise) {
+        try {
+            val activity = reactApplicationContext.currentActivity
+            if (activity != null && activity is MainActivity) {
+                activity.runOnUiThread {
+                    try {
+                        val dpm = reactApplicationContext.getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
+                        val adminComponent = ComponentName(reactApplicationContext, DeviceAdminReceiver::class.java)
+
+                        if (dpm.isDeviceOwnerApp(reactApplicationContext.packageName)) {
+                            // Build whitelist: FreeKiosk + external app + all managed apps
+                            val whitelist = mutableListOf(reactApplicationContext.packageName)
+
+                            // Use the passed parameter directly (more reliable than SharedPreferences timing)
+                            if (!externalAppPackage.isNullOrEmpty()) {
+                                try {
+                                    reactApplicationContext.packageManager.getPackageInfo(externalAppPackage, 0)
+                                    whitelist.add(externalAppPackage)
+                                    android.util.Log.d("KioskModule", "External app added to whitelist: $externalAppPackage")
+                                } catch (e: Exception) {
+                                    android.util.Log.e("KioskModule", "External app not found: $externalAppPackage")
+                                }
+                            }
+
+                            // Add all managed apps to the lock task whitelist
+                            whitelist.addAll(getManagedAppPackages())
+
+                            // Add print spooler packages if window.print() is enabled
+                            if (isWindowPrintEnabled()) {
+                                whitelist.addAll(getPrintSpoolerPackages())
+                            }
+
+                            // Whitelist the emergency dialer so the power-screen red button works
+                            if (allowEmergencyCall) {
+                                whitelist.addAll(getEmergencyDialerPackages())
+                            }
+
+                            // #268: opt-in, so the "Allow USB debugging?" dialog can be answered in lock mode
+                            if (isUsbDebugDialogAllowed()) {
+                                whitelist.add("com.android.systemui")
+                            }
+
+                            val uniqueWhitelist = whitelist.distinct()
+
+                            // Configure Lock Task features based on settings
+                            // GLOBAL_ACTIONS is included by default (Android's own default when setLockTaskFeatures is never called)
+                            // This prevents Samsung/OneUI from muting audio streams in lock task mode
+                            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+                                // Start with GLOBAL_ACTIONS as base (matches Android default behavior)
+                                var lockTaskFeatures = DevicePolicyManager.LOCK_TASK_FEATURE_GLOBAL_ACTIONS
+
+                                // allowPowerButton=false means admin wants to BLOCK the power menu
+                                if (!allowPowerButton) {
+                                    lockTaskFeatures = lockTaskFeatures and DevicePolicyManager.LOCK_TASK_FEATURE_GLOBAL_ACTIONS.inv()
+                                }
+
+                                // SYSTEM_INFO: shows non-interactive status bar info (time, battery)
+                                if (allowSystemInfo) {
+                                    lockTaskFeatures = lockTaskFeatures or DevicePolicyManager.LOCK_TASK_FEATURE_SYSTEM_INFO
+                                }
+                                if (allowNotifications) {
+                                    lockTaskFeatures = lockTaskFeatures or DevicePolicyManager.LOCK_TASK_FEATURE_NOTIFICATIONS
+                                    // Android requires HOME feature when NOTIFICATIONS is enabled
+                                    lockTaskFeatures = lockTaskFeatures or DevicePolicyManager.LOCK_TASK_FEATURE_HOME
+                                }
+
+                                // #208 — Keep the system keyguard alive while in lock task so a native
+                                // screen-lock (PIN/pattern/password) actually prompts after screen off/on.
+                                // Without LOCK_TASK_FEATURE_KEYGUARD, Android disables the keyguard in
+                                // LockTask mode and the configured screen-lock never appears. Gated on the
+                                // opt-in "System screen-lock compatibility" setting AND a secure lock being set.
+                                val screenLockCompat = BootReceiver.readScreenLockCompatFlag(reactApplicationContext) &&
+                                    BootReceiver.isDeviceSecure(reactApplicationContext)
+                                if (screenLockCompat) {
+                                    lockTaskFeatures = lockTaskFeatures or DevicePolicyManager.LOCK_TASK_FEATURE_KEYGUARD
+                                }
+
+                                dpm.setLockTaskFeatures(adminComponent, lockTaskFeatures)
+                                android.util.Log.d("KioskModule", "Lock task features set: blockPowerButton=${!allowPowerButton}, notifications=$allowNotifications, systemInfo=$allowSystemInfo, keyguard=$screenLockCompat (flags=$lockTaskFeatures)")
+                            }
+
+                            dpm.setLockTaskPackages(adminComponent, uniqueWhitelist.toTypedArray())
+                            activity.startLockTask()
+                            // #277: blocked unless the admin allowed hardware screenshots
+                            dpm.setScreenCaptureDisabled(adminComponent, !isHardwareScreenshotAllowed(reactApplicationContext))
+                            android.util.Log.d("KioskModule", "Full lock task started (Device Owner) with whitelist: $uniqueWhitelist")
+                            // Update DE boot flag so the next LOCKED_BOOT_COMPLETED also locks immediately
+                            BootReceiver.updateDeBootFlag(reactApplicationContext, true)
+
+                            // Safety net: force unmute audio streams after entering lock task
+                            // Samsung/OneUI devices may mute audio in LOCK_TASK_MODE_LOCKED
+                            try {
+                                dpm.setMasterVolumeMuted(adminComponent, false)
+                                val audioManager = reactApplicationContext.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
+                                val streams = intArrayOf(
+                                    android.media.AudioManager.STREAM_MUSIC,
+                                    android.media.AudioManager.STREAM_NOTIFICATION,
+                                    android.media.AudioManager.STREAM_ALARM,
+                                    android.media.AudioManager.STREAM_RING
+                                )
+                                for (stream in streams) {
+                                    audioManager.adjustStreamVolume(stream, android.media.AudioManager.ADJUST_UNMUTE, 0)
+                                }
+                                android.util.Log.d("KioskModule", "Audio streams unmuted (Samsung audio fix)")
+                            } catch (e: Exception) {
+                                android.util.Log.w("KioskModule", "Could not unmute audio streams: ${e.message}")
+                            }
+                        } else if (!externalAppPackage.isNullOrEmpty()) {
+                            // #275: without Device Owner there is no whitelist, and pinning
+                            // FreeKiosk's task keeps the external app from coming to the front.
+                            android.util.Log.d("KioskModule", "External app without Device Owner - screen pinning skipped")
+                        } else {
+                            activity.startLockTask()
+                            android.util.Log.d("KioskModule", "Screen pinning started")
+                        }
+                        promise.resolve(true)
+                    } catch (e: Exception) {
+                        android.util.Log.e("KioskModule", "Failed to start lock task: ${e.message}")
+                        promise.reject("ERROR", "Failed to start lock task: ${e.message}")
+                    }
+                }
+            } else {
+                promise.reject("ERROR", "Activity not available")
+            }
+        } catch (e: Exception) {
+            promise.reject("ERROR", "Failed to start lock task: ${e.message}")
+        }
+    }
+
+    @ReactMethod
+    fun stopLockTask(promise: Promise) {
+        try {
+            val activity = reactApplicationContext.currentActivity
+            if (activity != null && activity is MainActivity) {
+                activity.runOnUiThread {
+                    try {
+                        val dpm = reactApplicationContext.getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
+                        val adminComponent = ComponentName(reactApplicationContext, DeviceAdminReceiver::class.java)
+                        if (dpm.isDeviceOwnerApp(reactApplicationContext.packageName)) {
+                            dpm.setScreenCaptureDisabled(adminComponent, false)
+                        }
+                        activity.stopLockTask()
+                        android.util.Log.d("KioskModule", "Lock task stopped")
+                        promise.resolve(true)
+                    } catch (e: Exception) {
+                        promise.reject("ERROR", "Failed to stop lock task: ${e.message}")
+                    }
+                }
+            } else {
+                promise.reject("ERROR", "Activity not available")
+            }
+        } catch (e: Exception) {
+            promise.reject("ERROR", "Failed to stop lock task: ${e.message}")
+        }
+    }
+
+    @ReactMethod
+    fun launchEmergencyDial(promise: Promise) {
+        try {
+            val activity = reactApplicationContext.currentActivity
+            if (activity == null) {
+                promise.reject("ERROR", "Activity not available")
+                return
+            }
+            ensureEmergencyDialerWhitelisted()
+            val intent = createEmergencyDialIntent()
+            activity.startActivity(intent)
+            promise.resolve(true)
+        } catch (e: Exception) {
+            android.util.Log.e("KioskModule", "Failed to launch emergency dialer: ${e.message}")
+            promise.reject("ERROR", "Failed to launch emergency dialer: ${e.message}")
+        }
+    }
+
+    @ReactMethod
+    fun isSafetyHubEnabled(promise: Promise) {
+        try {
+            promise.resolve(isPackageEnabledAndVisible(safetyHubPackage))
+        } catch (e: Exception) {
+            android.util.Log.e("KioskModule", "Failed to check Safety Hub status: ${e.message}")
+            promise.reject("ERROR", "Failed to check Safety Hub status: ${e.message}")
+        }
+    }
+
+    @ReactMethod
+    fun disableSafetyHub(promise: Promise) {
+        try {
+            val dpm = reactApplicationContext.getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
+            val adminComponent = ComponentName(reactApplicationContext, DeviceAdminReceiver::class.java)
+
+            if (!dpm.isDeviceOwnerApp(reactApplicationContext.packageName)) {
+                promise.reject("NOT_DEVICE_OWNER", "Disabling Safety Hub requires Device Owner mode")
+                return
+            }
+
+            if (!isPackageInstalled(safetyHubPackage)) {
+                promise.resolve(false)
+                return
+            }
+
+            dpm.setApplicationHidden(adminComponent, safetyHubPackage, true)
+            promise.resolve(!isPackageEnabledAndVisible(safetyHubPackage))
+        } catch (e: Exception) {
+            android.util.Log.e("KioskModule", "Failed to disable Safety Hub: ${e.message}")
+            promise.reject("ERROR", "Failed to disable Safety Hub: ${e.message}")
+        }
+    }
+
+    @ReactMethod
+    fun isInLockTaskMode(promise: Promise) {
+        try {
+            val activityManager = reactApplicationContext.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+            val lockTaskMode = activityManager.lockTaskModeState
+            val isLocked = lockTaskMode != ActivityManager.LOCK_TASK_MODE_NONE
+            promise.resolve(isLocked)
+        } catch (e: Exception) {
+            promise.reject("ERROR", "Failed to check lock task mode: ${e.message}")
+        }
+    }
+
+    private fun isPackageInstalled(packageName: String): Boolean {
+        return try {
+            reactApplicationContext.packageManager.getPackageInfo(packageName, 0)
+            true
+        } catch (e: PackageManager.NameNotFoundException) {
+            false
+        }
+    }
+
+    private fun isPackageEnabledAndVisible(packageName: String): Boolean {
+        return try {
+            val pm = reactApplicationContext.packageManager
+            val appInfo = pm.getApplicationInfo(packageName, PackageManager.MATCH_DISABLED_COMPONENTS)
+            val dpm = reactApplicationContext.getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
+            val adminComponent = ComponentName(reactApplicationContext, DeviceAdminReceiver::class.java)
+            val hidden = try {
+                dpm.isDeviceOwnerApp(reactApplicationContext.packageName) &&
+                    dpm.isApplicationHidden(adminComponent, packageName)
+            } catch (_: Exception) {
+                false
+            }
+            appInfo.enabled && !hidden
+        } catch (e: PackageManager.NameNotFoundException) {
+            false
+        }
+    }
+
+    @ReactMethod
+    fun getLockTaskModeState(promise: Promise) {
+        try {
+            val activityManager = reactApplicationContext.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+            val state = activityManager.lockTaskModeState
+            promise.resolve(state)
+        } catch (e: Exception) {
+            promise.reject("ERROR", "Failed to get lock task state: ${e.message}")
+        }
+    }
+
+    @ReactMethod
+    fun enableAutoLaunch(promise: Promise) {
+        try {
+            val componentName = ComponentName(reactApplicationContext, BootReceiver::class.java)
+            reactApplicationContext.packageManager.setComponentEnabledSetting(
+                componentName,
+                PackageManager.COMPONENT_ENABLED_STATE_ENABLED,
+                PackageManager.DONT_KILL_APP
+            )
+            promise.resolve(true)
+        } catch (e: Exception) {
+            promise.reject("ERROR_ENABLE_AUTO_LAUNCH", e)
+        }
+    }
+
+    @ReactMethod
+    fun disableAutoLaunch(promise: Promise) {
+        try {
+            val componentName = ComponentName(reactApplicationContext, BootReceiver::class.java)
+            reactApplicationContext.packageManager.setComponentEnabledSetting(
+                componentName,
+                PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
+                PackageManager.DONT_KILL_APP
+            )
+            promise.resolve(true)
+        } catch (e: Exception) {
+            promise.reject("ERROR_DISABLE_AUTO_LAUNCH", e)
+        }
+    }
+
+    @ReactMethod
+    fun isDeviceOwner(promise: Promise) {
+        try {
+            val dpm = reactApplicationContext.getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
+            val isOwner = dpm.isDeviceOwnerApp(reactApplicationContext.packageName)
+            promise.resolve(isOwner)
+        } catch (e: Exception) {
+            promise.reject("ERROR", "Failed to check device owner status: ${e.message}")
+        }
+    }
+
+    @ReactMethod
+    fun hasUsageStatsPermission(promise: Promise) {
+        try {
+            val appOps = reactApplicationContext.getSystemService(Context.APP_OPS_SERVICE) as android.app.AppOpsManager
+            val mode = appOps.checkOpNoThrow(
+                android.app.AppOpsManager.OPSTR_GET_USAGE_STATS,
+                android.os.Process.myUid(),
+                reactApplicationContext.packageName
+            )
+            promise.resolve(mode == android.app.AppOpsManager.MODE_ALLOWED)
+        } catch (e: Exception) {
+            promise.reject("ERROR", "Failed to check usage stats permission: ${e.message}")
+        }
+    }
+
+    @ReactMethod
+    fun requestUsageStatsPermission(promise: Promise) {
+        try {
+            val intent = Intent(android.provider.Settings.ACTION_USAGE_ACCESS_SETTINGS)
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            reactApplicationContext.startActivity(intent)
+            promise.resolve(true)
+        } catch (e: Exception) {
+            promise.reject("ERROR", "Failed to open usage stats settings: ${e.message}")
+        }
+    }
+
+    @ReactMethod
+    fun shouldBlockAutoRelaunch(promise: Promise) {
+        // Juste retourner la valeur, ne pas reset automatiquement
+        val shouldBlock = MainActivity.blockAutoRelaunch
+        DebugLog.d("KioskModule", "shouldBlockAutoRelaunch = $shouldBlock")
+        promise.resolve(shouldBlock)
+    }
+
+    @ReactMethod
+    fun clearBlockAutoRelaunch(promise: Promise) {
+        // Reset explicite appelé par React après navigation vers PIN
+        MainActivity.blockAutoRelaunch = false
+        DebugLog.d("KioskModule", "clearBlockAutoRelaunch - flag reset to false")
+        promise.resolve(true)
+    }
+
+    @ReactMethod
+    fun setBlockAutoRelaunch(block: Boolean, promise: Promise) {
+        MainActivity.blockAutoRelaunch = block
+        DebugLog.d("KioskModule", "setBlockAutoRelaunch = $block")
+        promise.resolve(true)
+    }
+
+    @ReactMethod
+    fun removeDeviceOwner(promise: Promise) {
+        try {
+            val dpm = reactApplicationContext.getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
+            val adminComponent = ComponentName(reactApplicationContext, DeviceAdminReceiver::class.java)
+
+            if (dpm.isDeviceOwnerApp(reactApplicationContext.packageName)) {
+                try {
+                    // #199 — Restore the normal launcher before relinquishing Device Owner, so the
+                    // user isn't left stuck with FreeKiosk as the persistent Home with no DO to undo it.
+                    try {
+                        dpm.clearPackagePersistentPreferredActivities(adminComponent, reactApplicationContext.packageName)
+                    } catch (e: Exception) {
+                        android.util.Log.w("KioskModule", "Could not clear launcher policy before DO removal: ${e.message}")
+                    }
+                    dpm.clearDeviceOwnerApp(reactApplicationContext.packageName)
+                    android.util.Log.d("KioskModule", "Device Owner removed successfully")
+                    promise.resolve(true)
+                } catch (e: Exception) {
+                    android.util.Log.e("KioskModule", "Failed to remove Device Owner: ${e.message}")
+                    promise.reject("ERROR", "Failed to remove Device Owner: ${e.message}")
+                }
+            } else {
+                promise.reject("NOT_DEVICE_OWNER", "App is not a Device Owner")
+            }
+        } catch (e: Exception) {
+            promise.reject("ERROR", "Failed to check Device Owner status: ${e.message}")
+        }
+    }
+
+    @ReactMethod
+    fun reboot(promise: Promise) {
+        try {
+            val dpm = reactApplicationContext.getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
+            val adminComponent = ComponentName(reactApplicationContext, DeviceAdminReceiver::class.java)
+
+            if (dpm.isDeviceOwnerApp(reactApplicationContext.packageName)) {
+                dpm.reboot(adminComponent)
+                promise.resolve(true)
+            } else {
+                promise.reject("NOT_DEVICE_OWNER", "Reboot requires Device Owner mode")
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("KioskModule", "Failed to reboot: ${e.message}")
+            promise.reject("ERROR", "Failed to reboot: ${e.message}")
+        }
+    }
+
+
+
+    /**
+     * Turn screen ON using WakeLock
+     * This will turn on the screen even if it was turned off with power button or lockNow()
+     */
+    @ReactMethod
+    fun turnScreenOn(promise: Promise) {
+        try {
+            val powerManager = reactApplicationContext.getSystemService(Context.POWER_SERVICE) as PowerManager
+
+            // IMPORTANT: Acquire WakeLock FIRST, before checking for activity
+            // After lockNow(), activity may be null, but WakeLock still works
+
+            // Release old wakeLock if exists
+            wakeLock?.release()
+
+            // Create WakeLock to turn on screen
+            @Suppress("DEPRECATION")
+            wakeLock = powerManager.newWakeLock(
+                PowerManager.FULL_WAKE_LOCK or 
+                PowerManager.ACQUIRE_CAUSES_WAKEUP or 
+                PowerManager.ON_AFTER_RELEASE,
+                "FreeKiosk:ScreenOn"
+            )
+            wakeLock?.acquire(10*60*1000L) // 10 minutes timeout
+            android.util.Log.d("KioskModule", "WakeLock acquired to turn screen ON")
+
+            val activity = reactApplicationContext.currentActivity
+            if (activity != null) {
+                activity.runOnUiThread {
+                    try {
+                        // Show over lock screen and dismiss keyguard (in case PIN is set)
+                        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O_MR1) {
+                            activity.setShowWhenLocked(true)
+                            activity.setTurnScreenOn(true)
+                            val keyguardManager = reactApplicationContext.getSystemService(Context.KEYGUARD_SERVICE) as android.app.KeyguardManager
+                            keyguardManager.requestDismissKeyguard(activity, null)
+                        } else {
+                            @Suppress("DEPRECATION")
+                            activity.window.addFlags(
+                                android.view.WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD or
+                                android.view.WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
+                                android.view.WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON
+                            )
+                        }
+
+                        // Re-enable FLAG_KEEP_SCREEN_ON only if not in system-managed mode
+                        // Check SharedPreferences for the keep_screen_on setting
+                        val prefs = reactApplicationContext.getSharedPreferences("FreeKioskSettings", Context.MODE_PRIVATE)
+                        val keepScreenOn = prefs.getBoolean("keep_screen_on", true)
+                        if (keepScreenOn) {
+                            activity.window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                        }
+
+                        // #242: restore the requested brightness rather than the system
+                        // default, which FreeKiosk never wrote.
+                        BrightnessPrefs.applyToWindow(reactApplicationContext, activity.window)
+
+                        android.util.Log.d("KioskModule", "Screen turned ON via WakeLock + activity flags")
+                    } catch (e: Exception) {
+                        android.util.Log.e("KioskModule", "Failed to set activity flags: ${e.message}")
+                    }
+                }
+            } else {
+                android.util.Log.w("KioskModule", "Activity is null after lockNow() — WakeLock alone will wake screen")
+            }
+
+            // Resolve immediately - WakeLock handles the wake even if activity is null
+            promise.resolve(true)
+        } catch (e: Exception) {
+            android.util.Log.e("KioskModule", "Failed to turn screen on: ${e.message}")
+            promise.reject("ERROR", "Failed to turn screen on: ${e.message}")
+        }
+    }
+
+    /**
+     * Turn screen OFF
+     * With Device Owner: uses lockNow() to truly turn off the screen
+     * Without Device Owner: dims brightness to 0 but KEEPS the screen alive
+     *   so that JavaScript timers continue to run for reliable wake-up.
+     */
+    @ReactMethod
+    fun turnScreenOff(promise: Promise) {
+        try {
+            val activity = reactApplicationContext.currentActivity
+            if (activity != null) {
+                activity.runOnUiThread {
+                    try {
+                        // Tell the screen-off receiver this was asked for, so auto-wake does
+                        // not undo it the moment ACTION_SCREEN_OFF lands. Set before the
+                        // branches: the accessibility path locks the screen too.
+                        ScreenStateReceiver.markDeliberateScreenOff(reactApplicationContext)
+
+                        val dpm = reactApplicationContext.getSystemService(Context.DEVICE_POLICY_SERVICE) as android.app.admin.DevicePolicyManager
+                        val adminComponent = ComponentName(reactApplicationContext, DeviceAdminReceiver::class.java)
+                        if (dpm.isDeviceOwnerApp(reactApplicationContext.packageName) || dpm.isAdminActive(adminComponent)) {
+                            // Device Owner OR Device Admin: lockNow() is available to both
+                            wakeLock?.release()
+                            wakeLock = null
+                            dpm.lockNow()
+                            val method = if (dpm.isDeviceOwnerApp(reactApplicationContext.packageName)) "Device Owner" else "Device Admin"
+                            android.util.Log.d("KioskModule", "Screen turned OFF via $method lockNow()")
+                            promise.resolve(true)
+                        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P && FreeKioskAccessibilityService.isRunning()) {
+                            // AccessibilityService fallback (API 28+): truly lock screen without Device Owner
+                            wakeLock?.release()
+                            wakeLock = null
+                            val ok = FreeKioskAccessibilityService.performAction(AccessibilityService.GLOBAL_ACTION_LOCK_SCREEN)
+                            if (ok) {
+                                android.util.Log.d("KioskModule", "Screen locked via AccessibilityService GLOBAL_ACTION_LOCK_SCREEN")
+                                promise.resolve(true)
+                            } else {
+                                // GLOBAL_ACTION_LOCK_SCREEN failed, fall through to brightness fallback
+                                val layoutParams = activity.window.attributes
+                                layoutParams.screenBrightness = 0.001f
+                                activity.window.attributes = layoutParams
+                                android.util.Log.d("KioskModule", "GLOBAL_ACTION_LOCK_SCREEN failed, dimmed brightness as fallback")
+                                promise.resolve(true)
+                            }
+                        } else {
+                            // Last resort: dim brightness to 0 (screen appears black)
+                            // IMPORTANT: Do NOT clear FLAG_KEEP_SCREEN_ON!
+                            // The screen must stay "on" internally so JS timers keep running
+                            // and can trigger the wake-up at the scheduled time.
+                            val layoutParams = activity.window.attributes
+                            layoutParams.screenBrightness = 0.001f  // Near-zero, screen appears black
+                            activity.window.attributes = layoutParams
+
+                            android.util.Log.d("KioskModule", "Screen dimmed to near-0 brightness (no Device Owner, no AccessibilityService)")
+                            promise.resolve(true)
+                        }
+                    } catch (e: Exception) {
+                        android.util.Log.e("KioskModule", "Failed to turn screen off: ${e.message}")
+                        promise.reject("ERROR", "Failed to turn screen off: ${e.message}")
+                    }
+                }
+            } else {
+                promise.reject("ERROR", "Activity not available")
+            }
+        } catch (e: Exception) {
+            promise.reject("ERROR", "Failed to turn screen off: ${e.message}")
+        }
+    }
+
+    /**
+     * Check if screen is currently ON or OFF
+     * Returns true if screen is interactive (on), false if off
+     */
+    @ReactMethod
+    fun isScreenOn(promise: Promise) {
+        try {
+            val powerManager = reactApplicationContext.getSystemService(Context.POWER_SERVICE) as PowerManager
+            val isScreenOn = powerManager.isInteractive
+
+            android.util.Log.d("KioskModule", "Screen state: ${if (isScreenOn) "ON" else "OFF"}")
+            promise.resolve(isScreenOn)
+        } catch (e: Exception) {
+            android.util.Log.e("KioskModule", "Failed to check screen state: ${e.message}")
+            promise.reject("ERROR", "Failed to check screen state: ${e.message}")
+        }
+    }
+
+    /**
+     * Set or clear the FLAG_KEEP_SCREEN_ON window flag.
+     * When enabled (default): screen stays on permanently — standard kiosk behavior.
+     * When disabled: Android system manages screen timeout normally.
+     */
+    @ReactMethod
+    fun setKeepScreenOn(enabled: Boolean, promise: Promise) {
+        try {
+            // Persist to SharedPreferences so turnScreenOn() can check later
+            val prefs = reactApplicationContext.getSharedPreferences("FreeKioskSettings", Context.MODE_PRIVATE)
+            prefs.edit().putBoolean("keep_screen_on", enabled).apply()
+
+            val activity = reactApplicationContext.currentActivity
+            if (activity != null) {
+                activity.runOnUiThread {
+                    try {
+                        if (enabled) {
+                            activity.window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                            android.util.Log.d("KioskModule", "FLAG_KEEP_SCREEN_ON added — screen stays on")
+                        } else {
+                            activity.window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                            android.util.Log.d("KioskModule", "FLAG_KEEP_SCREEN_ON cleared — system manages screen timeout")
+                        }
+                        promise.resolve(true)
+                    } catch (e: Exception) {
+                        android.util.Log.e("KioskModule", "Failed to set keep screen on: ${e.message}")
+                        promise.reject("ERROR", "Failed to set keep screen on: ${e.message}")
+                    }
+                }
+            } else {
+                promise.reject("ERROR", "Activity not available")
+            }
+        } catch (e: Exception) {
+            promise.reject("ERROR", "Failed to set keep screen on: ${e.message}")
+        }
+    }
+
+    /**
+     * Enable or disable auto-wake on screen off.
+     * When enabled, ScreenStateReceiver will immediately re-wake the screen
+     * after detecting ACTION_SCREEN_OFF (e.g. from a power button short-press).
+     */
+    @ReactMethod
+    fun setAutoWakeOnScreenOff(enabled: Boolean, promise: Promise) {
+        try {
+            val prefs = reactApplicationContext.getSharedPreferences("FreeKioskSettings", Context.MODE_PRIVATE)
+            prefs.edit().putBoolean("auto_wake_on_screen_off", enabled).apply()
+            android.util.Log.d("KioskModule", "Auto-wake on screen off: $enabled")
+            promise.resolve(true)
+        } catch (e: Exception) {
+            promise.reject("ERROR", "Failed to set auto-wake: ${e.message}")
+        }
+    }
+
+    /**
+     * Save PIN hash for ADB verification
+     * Called when PIN is set via React Native UI to keep ADB config in sync
+     */
+    @ReactMethod
+    fun saveAdbPinHash(pin: String, promise: Promise) {
+        try {
+            val salt = java.util.UUID.randomUUID().toString()
+            val hash = hashPinWithSalt(pin, salt)
+
+            val prefs = reactApplicationContext.getSharedPreferences("FreeKioskAdbConfig", Context.MODE_PRIVATE)
+            prefs.edit()
+                .putString("pin_hash", hash)
+                .putString("pin_salt", salt)
+                .apply()
+
+            android.util.Log.d("KioskModule", "ADB PIN hash saved from React Native")
+            promise.resolve(true)
+        } catch (e: Exception) {
+            android.util.Log.e("KioskModule", "Failed to save ADB PIN hash: ${e.message}")
+            promise.reject("ERROR", "Failed to save ADB PIN hash: ${e.message}")
+        }
+    }
+
+    /**
+     * Clear ADB PIN hash (when PIN is cleared in app)
+     */
+    @ReactMethod
+    fun clearAdbPinHash(promise: Promise) {
+        try {
+            val prefs = reactApplicationContext.getSharedPreferences("FreeKioskAdbConfig", Context.MODE_PRIVATE)
+            prefs.edit()
+                .remove("pin_hash")
+                .remove("pin_salt")
+                .apply()
+
+            android.util.Log.d("KioskModule", "ADB PIN hash cleared")
+            promise.resolve(true)
+        } catch (e: Exception) {
+            android.util.Log.e("KioskModule", "Failed to clear ADB PIN hash: ${e.message}")
+            promise.reject("ERROR", "Failed to clear ADB PIN hash: ${e.message}")
+        }
+    }
+
+    /**
+     * Get pending ADB config from SharedPreferences
+     * Returns a map of key-value pairs that should be saved to AsyncStorage
+     * Called by KioskScreen on startup to apply ADB-configured settings
+     */
+    @ReactMethod
+    fun getPendingAdbConfig(promise: Promise) {
+        try {
+            val prefs = reactApplicationContext.getSharedPreferences("FreeKioskPendingConfig", Context.MODE_PRIVATE)
+            val hasPending = prefs.getBoolean("has_pending_config", false)
+
+            if (!hasPending) {
+                promise.resolve(null)
+                return
+            }
+
+            val result = com.facebook.react.bridge.Arguments.createMap()
+            val allEntries = prefs.all
+            for ((key, value) in allEntries) {
+                if (key != "has_pending_config" && value is String) {
+                    result.putString(key, value)
+                }
+            }
+
+            android.util.Log.i("KioskModule", "Returning pending ADB config with ${allEntries.size - 1} entries")
+            promise.resolve(result)
+        } catch (e: Exception) {
+            android.util.Log.e("KioskModule", "Failed to get pending config: ${e.message}")
+            promise.reject("ERROR", "Failed to get pending config: ${e.message}")
+        }
+    }
+
+    /**
+     * Clear pending ADB config after it has been applied to AsyncStorage
+     */
+    @ReactMethod
+    fun clearPendingAdbConfig(promise: Promise) {
+        try {
+            val prefs = reactApplicationContext.getSharedPreferences("FreeKioskPendingConfig", Context.MODE_PRIVATE)
+            prefs.edit().clear().commit()
+            android.util.Log.i("KioskModule", "Pending ADB config cleared")
+            promise.resolve(true)
+        } catch (e: Exception) {
+            android.util.Log.e("KioskModule", "Failed to clear pending config: ${e.message}")
+            promise.reject("ERROR", "Failed to clear pending config: ${e.message}")
+        }
+    }
+
+
+
+
+
+
+
+    /**
+     * Broadcast that settings are loaded (called after ADB config restart)
+     */
+    @ReactMethod
+    fun broadcastSettingsLoaded(promise: Promise) {
+        try {
+            // #238: proof that React Native actually finished starting. MainActivity pins the
+            // device from onCreate, long before JS is up, so without this signal a JS startup
+            // that never completes leaves a frozen app pinned on screen.
+            jsReachedSettingsLoaded = true
+            val intent = Intent("top.lhlnb.easykiosk.SETTINGS_LOADED")
+            reactApplicationContext.sendBroadcast(intent)
+            android.util.Log.i("KioskModule", "Broadcasted SETTINGS_LOADED")
+            promise.resolve(true)
+        } catch (e: Exception) {
+            android.util.Log.e("KioskModule", "Failed to broadcast: ${e.message}")
+            promise.reject("ERROR", "Failed to broadcast: ${e.message}")
+        }
+    }
+
+    /**
+     * Hash PIN with salt using SHA-256 (same as MainActivity)
+     */
+    private fun hashPinWithSalt(pin: String, salt: String): String {
+        val combined = "$pin:$salt:freekiosk_adb"
+        val digest = java.security.MessageDigest.getInstance("SHA-256")
+        val hashBytes = digest.digest(combined.toByteArray(Charsets.UTF_8))
+        return hashBytes.joinToString("") { "%02x".format(it) }
+    }
+
+    /**
+     * Save PIN to AsyncStorage for UI display
+     * This is called from native ADB config to make PIN visible in Settings
+     */
+    fun savePinToStorage(pin: String): Boolean {
+        return try {
+            val dbPath = reactApplicationContext.getDatabasePath("RKStorage").absolutePath
+            val db = android.database.sqlite.SQLiteDatabase.openOrCreateDatabase(dbPath, null)
+
+            db.execSQL("""
+                CREATE TABLE IF NOT EXISTS catalystLocalStorage (
+                  `key` TEXT NOT NULL,
+                  `value` TEXT,
+                  PRIMARY KEY(`key`)
+                )
+            """.trimIndent())
+
+            val contentValues = android.content.ContentValues().apply {
+                put("key", "@kiosk_pin")
+                put("value", pin)
+            }
+            db.insertWithOnConflict("catalystLocalStorage", null, contentValues, android.database.sqlite.SQLiteDatabase.CONFLICT_REPLACE)
+            db.close()
+
+            android.util.Log.i("KioskModule", "PIN saved to AsyncStorage for UI")
+            true
+        } catch (e: Exception) {
+            android.util.Log.e("KioskModule", "Failed to save PIN to storage: ${e.message}")
+            false
+        }
+    }
+
+    // ==================== Screen Scheduler Alarms ====================
+
+    /**
+     * Schedule a native alarm to wake the screen at a specific time.
+     * Uses AlarmManager.setAlarmClock() (#307) when exact alarms are allowed: exact, and allowed
+     * in Doze. An inexact alarm (setAndAllowWhileIdle) may be delivered anywhere in a window of
+     * 75% of the time left, up to an hour, so a wake set in the evening for 07:00 could fire as
+     * late as 08:00. The system lists an exact one as the next alarm. When exact alarms are not
+     * allowed (a Play Store build, or the permission refused: setAlarmClock throws without it
+     * on Android 14+) it falls back to the inexact alarm, so a wake is never lost.
+     * This is critical because JS timers are suspended when the screen is off via lockNow().
+     *
+     * @param wakeTimeMs Unix timestamp in milliseconds for the wake time
+     */
+    @ReactMethod
+    fun scheduleScreenWake(wakeTimeMs: Double, promise: Promise) {
+        try {
+            val context = reactApplicationContext
+            val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as android.app.AlarmManager
+
+            val intent = Intent(context, ScreenSchedulerReceiver::class.java).apply {
+                action = ScreenSchedulerReceiver.ACTION_SCREEN_WAKE
+            }
+            val pendingIntent = android.app.PendingIntent.getBroadcast(
+                context,
+                1001, // unique request code for wake
+                intent,
+                android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE
+            )
+
+            val exact = setExactWakeAlarm(context, alarmManager, wakeTimeMs.toLong(), pendingIntent)
+            if (!exact) {
+                // Same alarm as before #307: works without any permission, but may be late
+                alarmManager.setAndAllowWhileIdle(
+                    android.app.AlarmManager.RTC_WAKEUP,
+                    wakeTimeMs.toLong(),
+                    pendingIntent
+                )
+            }
+
+            val calendar = java.util.Calendar.getInstance().apply { timeInMillis = wakeTimeMs.toLong() }
+            val timeStr = String.format("%02d:%02d:%02d", 
+                calendar.get(java.util.Calendar.HOUR_OF_DAY),
+                calendar.get(java.util.Calendar.MINUTE),
+                calendar.get(java.util.Calendar.SECOND))
+            android.util.Log.d("KioskModule", "⏰ Screen WAKE alarm scheduled for $timeStr (${wakeTimeMs.toLong()}ms, exact=$exact)")
+            promise.resolve(true)
+        } catch (e: Exception) {
+            android.util.Log.e("KioskModule", "Failed to schedule wake alarm: ${e.message}")
+            promise.reject("ERROR", "Failed to schedule wake alarm: ${e.message}")
+        }
+    }
+
+    /**
+     * Sets the wake alarm as an exact alarm clock (#307). Returns false, and sets nothing, when
+     * exact alarms are not allowed for the app, so the caller can fall back to an inexact alarm.
+     */
+    private fun setExactWakeAlarm(
+        context: Context,
+        alarmManager: android.app.AlarmManager,
+        triggerAtMs: Long,
+        operation: android.app.PendingIntent
+    ): Boolean {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S && !alarmManager.canScheduleExactAlarms()) {
+            android.util.Log.w("KioskModule", "Exact alarms are not allowed for FreeKiosk: the wake alarm is inexact and can be late by up to an hour")
+            return false
+        }
+        return try {
+            // The "show" intent is what the system opens when the alarm is tapped in its UI
+            val showIntent = android.app.PendingIntent.getActivity(
+                context,
+                1003, // unique request code for the alarm-clock "show" intent
+                Intent(context, MainActivity::class.java),
+                android.app.PendingIntent.FLAG_IMMUTABLE
+            )
+            alarmManager.setAlarmClock(android.app.AlarmManager.AlarmClockInfo(triggerAtMs, showIntent), operation)
+            true
+        } catch (e: SecurityException) {
+            // canScheduleExactAlarms() said yes (or there was no way to ask) and the system refused anyway
+            android.util.Log.w("KioskModule", "Exact wake alarm refused (${e.message}), using an inexact one")
+            false
+        }
+    }
+
+    /**
+     * Schedule a native alarm to trigger sleep at a specific time.
+     *
+     * @param sleepTimeMs Unix timestamp in milliseconds for the sleep time
+     */
+    @ReactMethod
+    fun scheduleScreenSleep(sleepTimeMs: Double, promise: Promise) {
+        try {
+            val context = reactApplicationContext
+            val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as android.app.AlarmManager
+
+            val intent = Intent(context, ScreenSchedulerReceiver::class.java).apply {
+                action = ScreenSchedulerReceiver.ACTION_SCREEN_SLEEP
+            }
+            val pendingIntent = android.app.PendingIntent.getBroadcast(
+                context,
+                1002, // unique request code for sleep
+                intent,
+                android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE
+            )
+
+            // setAndAllowWhileIdle works in Doze mode without SCHEDULE_EXACT_ALARM permission
+            alarmManager.setAndAllowWhileIdle(
+                android.app.AlarmManager.RTC_WAKEUP,
+                sleepTimeMs.toLong(),
+                pendingIntent
+            )
+
+            val calendar = java.util.Calendar.getInstance().apply { timeInMillis = sleepTimeMs.toLong() }
+            val timeStr = String.format("%02d:%02d:%02d",
+                calendar.get(java.util.Calendar.HOUR_OF_DAY),
+                calendar.get(java.util.Calendar.MINUTE),
+                calendar.get(java.util.Calendar.SECOND))
+            android.util.Log.d("KioskModule", "⏰ Screen SLEEP alarm scheduled for $timeStr (${sleepTimeMs.toLong()}ms)")
+            promise.resolve(true)
+        } catch (e: Exception) {
+            android.util.Log.e("KioskModule", "Failed to schedule sleep alarm: ${e.message}")
+            promise.reject("ERROR", "Failed to schedule sleep alarm: ${e.message}")
+        }
+    }
+
+    /**
+     * Cancel all scheduled screen wake/sleep alarms.
+     */
+    @ReactMethod
+    fun cancelScheduledScreenAlarms(promise: Promise) {
+        try {
+            val context = reactApplicationContext
+            val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as android.app.AlarmManager
+
+            // Cancel wake alarm
+            val wakeIntent = Intent(context, ScreenSchedulerReceiver::class.java).apply {
+                action = ScreenSchedulerReceiver.ACTION_SCREEN_WAKE
+            }
+            val wakePendingIntent = android.app.PendingIntent.getBroadcast(
+                context, 1001, wakeIntent,
+                android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE
+            )
+            alarmManager.cancel(wakePendingIntent)
+
+            // Cancel sleep alarm
+            val sleepIntent = Intent(context, ScreenSchedulerReceiver::class.java).apply {
+                action = ScreenSchedulerReceiver.ACTION_SCREEN_SLEEP
+            }
+            val sleepPendingIntent = android.app.PendingIntent.getBroadcast(
+                context, 1002, sleepIntent,
+                android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE
+            )
+            alarmManager.cancel(sleepPendingIntent)
+
+            android.util.Log.d("KioskModule", "All screen scheduler alarms cancelled")
+            promise.resolve(true)
+        } catch (e: Exception) {
+            android.util.Log.e("KioskModule", "Failed to cancel alarms: ${e.message}")
+            promise.reject("ERROR", "Failed to cancel alarms: ${e.message}")
+        }
+    }
+
+    /**
+     * Open Android system settings.
+     * Handles Lock Task Mode: temporarily stops lock task to allow navigation
+     * to Settings. When the user returns to FreeKiosk, MainActivity.onResume()
+     * automatically re-engages Lock Task Mode.
+     *
+     * @param settingsPage Optional specific settings page:
+     *   "wifi", "sound", "display", "bluetooth", "location", "apps", "date"
+     *   or null/empty to open the main settings screen.
+     */
+    @ReactMethod
+    fun openAndroidSettings(settingsPage: String?, promise: Promise) {
+        try {
+            val action = when (settingsPage?.lowercase()) {
+                "wifi", "wireless" -> android.provider.Settings.ACTION_WIFI_SETTINGS
+                "sound", "volume", "audio" -> android.provider.Settings.ACTION_SOUND_SETTINGS
+                "display", "screen", "brightness" -> android.provider.Settings.ACTION_DISPLAY_SETTINGS
+                "bluetooth" -> android.provider.Settings.ACTION_BLUETOOTH_SETTINGS
+                "location" -> android.provider.Settings.ACTION_LOCATION_SOURCE_SETTINGS
+                "apps", "applications" -> android.provider.Settings.ACTION_APPLICATION_SETTINGS
+                "date", "time" -> android.provider.Settings.ACTION_DATE_SETTINGS
+                "security" -> android.provider.Settings.ACTION_SECURITY_SETTINGS
+                "accessibility" -> android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS
+                "home", "launcher" -> android.provider.Settings.ACTION_HOME_SETTINGS
+                else -> android.provider.Settings.ACTION_SETTINGS
+            }
+
+            val activity = reactApplicationContext.currentActivity
+
+            // Check if we're in Lock Task Mode — must stop it before launching external activity
+            val activityManager = reactApplicationContext.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+            val wasInLockTask = activityManager.lockTaskModeState != ActivityManager.LOCK_TASK_MODE_NONE
+
+            if (wasInLockTask && activity != null) {
+                android.util.Log.d("KioskModule", "Temporarily stopping Lock Task to open Android settings")
+                activity.runOnUiThread {
+                    try {
+                        activity.stopLockTask()
+                        // Small delay to let the system process the lock task stop
+                        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                            try {
+                                val intent = Intent(action).apply {
+                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                }
+                                reactApplicationContext.startActivity(intent)
+                                android.util.Log.d("KioskModule", "Opened Android settings (lock task paused): ${settingsPage ?: "main"}")
+                            } catch (e: Exception) {
+                                android.util.Log.e("KioskModule", "Failed to launch settings after unlock: ${e.message}")
+                                // Re-lock if we failed to open settings
+                                try { activity.startLockTask() } catch (_: Exception) {}
+                            }
+                        }, 300)
+                        promise.resolve(true)
+                    } catch (e: Exception) {
+                        android.util.Log.e("KioskModule", "Failed to stop lock task: ${e.message}")
+                        promise.reject("ERROR", "Failed to temporarily exit kiosk mode: ${e.message}")
+                    }
+                }
+            } else {
+                // Not in Lock Task Mode — just launch directly
+                val intent = Intent(action).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                reactApplicationContext.startActivity(intent)
+                android.util.Log.d("KioskModule", "Opened Android settings: ${settingsPage ?: "main"}")
+                promise.resolve(true)
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("KioskModule", "Failed to open Android settings: ${e.message}")
+            promise.reject("ERROR", "Failed to open Android settings: ${e.message}")
+        }
+    }
+
+    /**
+     * Read all managed app package names from AsyncStorage.
+     * Used to add them to the lock task whitelist.
+     */
+    /**
+     * Check if window.print() (Allow Printing) is enabled in settings (read from AsyncStorage)
+     */
+    /**
+     * #268: whether the admin allowed the system "Allow USB debugging?" dialog in lock mode.
+     * That dialog is an activity of SystemUI, which lock task keeps from coming to the front
+     * unless the package is whitelisted. Off by default: with it on, anyone who can plug a
+     * computer into the tablet can see the dialog and tap Allow.
+     */
+    private fun isUsbDebugDialogAllowed(): Boolean {
+        return try {
+            val dbPath = reactApplicationContext.getDatabasePath("RKStorage").absolutePath
+            val db = android.database.sqlite.SQLiteDatabase.openDatabase(dbPath, null, android.database.sqlite.SQLiteDatabase.OPEN_READONLY)
+            val cursor = db.rawQuery(
+                "SELECT value FROM catalystLocalStorage WHERE key = ?",
+                arrayOf("@kiosk_allow_usb_debug_dialog")
+            )
+            val result = cursor.moveToFirst() && cursor.getString(0) == "true"
+            cursor.close()
+            db.close()
+            result
+        } catch (e: Exception) {
+            android.util.Log.w("KioskModule", "Could not read the USB debugging dialog setting: ${e.message}")
+            false
+        }
+    }
+
+    private fun isWindowPrintEnabled(): Boolean {
+        return try {
+            val dbPath = reactApplicationContext.getDatabasePath("RKStorage").absolutePath
+            val db = android.database.sqlite.SQLiteDatabase.openDatabase(dbPath, null, android.database.sqlite.SQLiteDatabase.OPEN_READONLY)
+            val cursor = db.rawQuery(
+                "SELECT value FROM catalystLocalStorage WHERE key = ?",
+                arrayOf("@kiosk_print_enabled")
+            )
+            val result = if (cursor.moveToFirst()) {
+                cursor.getString(0) == "true"
+            } else {
+                false
+            }
+            cursor.close()
+            db.close()
+            result
+        } catch (e: Exception) {
+            android.util.Log.w("KioskModule", "Could not read print enabled setting: ${e.message}")
+            false
+        }
+    }
+
+    /**
+     * Dynamically discover all print spooler/service packages installed on the device.
+     * Covers com.android.printspooler, Samsung Print Service, HP Print, etc.
+     */
+    private fun getPrintSpoolerPackages(): List<String> {
+        val packages = mutableSetOf<String>()
+        packages.add("com.android.printspooler")
+        try {
+            val printServices = reactApplicationContext.packageManager.queryIntentServices(
+                Intent("android.printservice.PrintService"),
+                PackageManager.GET_META_DATA
+            )
+            for (service in printServices) {
+                service.serviceInfo?.packageName?.let { pkg ->
+                    packages.add(pkg)
+                }
+            }
+            android.util.Log.d("KioskModule", "Print spooler packages for whitelist: $packages")
+        } catch (e: Exception) {
+            android.util.Log.w("KioskModule", "Could not discover print services: ${e.message}")
+        }
+        return packages.toList()
+    }
+
+    private fun getEmergencyDialerPackages(): List<String> {
+        val packages = mutableSetOf<String>()
+        val emergencyIntents = listOf(
+            Intent(emergencyDialerAction).addCategory(Intent.CATEGORY_DEFAULT),
+            Intent(emergencyDialAction).addCategory(Intent.CATEGORY_DEFAULT),
+        )
+        try {
+            emergencyIntents.forEach { emergencyIntent ->
+                reactApplicationContext.packageManager.resolveActivity(
+                    emergencyIntent, PackageManager.MATCH_DEFAULT_ONLY
+                )?.activityInfo?.packageName?.let { packages.add(it) }
+
+                reactApplicationContext.packageManager.queryIntentActivities(
+                    emergencyIntent, PackageManager.MATCH_DEFAULT_ONLY
+                ).forEach { info ->
+                    info.activityInfo?.packageName?.let { packages.add(it) }
+                }
+            }
+            packages.add("com.android.phone")
+            android.util.Log.d("KioskModule", "Emergency dialer packages for whitelist: $packages")
+        } catch (e: Exception) {
+            android.util.Log.w("KioskModule", "Could not resolve emergency dialer packages: ${e.message}")
+        }
+        return packages.toList()
+    }
+
+    private fun createEmergencyDialIntent(): Intent {
+        val intent = Intent(emergencyDialerAction).apply {
+            addCategory(Intent.CATEGORY_DEFAULT)
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        }
+        try {
+            val activityInfo = listOf(
+                Intent(emergencyDialerAction).addCategory(Intent.CATEGORY_DEFAULT),
+                Intent(emergencyDialAction).addCategory(Intent.CATEGORY_DEFAULT),
+            ).asSequence()
+                .flatMap { emergencyIntent ->
+                    reactApplicationContext.packageManager.queryIntentActivities(
+                        emergencyIntent,
+                        PackageManager.MATCH_DEFAULT_ONLY
+                    ).asSequence()
+                }
+                .mapNotNull { it.activityInfo }
+                .firstOrNull()
+
+            if (activityInfo?.packageName != null && activityInfo.name != null) {
+                intent.component = ComponentName(activityInfo.packageName, activityInfo.name)
+                android.util.Log.d(
+                    "KioskModule",
+                    "Launching emergency dialer component: ${activityInfo.packageName}/${activityInfo.name}"
+                )
+            } else {
+                intent.component = ComponentName("com.android.phone", "com.android.phone.EmergencyDialer")
+                android.util.Log.d("KioskModule", "Launching fallback emergency dialer component: com.android.phone/.EmergencyDialer")
+            }
+        } catch (e: Exception) {
+            android.util.Log.w("KioskModule", "Could not choose emergency dialer component: ${e.message}")
+            intent.component = ComponentName("com.android.phone", "com.android.phone.EmergencyDialer")
+        }
+        return intent
+    }
+
+    private fun ensureEmergencyDialerWhitelisted() {
+        try {
+            val dpm = reactApplicationContext.getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
+            if (!dpm.isDeviceOwnerApp(reactApplicationContext.packageName)) return
+
+            val adminComponent = ComponentName(reactApplicationContext, DeviceAdminReceiver::class.java)
+            // Android 7 cannot read the whitelist back: leave it as the lock task start built it.
+            val currentPackages = (LockTaskCompat.readPackages(dpm, adminComponent) ?: return).toMutableSet()
+            val updatedPackages = currentPackages.toMutableSet()
+            updatedPackages.addAll(getEmergencyDialerPackages())
+
+            if (updatedPackages != currentPackages) {
+                dpm.setLockTaskPackages(adminComponent, updatedPackages.toTypedArray())
+                android.util.Log.d("KioskModule", "Updated lock task whitelist for emergency dialer: $updatedPackages")
+            }
+        } catch (e: Exception) {
+            android.util.Log.w("KioskModule", "Could not update emergency dialer whitelist: ${e.message}")
+        }
+    }
+
+    private fun getManagedAppPackages(): List<String> {
+        return try {
+            val dbPath = reactApplicationContext.getDatabasePath("RKStorage").absolutePath
+            val db = android.database.sqlite.SQLiteDatabase.openDatabase(dbPath, null, android.database.sqlite.SQLiteDatabase.OPEN_READONLY)
+            val cursor = db.rawQuery(
+                "SELECT value FROM catalystLocalStorage WHERE key = ?",
+                arrayOf("@kiosk_managed_apps")
+            )
+            val result = if (cursor.moveToFirst()) {
+                val json = cursor.getString(0) ?: "[]"
+                val apps = org.json.JSONArray(json)
+                val packages = mutableListOf<String>()
+                for (i in 0 until apps.length()) {
+                    val app = apps.getJSONObject(i)
+                    val pkg = app.getString("packageName")
+                    // Verify app is still installed
+                    try {
+                        reactApplicationContext.packageManager.getPackageInfo(pkg, 0)
+                        packages.add(pkg)
+                    } catch (e: Exception) {
+                        android.util.Log.w("KioskModule", "Managed app not installed, skipping: $pkg")
+                    }
+                }
+                packages
+            } else {
+                emptyList()
+            }
+            cursor.close()
+            db.close()
+            result
+        } catch (e: Exception) {
+            android.util.Log.w("KioskModule", "Could not read managed apps: ${e.message}")
+            emptyList()
+        }
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    @ReactMethod
+    fun bringToFront(promise: Promise) {
+        try {
+            val am = reactApplicationContext.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+            val tasks = am.appTasks
+            for (task in tasks) {
+                if (task.taskInfo?.baseActivity?.packageName == reactApplicationContext.packageName) {
+                    MainActivity.screensaverReturn = true
+                    task.moveToFront()
+                    promise.resolve(true)
+                    return
+                }
+            }
+            // Fallback: reorder existing MainActivity to front without creating new instance
+            MainActivity.screensaverReturn = true
+            val intent = Intent(reactApplicationContext, MainActivity::class.java)
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
+            reactApplicationContext.startActivity(intent)
+            promise.resolve(true)
+        } catch (e: Exception) {
+            promise.reject("ERROR", "bringToFront failed: ${e.message}")
+        }
+    }
+}

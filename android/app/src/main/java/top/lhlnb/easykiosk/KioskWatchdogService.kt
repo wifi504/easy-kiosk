@@ -1,0 +1,568 @@
+package top.lhlnb.easykiosk
+
+import android.app.ActivityManager
+import android.app.usage.UsageEvents
+import android.app.usage.UsageStatsManager
+import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.Service
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
+import android.database.sqlite.SQLiteDatabase
+import android.os.Build
+import android.os.Handler
+import android.os.IBinder
+import android.os.Looper
+import android.os.SystemClock
+import androidx.core.app.NotificationCompat
+
+/**
+ * KioskWatchdogService — a START_STICKY foreground service that monitors FreeKiosk's
+ * main process and relaunches it if it was killed (e.g. by the OOM killer).
+ *
+ * Fixes #96: On low-RAM devices (e.g. 2 GB AndroidTV), the browser can consume
+ * enough memory for the kernel to kill FreeKiosk. Without a watchdog, the kiosk
+ * simply disappears and the user lands on the launcher.
+ *
+ * The service:
+ *  • Runs as a lightweight foreground service (START_STICKY) so Android restarts it
+ *    if the process is killed.
+ *  • Periodically checks whether MainActivity is in the recent-task list.
+ *  • If MainActivity has vanished and kiosk mode is enabled, relaunches it.
+ *
+ * The service is started from BootReceiver and from MainActivity.onCreate().
+ * It stops itself if kiosk mode is disabled.
+ */
+class KioskWatchdogService : Service() {
+
+    companion object {
+        private const val TAG = "KioskWatchdog"
+        private const val CHANNEL_ID = "freekiosk_watchdog"
+        private const val NOTIFICATION_ID = 2002
+        private const val CHECK_INTERVAL_MS = 10_000L  // check every 10 s
+        private const val RELAUNCH_COOLDOWN_MS = 15_000L // min 15 s between relaunches
+        private const val RESTORE_DELAY_MS = 3_000L // #376: after a sticky restart
+        private const val FOREGROUND_LOOKBACK_MS = 24 * 60 * 60 * 1000L // #282
+        private const val SYSTEM_UI_PACKAGE = "com.android.systemui" // #268
+
+
+
+
+        private const val PREFS_NAME = "FreeKioskSettings"
+
+        /** Start (or keep) the kiosk guard. Unchanged #96 behaviour. */
+        fun startForKiosk(context: Context) = start(context)
+
+
+
+
+        /** True when something in the app needs the process alive while backgrounded. */
+
+
+        /** #376: at most one restore this often, so a crash at start-up cannot become a loop. */
+        internal const val RESTORE_MIN_INTERVAL_MS = 5 * 60_000L
+        private const val KEY_LAST_RESTORE_MS = "watchdog_last_restore_ms"
+
+
+        internal fun shouldRestoreAfterProcessDeath(
+            activityStarted: Boolean,
+            runsUnattended: Boolean,
+            deviceInteractive: Boolean,
+            lastRestoreMs: Long,
+            nowMs: Long,
+        ): Boolean =
+            !activityStarted &&
+                runsUnattended &&
+                !deviceInteractive &&
+                (lastRestoreMs <= 0L || nowMs - lastRestoreMs >= RESTORE_MIN_INTERVAL_MS)
+
+        private fun start(context: Context) {
+            try {
+                val intent = Intent(context, KioskWatchdogService::class.java)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    context.startForegroundService(intent)
+                } else {
+                    context.startService(intent)
+                }
+                DebugLog.d(TAG, "Kiosk watchdog start requested")
+            } catch (e: Exception) {
+                // ForegroundServiceStartNotAllowedException on Android 12+ when the app is
+                // in the background and not exempt. Nothing to recover: the next launch or
+                // BOOT_COMPLETED starts it from an allowed context.
+                DebugLog.errorProduction(TAG, "Could not start watchdog: ${e.message}")
+            }
+        }
+
+        /** Read a boolean AsyncStorage flag without going through the JS bridge. */
+        private fun readFlag(context: Context, key: String): Boolean {
+            return try {
+                val dbPath = context.getDatabasePath("RKStorage").absolutePath
+                val db = SQLiteDatabase.openDatabase(dbPath, null, SQLiteDatabase.OPEN_READONLY)
+                val cursor = db.rawQuery(
+                    "SELECT value FROM catalystLocalStorage WHERE key = ?", arrayOf(key))
+                val enabled = if (cursor.moveToFirst()) cursor.getString(0) == "true" else false
+                cursor.close()
+                db.close()
+                enabled
+            } catch (e: Exception) {
+                DebugLog.d(TAG, "Cannot read $key: ${e.message}")
+                false
+            }
+        }
+    }
+
+    private val handler = Handler(Looper.getMainLooper())
+    private var isRunning = false
+    /** #234: true when this instance only holds the process up (no relaunching). */
+    private var lastRelaunchTime = 0L
+    private var screenOnReceiver: BroadcastReceiver? = null
+
+    private val checkRunnable = object : Runnable {
+        override fun run() {
+            if (!isRunning) return
+            checkAndRelaunch()
+            handler.postDelayed(this, CHECK_INTERVAL_MS)
+        }
+    }
+
+    // ────────────────────────────────────────────────────────────────────
+    // Lifecycle
+    // ────────────────────────────────────────────────────────────────────
+
+    override fun onCreate() {
+        super.onCreate()
+        createNotificationChannel()
+        registerScreenOnReceiver()
+    }
+
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        // Read from prefs, not from the intent: START_STICKY restarts us with a null one.
+        // startForeground() must run before any early return: the caller used
+        // startForegroundService(), and stopping without it throws
+        // ForegroundServiceDidNotStartInTimeException on Android 12+.
+        startForeground(NOTIFICATION_ID, buildNotification())
+
+        if (!isKioskEnabled()) {
+            // Only run when kiosk mode is enabled
+            DebugLog.d(TAG, "Kiosk mode disabled — stopping watchdog")
+            stopSelf()
+            return START_NOT_STICKY
+        }
+
+        isRunning = true
+        handler.removeCallbacks(checkRunnable)
+        handler.postDelayed(checkRunnable, CHECK_INTERVAL_MS)
+
+        DebugLog.d(TAG, "Watchdog started (START_STICKY)")
+
+        // A null intent is the system restarting us after the process died; every start from
+        // the app, the boot receiver or the update receiver carries one.
+        if (intent == null) {
+            handler.postDelayed({ restoreActivityAfterProcessDeath() }, RESTORE_DELAY_MS)
+        }
+
+        // START_STICKY: Android will restart this service if the process is killed
+        return START_STICKY
+    }
+
+    /**
+     * #376: see [shouldRestoreAfterProcessDeath]. Runs a little after the sticky restart, so
+     * a launch already under way (update receiver, boot) has set MainActivity.hasStarted and
+     * is not doubled.
+     */
+    private fun restoreActivityAfterProcessDeath() {
+        if (!isRunning) return
+        val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val now = System.currentTimeMillis()
+        val powerManager = getSystemService(Context.POWER_SERVICE) as? android.os.PowerManager
+        val restore = shouldRestoreAfterProcessDeath(
+            activityStarted = MainActivity.hasStarted,
+            runsUnattended = isKioskEnabled(),
+            deviceInteractive = powerManager?.isInteractive != false,
+            lastRestoreMs = prefs.getLong(KEY_LAST_RESTORE_MS, 0L),
+            nowMs = now,
+        )
+        if (!restore) {
+            DebugLog.d(TAG, "Process restarted without MainActivity - nothing to restore")
+            return
+        }
+
+        prefs.edit().putLong(KEY_LAST_RESTORE_MS, now).apply()
+        DebugLog.d(TAG, "Process restarted without MainActivity while the screen is off - restoring it")
+        try {
+            val intent = Intent(this, MainActivity::class.java).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            }
+            startActivity(intent)
+        } catch (e: Exception) {
+            DebugLog.errorProduction(TAG, "Failed to restore MainActivity: ${e.message}")
+        }
+    }
+
+    override fun onBind(intent: Intent?): IBinder? = null
+
+    override fun onDestroy() {
+        isRunning = false
+        handler.removeCallbacks(checkRunnable)
+        unregisterScreenOnReceiver()
+        super.onDestroy()
+        DebugLog.d(TAG, "Watchdog destroyed")
+    }
+
+    // ────────────────────────────────────────────────────────────────────
+    // Core logic
+    // ────────────────────────────────────────────────────────────────────
+
+    private fun checkAndRelaunch() {
+        // Runs in both modes: an enrolled device in Lock Mode with an external app in front
+        // is just as backgrounded as one without it, and its heartbeat stops the same way.
+
+        // #234: keep-alive mode never relaunches anything. FreeKiosk is a normal app here,
+        // the user is free to leave it, and dragging it back to the foreground every 10s
+        // would be far worse than the problem this service solves.
+        // Re-check kiosk setting each cycle (user may have turned it off)
+        if (!isKioskEnabled()) {
+            DebugLog.d(TAG, "Kiosk mode disabled — stopping watchdog")
+            stopSelf()
+            return
+        }
+
+        // #197 follow-up: nothing to bring forward while the display is off. Since the
+        // check now reports real foreground state, the process sits at
+        // IMPORTANCE_FOREGROUND_SERVICE whenever the screen is off (this very service keeps
+        // it there), so without this guard the watchdog would fire startActivity every
+        // cooldown for the whole standby, fighting screen_off / the sleep scheduler. The
+        // SCREEN_ON receiver added by #197 runs the check on wake, so nothing is lost.
+        val powerManager = getSystemService(Context.POWER_SERVICE) as? android.os.PowerManager
+        if (powerManager?.isInteractive == false) return
+
+        // A print dialog is a system activity in its own right: while it is up, our
+        // process drops to IMPORTANCE_FOREGROUND_SERVICE (this very service keeps it there),
+        // so isMainActivityRunning() below reports false and the watchdog would drag the kiosk
+        // back over the printer selection, dismissing it within CHECK_INTERVAL_MS. Same guard
+        // MainActivity.onResume() and onWindowFocusChanged() already apply.
+        if (PrintModule.isPrintActive) {
+            DebugLog.d(TAG, "Print dialog is active - skipping relaunch check")
+            return
+        }
+
+        if (isMainActivityRunning()) return  // FreeKiosk itself is in foreground — fine
+
+        // #268: with "Allow the USB Debugging Prompt In Lock Mode" on, the "Allow USB
+        // debugging?" prompt (an activity of SystemUI) is let through by lock task, but it
+        // takes the foreground from MainActivity, so the checks below would drag the kiosk
+        // back over it within CHECK_INTERVAL_MS and the prompt vanished before it could be
+        // answered. Narrow on purpose: opt-in only, and only while SystemUI is what is in
+        // front; anything else still gets the relaunch.
+        if (isUsbDebugPromptInFront()) {
+            DebugLog.d(TAG, "USB debugging prompt is in front - skipping relaunch check")
+            return
+        }
+
+        // In external app mode, the external app is expected to be in the foreground.
+        // Don't relaunch MainActivity just because it's not the topActivity. (#106)
+        if (getDisplayMode() == "external_app") {
+            val foreground = getForegroundPackage()
+            // Unknown (usage access not granted) means we cannot tell an external app from
+            // the launcher, and relaunching on a guess would hijack the app the user is on.
+            if (foreground == null) return
+            if (foreground in getAllowedForegroundPackages()) return
+        } else {
+            // #282: a managed app opened from the page (geo:, tg:, tel:) is allowed by lock
+            // task, so it is not a reason to drag the kiosk back over it. Narrower than the
+            // external-app guard on purpose: unknown foreground still relaunches (#96 relies
+            // on that), FreeKiosk's own package does not count (another of our screens being
+            // up is not a managed app), and a stale external-app package does not either.
+            val foreground = getForegroundPackageFromEvents()
+            if (foreground != null && foreground != packageName &&
+                foreground in getManagedAppPackages()) return
+        }
+
+        val now = System.currentTimeMillis()
+        if (now - lastRelaunchTime < RELAUNCH_COOLDOWN_MS) {
+            DebugLog.d(TAG, "Relaunch cooldown active — skipping")
+            return
+        }
+
+        DebugLog.d(TAG, "MainActivity not running — relaunching FreeKiosk")
+        lastRelaunchTime = now
+
+        try {
+            val intent = Intent(this, MainActivity::class.java).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or
+                         Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            }
+            startActivity(intent)
+        } catch (e: Exception) {
+            DebugLog.errorProduction(TAG, "Failed to relaunch: ${e.message}")
+        }
+    }
+
+    /**
+     * Check if MainActivity is currently in the foreground by inspecting process importance.
+     * A task that exists in recents (but the launcher is in front) has
+     * IMPORTANCE_FOREGROUND_SERVICE — not IMPORTANCE_FOREGROUND — because the watchdog
+     * service is keeping the process alive but the activity is not visible.
+     * We only skip relaunch when the process importance is IMPORTANCE_FOREGROUND,
+     * meaning our activity is actually visible to the user.
+     */
+
+
+
+    private fun isMainActivityRunning(): Boolean {
+        return try {
+            val am = getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+            val processes = am.runningAppProcesses ?: return false
+            val self = processes.find { it.pid == android.os.Process.myPid() } ?: return false
+            self.importance == ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND
+        } catch (e: Exception) {
+            DebugLog.d(TAG, "Error checking foreground state: ${e.message}")
+            true // assume running if we can't check (avoids relaunch loops)
+        }
+    }
+
+    private fun registerScreenOnReceiver() {
+        if (screenOnReceiver != null) return
+        screenOnReceiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context, intent: Intent) {
+                if (intent.action != Intent.ACTION_SCREEN_ON) return
+                // In external app mode the external app is expected to come back via
+                // Android TV's task manager — don't interfere with a forced relaunch.
+                if (getDisplayMode() == "external_app") {
+                    DebugLog.d(TAG, "SCREEN_ON — external app mode, skipping forced relaunch")
+                    return
+                }
+                DebugLog.d(TAG, "SCREEN_ON — checking kiosk state immediately")
+                // Bypass the cooldown so we relaunch promptly after any standby/wake cycle.
+                lastRelaunchTime = 0L
+                checkAndRelaunch()
+            }
+        }
+        registerReceiver(screenOnReceiver, IntentFilter(Intent.ACTION_SCREEN_ON))
+        DebugLog.d(TAG, "SCREEN_ON receiver registered")
+    }
+
+    private fun unregisterScreenOnReceiver() {
+        screenOnReceiver?.let {
+            try { unregisterReceiver(it) } catch (_: Exception) {}
+            screenOnReceiver = null
+        }
+    }
+
+    /**
+     * #197 follow-up: which app is actually in front, via UsageStatsManager.
+     *
+     * The previous check walked ActivityManager.getAppTasks(), which only ever returns
+     * OUR OWN tasks: an external app launched with FLAG_ACTIVITY_NEW_TASK lives in a task
+     * owned by another uid and never appeared there. It always answered "no", which was
+     * harmless only because isMainActivityRunning() returned true first and the caller
+     * never got this far. Now that it reports real foreground state, this had to become
+     * real too, or the watchdog would relaunch FreeKiosk over the external app every cycle.
+     *
+     * Same API AppLauncherModule already uses to confirm a launch. Returns null when usage
+     * access is not granted, and callers must treat null as "unknown, do not relaunch".
+     */
+    private fun getForegroundPackage(): String? {
+        return try {
+            val usm = getSystemService(Context.USAGE_STATS_SERVICE) as? UsageStatsManager
+                ?: return null
+            val now = System.currentTimeMillis()
+            val stats = usm.queryUsageStats(UsageStatsManager.INTERVAL_BEST, now - 5_000, now)
+            if (stats.isNullOrEmpty()) return null
+            stats.maxByOrNull { it.lastTimeUsed }?.packageName
+        } catch (e: Exception) {
+            DebugLog.d(TAG, "Cannot read foreground package: ${e.message}")
+            null
+        }
+    }
+
+    private var lastEventQueryMs = 0L
+    private var lastResumedPackage: String? = null
+
+    /**
+     * #282: the package of the last activity that was resumed, from usage events.
+     *
+     * getForegroundPackage() looks at the last 5 seconds only, so it reports nothing as soon
+     * as an app has been in front for longer than that without a new event. Here the last
+     * RESUMED package is kept between checks and only replaced by a newer one. Returns null
+     * when usage access is not granted or nothing was seen yet, which callers treat as
+     * "unknown".
+     */
+    @Suppress("DEPRECATION")
+    private fun getForegroundPackageFromEvents(): String? {
+        return try {
+            val usm = getSystemService(Context.USAGE_STATS_SERVICE) as? UsageStatsManager
+                ?: return lastResumedPackage
+            val now = System.currentTimeMillis()
+            val from = if (lastEventQueryMs == 0L) now - FOREGROUND_LOOKBACK_MS
+                       else maxOf(lastEventQueryMs - 1_000, now - FOREGROUND_LOOKBACK_MS)
+            val events = usm.queryEvents(from, now) ?: return lastResumedPackage
+            val event = UsageEvents.Event()
+            while (events.hasNextEvent()) {
+                events.getNextEvent(event)
+                if (event.eventType == UsageEvents.Event.MOVE_TO_FOREGROUND) {
+                    lastResumedPackage = event.packageName
+                }
+            }
+            lastEventQueryMs = now
+            lastResumedPackage
+        } catch (e: Exception) {
+            DebugLog.d(TAG, "Cannot read usage events: ${e.message}")
+            null
+        }
+    }
+
+    /**
+     * #197 follow-up: packages the kiosk is allowed to be showing instead of MainActivity.
+     * Reads the managed-apps list so multi-app mode is covered, where
+     * @kiosk_external_app_package is empty and the single-app guard does not apply.
+     */
+    private fun getAllowedForegroundPackages(): List<String> {
+        val packages = mutableListOf(packageName)
+        getExternalAppPackage()?.let { packages.add(it) }
+        packages.addAll(getManagedAppPackages())
+        return packages.distinct()
+    }
+
+    /** Packages of the managed apps, read from @kiosk_managed_apps. Empty when unreadable. */
+    private fun getManagedAppPackages(): List<String> {
+        val packages = mutableListOf<String>()
+        try {
+            val dbPath = getDatabasePath("RKStorage").absolutePath
+            val db = SQLiteDatabase.openDatabase(dbPath, null, SQLiteDatabase.OPEN_READONLY)
+            val cursor = db.rawQuery(
+                "SELECT value FROM catalystLocalStorage WHERE key = ?",
+                arrayOf("@kiosk_managed_apps"))
+            if (cursor.moveToFirst()) {
+                val apps = org.json.JSONArray(cursor.getString(0) ?: "[]")
+                for (i in 0 until apps.length()) {
+                    apps.optJSONObject(i)?.optString("packageName")?.takeIf { it.isNotEmpty() }
+                        ?.let { packages.add(it) }
+                }
+            }
+            cursor.close()
+            db.close()
+        } catch (e: Exception) {
+            DebugLog.d(TAG, "Cannot read managed apps: ${e.message}")
+        }
+        return packages.distinct()
+    }
+
+    // ────────────────────────────────────────────────────────────────────
+    // AsyncStorage
+    // ────────────────────────────────────────────────────────────────────
+
+    private fun getDisplayMode(): String {
+        return try {
+            val dbPath = getDatabasePath("RKStorage").absolutePath
+            val db = SQLiteDatabase.openDatabase(dbPath, null, SQLiteDatabase.OPEN_READONLY)
+            val cursor = db.rawQuery(
+                "SELECT value FROM catalystLocalStorage WHERE key = ?",
+                arrayOf("@kiosk_display_mode"))
+            val mode = if (cursor.moveToFirst()) cursor.getString(0) ?: "webview" else "webview"
+            cursor.close()
+            db.close()
+            mode
+        } catch (e: Exception) {
+            DebugLog.d(TAG, "Cannot read display_mode: ${e.message}")
+            "webview"
+        }
+    }
+
+    private fun getExternalAppPackage(): String? {
+        return try {
+            val dbPath = getDatabasePath("RKStorage").absolutePath
+            val db = SQLiteDatabase.openDatabase(dbPath, null, SQLiteDatabase.OPEN_READONLY)
+            val cursor = db.rawQuery(
+                "SELECT value FROM catalystLocalStorage WHERE key = ?",
+                arrayOf("@kiosk_external_app_package"))
+            val pkg = if (cursor.moveToFirst()) cursor.getString(0) else null
+            cursor.close()
+            db.close()
+            if (pkg.isNullOrEmpty()) null else pkg
+        } catch (e: Exception) {
+            DebugLog.d(TAG, "Cannot read external_app_package: ${e.message}")
+            null
+        }
+    }
+
+
+    /**
+     * #268: whether the admin allowed the system USB debugging prompt in lock mode, and
+     * SystemUI is the package that last came to the front. Unknown foreground (usage access
+     * not granted) is "no": the relaunch then happens as before.
+     */
+    private fun isUsbDebugPromptInFront(): Boolean {
+        if (!isUsbDebugDialogAllowed()) return false
+        return getForegroundPackageFromEvents() == SYSTEM_UI_PACKAGE
+    }
+
+    private fun isUsbDebugDialogAllowed(): Boolean {
+        return try {
+            val dbPath = getDatabasePath("RKStorage").absolutePath
+            val db = SQLiteDatabase.openDatabase(dbPath, null, SQLiteDatabase.OPEN_READONLY)
+            val cursor = db.rawQuery(
+                "SELECT value FROM catalystLocalStorage WHERE key = ?",
+                arrayOf("@kiosk_allow_usb_debug_dialog"))
+            val allowed = cursor.moveToFirst() && cursor.getString(0) == "true"
+            cursor.close()
+            db.close()
+            allowed
+        } catch (e: Exception) {
+            DebugLog.d(TAG, "Cannot read allow_usb_debug_dialog: ${e.message}")
+            false
+        }
+    }
+
+    private fun isKioskEnabled(): Boolean {
+        return try {
+            val dbPath = getDatabasePath("RKStorage").absolutePath
+            val db = SQLiteDatabase.openDatabase(dbPath, null, SQLiteDatabase.OPEN_READONLY)
+            val cursor = db.rawQuery(
+                "SELECT value FROM catalystLocalStorage WHERE key = ?",
+                arrayOf("@kiosk_enabled"))
+            val enabled = if (cursor.moveToFirst()) cursor.getString(0) == "true" else false
+            cursor.close()
+            db.close()
+            enabled
+        } catch (e: Exception) {
+            DebugLog.d(TAG, "Cannot read kiosk_enabled: ${e.message}")
+            false
+        }
+    }
+
+    // ────────────────────────────────────────────────────────────────────
+    // Notification (required for foreground service)
+    // ────────────────────────────────────────────────────────────────────
+
+    private fun createNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(
+                CHANNEL_ID,
+                "Kiosk Watchdog",
+                NotificationManager.IMPORTANCE_MIN   // silent, no badge
+            ).apply {
+                description = "Keeps EasyKiosk running in kiosk mode"
+                setShowBadge(false)
+            }
+            val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            nm.createNotificationChannel(channel)
+        }
+    }
+
+    private fun buildNotification(): Notification {
+        return NotificationCompat.Builder(this, CHANNEL_ID)
+            .setContentTitle("EasyKiosk")
+
+            // than one of the two features that ask for it.
+            .setContentText("Kiosk mode active")
+            .setSmallIcon(R.mipmap.ic_launcher)
+            .setPriority(NotificationCompat.PRIORITY_MIN)
+            .setOngoing(true)
+            .setSilent(true)
+            .build()
+    }
+}

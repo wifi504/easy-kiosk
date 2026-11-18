@@ -662,7 +662,7 @@
       "successTitle": "Listo",
       "successEnabled": "El servicio de accesibilidad se ha activado automáticamente mediante Device Owner.",
       "permissionRequiredTitle": "Permiso necesario",
-      "permissionRequiredMessage": "Para activar automáticamente el servicio de accesibilidad, hay que conceder el permiso WRITE_SECURE_SETTINGS mediante ADB (configuración única):\n\nadb shell pm grant com.freekiosk android.permission.WRITE_SECURE_SETTINGS\n\nComo alternativa, toca \"Abrir configuración de accesibilidad\" abajo para activarlo manualmente.",
+      "permissionRequiredMessage": "Para activar automáticamente el servicio de accesibilidad, hay que conceder el permiso WRITE_SECURE_SETTINGS mediante ADB (configuración única):\n\nadb shell pm grant top.lhlnb.easykiosk android.permission.WRITE_SECURE_SETTINGS\n\nComo alternativa, toca \"Abrir configuración de accesibilidad\" abajo para activarlo manualmente.",
       "failedEnable": "No se pudo activar mediante Device Owner"
     },
     "androidSettings": {
@@ -1375,7 +1375,7 @@
       "allFilesOpenSettings": "Abrir ajustes",
       "allFilesCancel": "Cancelar",
       "allFilesUnavailableTitle": "Archivo fuera de la carpeta de EasyKiosk",
-      "allFilesUnavailableMessage": "Esta versión de EasyKiosk no puede leer archivos fuera de su propia carpeta. Copie el archivo en Android/data/com.freekiosk/files/ del dispositivo, o elíjalo con «Elegir un archivo HTML local».",
+      "allFilesUnavailableMessage": "Esta versión de EasyKiosk no puede leer archivos fuera de su propia carpeta. Copie el archivo en Android/data/top.lhlnb.easykiosk/files/ del dispositivo, o elíjalo con «Elegir un archivo HTML local».",
       "passwordNotSavedTitle": "Contraseña no guardada",
       "basicAuthNotSavedMessage": "No se pudo escribir la contraseña de HTTP Basic Auth en el almacenamiento seguro de este dispositivo. Todos los demás ajustes de esta pantalla se guardaron. Esto ocurre en firmwares cuyo Android Keystore está defectuoso.",
       "downloadProgress": "{{percent}} % ({{done}} / {{total}} MB)",

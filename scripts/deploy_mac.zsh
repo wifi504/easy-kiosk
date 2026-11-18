@@ -140,7 +140,7 @@ echo ""
 print_info "Setting Device Owner..."
 echo ""
 
-DPM_OUTPUT=$(adb shell dpm set-device-owner com.freekiosk/.DeviceAdminReceiver 2>&1)
+DPM_OUTPUT=$(adb shell dpm set-device-owner top.lhlnb.easykiosk/.DeviceAdminReceiver 2>&1)
 echo "$DPM_OUTPUT"
 echo ""
 

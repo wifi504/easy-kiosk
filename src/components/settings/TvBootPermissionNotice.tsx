@@ -13,7 +13,7 @@ import { Colors, Spacing } from '../../theme';
 import OverlayPermissionModule from '../../utils/OverlayPermissionModule';
 import SettingsInfoBox from './SettingsInfoBox';
 
-export const OVERLAY_GRANT_COMMAND = 'adb shell appops set com.freekiosk SYSTEM_ALERT_WINDOW allow';
+export const OVERLAY_GRANT_COMMAND = 'adb shell appops set top.lhlnb.easykiosk SYSTEM_ALERT_WINDOW allow';
 
 const TvBootPermissionNotice: React.FC = () => {
   const { t } = useTranslation();

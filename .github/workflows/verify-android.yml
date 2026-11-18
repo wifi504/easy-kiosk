@@ -233,19 +233,19 @@ jobs:
             adb reverse tcp:8765 tcp:8765
             adb install -g android/app/build/outputs/apk/release/app-release.apk
             adb install $(find android/app/build/outputs/apk/androidTest/release -name '*.apk' -print -quit)
-            adb shell am instrument -w com.freekiosk.test/com.freekiosk.EmbeddedChromiumInstrumentation | tee engine-first-start.txt
+            adb shell am instrument -w top.lhlnb.easykiosk.test/top.lhlnb.easykiosk.EmbeddedChromiumInstrumentation | tee engine-first-start.txt
             adb logcat -d > engine-first-logcat.txt
-            adb shell test -f /sdcard/Android/data/com.freekiosk/files/engine-failure.png && adb pull /sdcard/Android/data/com.freekiosk/files/engine-failure.png engine-failure.png || true
+            adb shell test -f /sdcard/Android/data/top.lhlnb.easykiosk/files/engine-failure.png && adb pull /sdcard/Android/data/top.lhlnb.easykiosk/files/engine-failure.png engine-failure.png || true
             grep -F 'EASYKIOSK_EMBEDDED_ENGINE_OK' engine-first-start.txt
             grep -E 'ISOLATED_RENDERER_UID 9[0-9]{4}' engine-first-logcat.txt
             adb logcat -c
-            adb shell am force-stop com.freekiosk
-            adb shell am instrument -w com.freekiosk.test/com.freekiosk.EmbeddedChromiumInstrumentation | tee engine-cold-start.txt
+            adb shell am force-stop top.lhlnb.easykiosk
+            adb shell am instrument -w top.lhlnb.easykiosk.test/top.lhlnb.easykiosk.EmbeddedChromiumInstrumentation | tee engine-cold-start.txt
             adb logcat -d > engine-cold-logcat.txt
             grep -F 'EASYKIOSK_EMBEDDED_ENGINE_OK' engine-cold-start.txt
             grep -E 'ISOLATED_RENDERER_UID 9[0-9]{4}' engine-cold-logcat.txt
-            adb pull /sdcard/Android/data/com.freekiosk/files/engine-smoke.png engine-smoke.png
-            adb shell dumpsys meminfo com.freekiosk > engine-memory.txt
+            adb pull /sdcard/Android/data/top.lhlnb.easykiosk/files/engine-smoke.png engine-smoke.png
+            adb shell dumpsys meminfo top.lhlnb.easykiosk > engine-memory.txt
             adb shell dumpsys webviewupdate > system-webview-after.txt
             diff -u system-webview-before.txt system-webview-after.txt
       - name: 校验中间包版本与许可（此包不可部署）
@@ -319,7 +319,7 @@ jobs:
           for ABI in arm64-v8a x86_64; do
             APK="release/EasyKiosk-${GITHUB_SHA:0:7}-$ABI.apk"
             cp "incoming/ci-intermediate-do-not-install-$ABI/app-release.apk" "$APK"
-            "$TOOLS/aapt" dump badging "$APK" | grep -F "package: name='com.freekiosk'" | grep -F "versionName='${GITHUB_SHA:0:7}'"
+            "$TOOLS/aapt" dump badging "$APK" | grep -F "package: name='top.lhlnb.easykiosk'" | grep -F "versionName='${GITHUB_SHA:0:7}'"
             unzip -p "$APK" assets/embedded-chromium.json | jq -e '.version == "158.0.8127.36" and .source_commit == "14d6f648e8cd7ad750a4044200ce94d3321be260"' > /dev/null
             BEFORE=$(payload_hash "$APK")
             "$TOOLS/apksigner" sign --v4-signing-enabled false --ks "$KEYSTORE" --ks-pass env:STORE_PASSWORD --key-pass env:KEY_PASSWORD --ks-key-alias "$KEY_ALIAS" "$APK"

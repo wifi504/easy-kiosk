@@ -47,18 +47,18 @@ describe('needsAllFilesAccess', () => {
     'file:///sdcard/dash/index.html',
     'file:///storage/1234-ABCD/page.html',
     'file:///storage/emulated/0/Android/data/com.other.app/files/x.html',
-    'file:///storage/emulated/0/Download/com.freekiosk/x.html',
+    'file:///storage/emulated/0/Download/top.lhlnb.easykiosk/x.html',
   ])('needs it for %s', (url) => {
     expect(needsAllFilesAccess(url)).toBe(true);
   });
 
   it.each([
-    'file:///storage/emulated/0/Android/data/com.freekiosk/files/dashboard/index.html',
-    'file:///sdcard/Android/data/com.freekiosk/files/dashboard/index.html?x=1#top',
-    'file:///storage/emulated/0/Android/media/com.freekiosk/page.html',
-    'file:///data/user/0/com.freekiosk/files/page.html',
+    'file:///storage/emulated/0/Android/data/top.lhlnb.easykiosk/files/dashboard/index.html',
+    'file:///sdcard/Android/data/top.lhlnb.easykiosk/files/dashboard/index.html?x=1#top',
+    'file:///storage/emulated/0/Android/media/top.lhlnb.easykiosk/page.html',
+    'file:///data/user/0/top.lhlnb.easykiosk/files/page.html',
     'file:///android_asset/pdfjs/viewer.html',
-    'file:///storage/emulated/0/Android/data/com.freekiosk/files/my%20dash/index.html',
+    'file:///storage/emulated/0/Android/data/top.lhlnb.easykiosk/files/my%20dash/index.html',
   ])('does not need it for %s, FreeKiosk reads its own folder', (url) => {
     expect(needsAllFilesAccess(url)).toBe(false);
   });

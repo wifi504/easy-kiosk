@@ -1,6 +1,6 @@
 package com.wifi504.easykiosk.engineprobe;
 
-public class ProbeComponentFactory extends com.freekiosk.EmbeddedChromiumComponentFactory {
+public class ProbeComponentFactory extends top.lhlnb.easykiosk.EmbeddedChromiumComponentFactory {
     @Override protected void onIsolatedRendererCreated(int uid) {
         try (java.io.FileInputStream input = new java.io.FileInputStream("/data/user/0/com.wifi504.easykiosk.engineprobe/files/engine-isolation-canary")) {
             input.read();

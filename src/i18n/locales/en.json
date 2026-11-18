@@ -662,7 +662,7 @@
       "successTitle": "Success",
       "successEnabled": "Accessibility Service has been enabled automatically via Device Owner.",
       "permissionRequiredTitle": "Permission Required",
-      "permissionRequiredMessage": "To auto-enable the Accessibility Service, the WRITE_SECURE_SETTINGS permission must be granted via ADB (one-time setup):\n\nadb shell pm grant com.freekiosk android.permission.WRITE_SECURE_SETTINGS\n\nAlternatively, tap \"Open Accessibility Settings\" below to enable it manually.",
+      "permissionRequiredMessage": "To auto-enable the Accessibility Service, the WRITE_SECURE_SETTINGS permission must be granted via ADB (one-time setup):\n\nadb shell pm grant top.lhlnb.easykiosk android.permission.WRITE_SECURE_SETTINGS\n\nAlternatively, tap \"Open Accessibility Settings\" below to enable it manually.",
       "failedEnable": "Failed to enable via Device Owner"
     },
     "androidSettings": {
@@ -1374,7 +1374,7 @@
       "allFilesOpenSettings": "Open settings",
       "allFilesCancel": "Cancel",
       "allFilesUnavailableTitle": "File outside EasyKiosk's folder",
-      "allFilesUnavailableMessage": "This version of EasyKiosk cannot read files outside its own folder. Copy the file to Android/data/com.freekiosk/files/ on the device, or choose it with \"Choose a local HTML file\".",
+      "allFilesUnavailableMessage": "This version of EasyKiosk cannot read files outside its own folder. Copy the file to Android/data/top.lhlnb.easykiosk/files/ on the device, or choose it with \"Choose a local HTML file\".",
       "passwordNotSavedTitle": "Password not saved",
       "basicAuthNotSavedMessage": "The HTTP Basic Auth password could not be written to secure storage on this device. Every other setting on this screen was saved. This happens on firmwares whose Android Keystore is broken.",
       "downloadProgress": "{{percent}}% ({{done}} / {{total}} MB)",

@@ -662,7 +662,7 @@
       "successTitle": "Gotowe",
       "successEnabled": "Usługa ułatwień dostępu została automatycznie włączona przez Device Owner.",
       "permissionRequiredTitle": "Wymagane uprawnienie",
-      "permissionRequiredMessage": "Aby automatycznie włączyć usługę ułatwień dostępu, należy przyznać uprawnienie WRITE_SECURE_SETTINGS przez ADB (jednorazowa konfiguracja):\n\nadb shell pm grant com.freekiosk android.permission.WRITE_SECURE_SETTINGS\n\nMożna też dotknąć poniżej „Otwórz ustawienia ułatwień dostępu”, aby włączyć ją ręcznie.",
+      "permissionRequiredMessage": "Aby automatycznie włączyć usługę ułatwień dostępu, należy przyznać uprawnienie WRITE_SECURE_SETTINGS przez ADB (jednorazowa konfiguracja):\n\nadb shell pm grant top.lhlnb.easykiosk android.permission.WRITE_SECURE_SETTINGS\n\nMożna też dotknąć poniżej „Otwórz ustawienia ułatwień dostępu”, aby włączyć ją ręcznie.",
       "failedEnable": "Nie udało się włączyć przez Device Owner"
     },
     "androidSettings": {
@@ -1376,7 +1376,7 @@
       "allFilesOpenSettings": "Otwórz ustawienia",
       "allFilesCancel": "Anuluj",
       "allFilesUnavailableTitle": "Plik poza folderem EasyKiosk",
-      "allFilesUnavailableMessage": "Ta wersja EasyKiosk nie może odczytywać plików spoza własnego folderu. Skopiuj plik do Android/data/com.freekiosk/files/ na urządzeniu lub wybierz go przez „Wybierz lokalny plik HTML”.",
+      "allFilesUnavailableMessage": "Ta wersja EasyKiosk nie może odczytywać plików spoza własnego folderu. Skopiuj plik do Android/data/top.lhlnb.easykiosk/files/ na urządzeniu lub wybierz go przez „Wybierz lokalny plik HTML”.",
       "passwordNotSavedTitle": "Hasło nie zostało zapisane",
       "basicAuthNotSavedMessage": "Nie udało się zapisać hasła HTTP Basic Auth w bezpiecznej pamięci tego urządzenia. Wszystkie pozostałe ustawienia na tym ekranie zostały zapisane. Zdarza się to w oprogramowaniu, w którym Android Keystore jest uszkodzony.",
       "downloadProgress": "{{percent}}% ({{done}} / {{total}} MB)",

@@ -53,7 +53,7 @@
 [CmdletBinding()]
 param(
     [string] $Serial,
-    [string] $Component = 'com.freekiosk/.DeviceAdminReceiver',
+    [string] $Component = 'top.lhlnb.easykiosk/.DeviceAdminReceiver',
     [switch] $Fix,
     [switch] $Remove,
     [switch] $Yes

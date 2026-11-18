@@ -64,7 +64,7 @@ index 07f73fd..877e13e 100644
 +         *
 +         * Note: the system suppresses this dialog while the device is in lock task, so the
 +         * permission has to be granted before Lock Mode is enabled, or via
-+         * `adb shell pm grant com.freekiosk android.permission.CAMERA`.
++         * `adb shell pm grant top.lhlnb.easykiosk android.permission.CAMERA`.
 +         */
 +        try {
 +            ArrayList<String> missingAndroidPermissions = new ArrayList<>();

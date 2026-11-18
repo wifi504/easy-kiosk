@@ -60,7 +60,7 @@ describe('collectCacheableUrls', () => {
 
   it('skips what is already local or has nothing to download', () => {
     const urls = collectCacheableUrls([
-      item('1', 'file:///data/user/0/com.freekiosk/files/media_player/a.mp4', { isLocal: true }),
+      item('1', 'file:///data/user/0/top.lhlnb.easykiosk/files/media_player/a.mp4', { isLocal: true }),
       item('2', 'https://cdn.test/own-storage.mp4', { isLocal: true }),
       item('3', 'data:image/png;base64,AAAA', { type: 'image' }),
       item('4', ''),

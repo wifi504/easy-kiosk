@@ -26,7 +26,7 @@ boolean 仅接受小写字符串 `true`、`false`。不接受 `yes`、`1`、空�
 
 默认显示模式固定为 `webview`；全屏、隐藏系统导航/状态栏、禁用 Cloud 与其他显示模式由产品策略统一控制，不向构建者暴露上游全部开关。系统栏能否完全限制仍取决于设备管理权限。
 
-下一阶段计划将 Android 包名改为 `com.wifi504.easykiosk`，显示名改为 `Easy Kiosk`，不把包名作为随意变化的环境变量；这需要同步 Kotlin 包、Manifest 组件、桥接与脚本引用。当前包名仍为 `com.freekiosk`，不可使用未来包名执行部署命令。
+下一阶段计划将 Android 包名改为 `com.wifi504.easykiosk`，显示名改为 `Easy Kiosk`，不把包名作为随意变化的环境变量；这需要同步 Kotlin 包、Manifest 组件、桥接与脚本引用。当前包名仍为 `top.lhlnb.easykiosk`，不可使用未来包名执行部署命令。
 
 ## 生成与落盘设计
 

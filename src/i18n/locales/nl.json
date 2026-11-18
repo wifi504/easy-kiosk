@@ -662,7 +662,7 @@
       "successTitle": "Gelukt",
       "successEnabled": "De toegankelijkheidsservice is automatisch ingeschakeld via Device Owner.",
       "permissionRequiredTitle": "Machtiging vereist",
-      "permissionRequiredMessage": "Om de toegankelijkheidsservice automatisch in te schakelen, moet de machtiging WRITE_SECURE_SETTINGS via ADB worden verleend (eenmalige instelling):\n\nadb shell pm grant com.freekiosk android.permission.WRITE_SECURE_SETTINGS\n\nOf tik hieronder op \"Toegankelijkheidsinstellingen openen\" om de service handmatig in te schakelen.",
+      "permissionRequiredMessage": "Om de toegankelijkheidsservice automatisch in te schakelen, moet de machtiging WRITE_SECURE_SETTINGS via ADB worden verleend (eenmalige instelling):\n\nadb shell pm grant top.lhlnb.easykiosk android.permission.WRITE_SECURE_SETTINGS\n\nOf tik hieronder op \"Toegankelijkheidsinstellingen openen\" om de service handmatig in te schakelen.",
       "failedEnable": "Inschakelen via Device Owner mislukt"
     },
     "androidSettings": {
@@ -1374,7 +1374,7 @@
       "allFilesOpenSettings": "Instellingen openen",
       "allFilesCancel": "Annuleren",
       "allFilesUnavailableTitle": "Bestand buiten de map van EasyKiosk",
-      "allFilesUnavailableMessage": "Deze versie van EasyKiosk kan geen bestanden buiten zijn eigen map lezen. Kopieer het bestand naar Android/data/com.freekiosk/files/ op het apparaat of kies het met 'Kies een lokaal HTML-bestand'.",
+      "allFilesUnavailableMessage": "Deze versie van EasyKiosk kan geen bestanden buiten zijn eigen map lezen. Kopieer het bestand naar Android/data/top.lhlnb.easykiosk/files/ op het apparaat of kies het met 'Kies een lokaal HTML-bestand'.",
       "passwordNotSavedTitle": "Wachtwoord niet opgeslagen",
       "basicAuthNotSavedMessage": "Het HTTP Basic Auth-wachtwoord kon niet worden opgeslagen in de beveiligde opslag van dit apparaat. Alle andere instellingen op dit scherm zijn opgeslagen. Dit gebeurt op firmware waarvan de Android Keystore defect is.",
       "downloadProgress": "{{percent}}% ({{done}} / {{total}} MB)",

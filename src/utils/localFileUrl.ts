@@ -4,10 +4,10 @@
 
 /** Folders FreeKiosk can always read, whatever Android says about the rest of the storage. */
 const OWN_FOLDERS = [
-  '/Android/data/com.freekiosk/',
-  '/Android/media/com.freekiosk/',
-  '/data/user/0/com.freekiosk/',
-  '/data/data/com.freekiosk/',
+  '/Android/data/top.lhlnb.easykiosk/',
+  '/Android/media/top.lhlnb.easykiosk/',
+  '/data/user/0/top.lhlnb.easykiosk/',
+  '/data/data/top.lhlnb.easykiosk/',
   '/android_asset/',
 ];
 

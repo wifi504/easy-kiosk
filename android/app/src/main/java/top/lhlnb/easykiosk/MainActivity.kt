@@ -1,0 +1,2676 @@
+package top.lhlnb.easykiosk
+
+import android.annotation.SuppressLint
+import com.facebook.react.ReactActivity
+import com.facebook.react.ReactActivityDelegate
+import com.facebook.react.defaults.DefaultNewArchitectureEntryPoint.fabricEnabled
+import com.facebook.react.defaults.DefaultReactActivityDelegate
+import android.os.Bundle
+import android.view.View
+import android.view.WindowManager
+import android.app.admin.DevicePolicyManager
+import android.content.ComponentName
+import android.content.Context
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Handler
+import android.os.Looper
+import android.widget.Toast
+import com.facebook.react.modules.core.DeviceEventManagerModule
+import com.facebook.react.bridge.Arguments
+import com.facebook.react.bridge.ReactApplicationContext
+import java.security.MessageDigest
+import android.database.sqlite.SQLiteDatabase
+import android.content.ContentValues
+import android.view.KeyEvent
+import android.content.IntentFilter
+import android.os.Build
+import android.view.WindowInsets
+import android.view.WindowInsetsController
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
+import android.Manifest
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
+
+class MainActivity : ReactActivity() {
+
+  companion object {
+    /**
+     * The activity that is alive, for a receiver declared in the manifest (the Screen Scheduler
+     * alarms), which cannot be handed one the way ScreenStateReceiver is. Reaching it through
+     * ReactNativeHost throws under the New Architecture (#364).
+     */
+    @Volatile
+    private var liveActivity: java.lang.ref.WeakReference<MainActivity>? = null
+
+    fun current(): MainActivity? = liveActivity?.get()?.takeUnless { it.isFinishing || it.isDestroyed }
+
+    /** #280: delay before the alarm relaunches the app after an ADB config restart. */
+    private const val ADB_RESTART_DELAY_MS = 1500L
+
+    /** A swipe starting this close to the top or bottom edge may have shown transient system bars. */
+    private const val EDGE_TOUCH_DP = 32f
+
+    /** How far a touch that started at an edge must move inward to count as an edge swipe. */
+    private const val EDGE_SWIPE_MIN_DP = 16f
+
+    /** When to clear transient bars after an edge touch; the system normally hides them in about 3 s. */
+    private val STUCK_TRANSIENT_BARS_CHECKS_MS = longArrayOf(4_000L, 10_000L)
+
+    /**
+     * #238: how long JS may take to finish starting before we release screen pinning.
+     * Generous on purpose: React Native legitimately takes one to two minutes on the
+     * low-end hardware #96 was written for, and releasing too early would unpin a kiosk
+     * that is merely booting slowly.
+     */
+    private const val JS_READY_GRACE_MS = 90_000L
+    // #293: how often the WebView cookies are written to disk (see cookieFlushRunnable).
+    private const val COOKIE_FLUSH_INTERVAL_MS = 10_000L
+
+    /**
+     * #248: upper bound on a re-lock deferred for the power menu. The re-lock normally
+     * happens the moment window focus returns, so this only fires if focus never comes
+     * back, for instance because the user left the power menu open and walked away.
+     * 15s is long enough to read a power menu and act on it, and short enough that a
+     * kiosk cannot be parked in an unlocked state: the old value was 2000ms, which
+     * closed the menu before it could be used.
+     */
+    private const val POWER_MENU_RELOCK_MAX_WAIT_MS = 15_000L
+
+    // #222: set as soon as this activity is created, read by BootLockActivity. Its
+    // hand-off check used to infer "MainActivity took over" from BootLockActivity losing
+    // window focus, which is also what happens when a secure keyguard takes focus at boot:
+    // the poll loop then finished itself while MainActivity had never started. Same
+    // process, so a static is enough, and this cannot be true before CE storage unlocks.
+    @Volatile
+    var hasStarted = false
+
+    // Flag partagé pour bloquer le relaunch - accessible depuis OverlayService
+    @Volatile
+    var blockAutoRelaunch = false
+    // Static on purpose (#289): the JS focus signal can arrive before the Activity is attached
+    // (slow cold boot), so it must not depend on reactApplicationContext.currentActivity.
+    @Volatile var kioskScreenActive = false
+
+    // Android TV has no touch screen, so a remote key has to wake the screensaver. True while the
+    // Kiosk screen shows it (set from JS, like kioskScreenActive): the key is then consumed here
+    // and does not also act on the page behind the screensaver.
+    @Volatile var screensaverShowing = false
+
+    // Set before bringToFront() when the screensaver activates in External App mode.
+    // Tells onResume() to skip auto-relaunch and stay in the foreground for the screensaver.
+    @Volatile
+    var screensaverReturn = false
+
+    // Flag to prevent processing the same ADB config intent twice
+    @Volatile
+    var lastProcessedAdbIntent: Long = 0
+
+    /**
+     * Every ADB config key whose handling is "write the value through to this storage key",
+     * with no validation or side effect. Both the direct `--e* key value` extras and the
+     * `--es config '{...}'` JSON read this same map, and the list of recognized keys is
+     * derived from it, so there is one place to add a setting instead of three that used to
+     * drift apart (#193 already had to warn about keeping them in sync).
+     *
+     * Keys needing more than a passthrough stay out of this map and keep their own block
+     * below: pin, url, lock_package, config, managed_apps, dashboard_tiles, mqtt_password,
+     * auto_start/auto_launch, test_mode, back_button_mode, pin_mode, external_app_mode.
+     */
+    val ADB_SIMPLE_KEYS = mapOf(
+      "display_mode" to "@kiosk_display_mode",
+      "media_player_cache" to "@kiosk_media_player_cache",
+      "media_player_unattended" to "@kiosk_media_player_unattended",
+      "media_player_cache_limit_mb" to "@kiosk_media_player_cache_limit_mb",
+      "auto_reload" to "@kiosk_auto_reload",
+      "hide_error_url" to "@kiosk_hide_error_url",
+      "always_load_from_network" to "@kiosk_always_load_from_network",
+      "auto_relaunch" to "@kiosk_auto_relaunch_app",
+      "auto_relaunch_app" to "@kiosk_auto_relaunch_app",
+      "keep_screen_on" to "@kiosk_keep_screen_on",
+      "keyboard_mode" to "@kiosk_keyboard_mode",
+      "screen_orientation" to "@kiosk_screen_orientation",
+      "pin_max_attempts" to "@kiosk_pin_max_attempts",
+      "back_button_timer_delay" to "@kiosk_back_button_timer_delay",
+      "status_bar_enabled" to "@kiosk_status_bar_enabled",
+      "status_bar_show_battery" to "@kiosk_status_bar_show_battery",
+      "status_bar_show_wifi" to "@kiosk_status_bar_show_wifi",
+      "status_bar_show_time" to "@kiosk_status_bar_show_time",
+      "status_bar_theme" to "@kiosk_status_bar_theme",
+      "overlay_button_visible" to "@kiosk_overlay_button_visible",
+      "overlay_button_position" to "@kiosk_overlay_button_position",
+      "return_mode" to "@kiosk_return_mode",
+      "return_button_position" to "@kiosk_return_button_position",
+      "return_tap_count" to "@kiosk_return_tap_count",
+      "return_tap_timeout" to "@kiosk_return_tap_timeout",
+      "volume_up_5tap_enabled" to "@kiosk_volume_up_5tap_enabled",
+      "pause_page_screen_off" to "@kiosk_pause_page_screen_off",
+      "webview_back_button_enabled" to "@kiosk_webview_back_button_enabled",
+      "allow_power_button" to "@kiosk_allow_power_button",
+      "allow_notifications" to "@kiosk_allow_notifications",
+      "allow_system_info" to "@kiosk_allow_system_info",
+      "block_factory_reset" to "@kiosk_block_factory_reset",
+      "allow_hardware_screenshot" to "@kiosk_allow_hardware_screenshot",
+      "allow_usb_debug_dialog" to "@kiosk_allow_usb_debug_dialog",
+      "url_rotation_enabled" to "@kiosk_url_rotation_enabled",
+      "url_rotation_list" to "@kiosk_url_rotation_list",
+      "url_rotation_interval" to "@kiosk_url_rotation_interval",
+      "url_rotation_pause_on_touch" to "@kiosk_url_rotation_pause_on_touch",
+      "url_rotation_resume_delay" to "@kiosk_url_rotation_resume_delay",
+      "url_planner_enabled" to "@kiosk_url_planner_enabled",
+      "url_planner_events" to "@kiosk_url_planner_events",
+      "url_filter_enabled" to "@kiosk_url_filter_enabled",
+      "url_filter_mode" to "@kiosk_url_filter_mode",
+      "url_filter_list" to "@kiosk_url_filter_list",
+      "url_filter_show_feedback" to "@kiosk_url_filter_show_feedback",
+      "inactivity_return_enabled" to "@kiosk_inactivity_return_enabled",
+      "inactivity_return_delay" to "@kiosk_inactivity_return_delay",
+      "screen_scheduler_enabled" to "@kiosk_screen_scheduler_enabled",
+      "screen_scheduler_rules" to "@kiosk_screen_scheduler_rules",
+      "screen_scheduler_wake_on_touch" to "@kiosk_screen_scheduler_wake_on_touch",
+      "brightness_management_enabled" to "@brightness_management_enabled",
+      "auto_brightness_enabled" to "@kiosk_auto_brightness_enabled",
+      "default_brightness" to "@default_brightness",
+      "pdf_viewer_enabled" to "@kiosk_pdf_viewer_enabled",
+      "webview_zoom_level" to "@kiosk_webview_zoom_level",
+      "webview_zoom_mode" to "@kiosk_webview_zoom_mode",
+      "disable_user_zoom" to "@kiosk_disable_user_zoom",
+      "disable_overscroll" to "@kiosk_disable_overscroll",
+      "pull_to_refresh" to "@kiosk_pull_to_refresh",
+      "session_reset_button_enabled" to "@kiosk_session_reset_button_enabled",
+      "screensaver_enabled" to "@screensaver_enabled",
+      "screensaver_delay" to "@screensaver_inactivity_delay",
+      "screensaver_brightness" to "@screensaver_brightness",
+      "dashboard_mode" to "@kiosk_dashboard_mode_enabled",
+      "kiosk_enabled" to "@kiosk_enabled"
+    )
+
+    /** Keys handled by their own block, so they are recognized without being in the map. */
+    val ADB_SPECIAL_KEYS = setOf(
+      "pin", "url", "lock_package", "config", "managed_apps", "dashboard_tiles",
+      "pin_mode", "external_app_mode", "status_bar",
+
+
+    )
+
+
+
+    /** Never log these values: they are credentials, not settings. */
+    val ADB_SENSITIVE_KEYS = setOf("pin")
+
+    /** Extras Android or FreeKiosk itself puts on the intent; never a config mistake. */
+    private val ADB_INTERNAL_EXTRAS = setOf("from_boot_lock", "profile")
+
+    /** True when this extra is neither a config key nor an internal one. */
+    fun isUnknownAdbExtra(key: String): Boolean =
+      key !in ADB_SIMPLE_KEYS && key !in ADB_SPECIAL_KEYS &&
+        key !in ADB_INTERNAL_EXTRAS && !key.startsWith("android.")
+  }
+
+  private lateinit var devicePolicyManager: DevicePolicyManager
+  private lateinit var adminComponent: ComponentName
+
+  // External app launch management
+  private var isExternalAppMode = false
+  private var externalAppPackage: String? = null
+  private var isDeviceOwner = false
+  private var isVoluntaryReturn = false  // Flag pour éviter double événement
+
+  // Screen state receiver
+  private var screenStateReceiver: ScreenStateReceiver? = null
+
+  // Volume change receiver (also handles 5-tap gesture detection)
+  private var volumeChangeReceiver: VolumeChangeReceiver? = null
+  private val emergencyDialAction = "android.intent.action.DIAL_EMERGENCY"
+
+  // Debounce handler for hideSystemUI to avoid dismissing the power menu (GlobalActions)
+  // on devices where onWindowFocusChanged fires rapidly (e.g. TECNO/HiOS on Android 14)
+  private val hideSystemUIHandler = Handler(Looper.getMainLooper())
+  private val stuckBarsHandler = Handler(Looper.getMainLooper())
+  // Edge swipe tracking: which edge the current gesture started at (0 = none, -1 top, 1 bottom).
+  private var edgeSwipeStartEdge = 0
+  private var edgeSwipeStartY = 0f
+  private var lastFocusLostTime = 0L
+
+  // #248: a re-lock deferred because the power menu is probably open. Consumed when
+  // window focus comes back, which is the reliable "the menu is gone" signal, the same
+  // one the print-dialog handling below already relies on. The fallback timer exists so
+  // this can never leave the device unlocked indefinitely.
+  private val powerMenuRelockHandler = Handler(Looper.getMainLooper())
+  private var powerMenuRelockPending = false
+
+  // #293: the WebView keeps new cookies in memory and writes them to disk about every 30
+  // seconds, so a power cut shortly after a login lost the session cookie and logged the user
+  // out. flush() writes them now and costs nothing when nothing changed.
+  private val cookieFlushHandler = Handler(Looper.getMainLooper())
+  private val cookieFlushRunnable = object : Runnable {
+    override fun run() {
+      flushCookies()
+      cookieFlushHandler.postDelayed(this, COOKIE_FLUSH_INTERVAL_MS)
+    }
+  }
+
+  private fun flushCookies() {
+    if (!EmbeddedChromium.isReady) return
+    try {
+      android.webkit.CookieManager.getInstance().flush()
+    } catch (e: Exception) {
+      android.util.Log.w("MainActivity", "Cookie flush failed: ${e.message}")
+    }
+  }
+
+  override fun getMainComponentName(): String = "FreeKiosk"
+
+  override fun createReactActivityDelegate(): ReactActivityDelegate =
+      object : DefaultReactActivityDelegate(this, mainComponentName, fabricEnabled) {
+        override fun loadApp(appKey: String?) {
+          val activity = this@MainActivity
+          EmbeddedChromium.prepare(activity.application)
+          val splash = android.widget.FrameLayout(activity).apply {
+            setBackgroundColor(android.graphics.Color.rgb(43, 127, 255))
+            addView(android.widget.ImageView(activity).apply { setImageResource(R.mipmap.ic_launcher) },
+              android.widget.FrameLayout.LayoutParams((120 * resources.displayMetrics.density).toInt(),
+                (120 * resources.displayMetrics.density).toInt(), android.view.Gravity.CENTER))
+          }
+          activity.setContentView(splash)
+          EmbeddedChromium.whenReady { error ->
+            if (!activity.isFinishing && !activity.isDestroyed) {
+              if (error == null) super.loadApp(appKey)
+              else android.app.AlertDialog.Builder(activity)
+                .setTitle("启动失败")
+                .setMessage("无法加载应用内置浏览器，请重新安装或联系管理员。")
+                .setPositiveButton("确定", null).setCancelable(false).show()
+            }
+          }
+        }
+      }
+
+  override fun onCreate(savedInstanceState: Bundle?) {
+    super.onCreate(null)
+    liveActivity = java.lang.ref.WeakReference(this)
+    hasStarted = true  // #222: tells BootLockActivity the hand-off really happened
+
+    installTvFocusRing()
+    installTvAlertFocus()
+
+    // Keep screen always on
+    window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+
+    // Show over the keyguard and turn the screen on when this activity is brought
+    // to the front. This is what makes turnScreenOn() actually wake the display
+    // after a lockNow() screen-off on Android 8.1+ (alarm-screen pattern).
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+      setShowWhenLocked(true)
+      setTurnScreenOn(true)
+    }
+    KeyguardHelper.dismissIfInsecure(this)
+
+    // Extend content into display cutout areas to prevent OEM chrome from appearing (#94)
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+      window.attributes.layoutInDisplayCutoutMode =
+        WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+    }
+
+    devicePolicyManager = getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
+    adminComponent = ComponentName(this, DeviceAdminReceiver::class.java)
+
+    // Register screen state receiver to track screen on/off events
+    registerScreenStateReceiver()
+
+    // Register volume change receiver to track volume changes
+    registerVolumeChangeReceiver()
+
+    // Handle ADB configuration - if config applied, app will restart
+    if (handleAdbConfig(intent)) {
+      return  // Exit - app restarting with new config
+    }
+
+    // Runtime permissions: location for WiFi SSID access (Android 8+ requires it), Bluetooth
+    // (Android 12+), the Android 13+ WiFi scan permission for visible SSID results, the camera
+    // for motion detection, and notifications (Android 13+: on Samsung, a wake lock of an app
+    // with notifications off is cancelled, so Auto Wake could not turn the screen back on, #317).
+    // Device Owner grants them silently; the others come back here and are asked in ONE request:
+    // Android keeps a single pending request per activity, so separate calls swallowed each other
+    // and the last prompt only showed after several launches.
+    val toAsk = requestLocationPermission() + requestBluetoothPermissions() +
+      requestWifiPermissions() + requestCameraPermission() + requestNotificationPermission()
+    if (toAsk.isNotEmpty()) {
+      ActivityCompat.requestPermissions(this, toAsk.toTypedArray(), 1001)
+    }
+
+    // Adjust content padding when the soft keyboard appears.
+    // In immersive/kiosk mode adjustResize is ignored, so we listen for IME insets
+    // and manually add bottom padding so WebView form fields stay visible.
+    val contentView = findViewById<View>(android.R.id.content)
+    ViewCompat.setOnApplyWindowInsetsListener(contentView) { view, insets ->
+      val imeInsets = insets.getInsets(WindowInsetsCompat.Type.ime())
+      view.setPadding(0, 0, 0, imeInsets.bottom)
+      insets
+    }
+
+    readExternalAppConfig()
+    ensureBootReceiverEnabled()
+    hideSystemUI()
+    checkAndStartLockTask()
+    applyDefaultLauncherPolicy()
+
+    // Start KioskWatchdogService (#96) — survives OOM kills via START_STICKY
+    startKioskWatchdogIfNeeded()
+
+    // #238 — Startup safety valve, screen-pinning (non Device Owner) only.
+    armPinningSafetyValve()
+
+    // If started from HomeActivity (External App Mode at boot),
+    // move to background so the external app stays in foreground
+    if (intent?.getBooleanExtra("from_home_activity", false) == true) {
+      DebugLog.d("MainActivity", "Started from HomeActivity, moving to background")
+      Handler(Looper.getMainLooper()).postDelayed({ moveTaskToBack(true) }, 500)
+    }
+
+    // Check if we need to navigate to PIN
+    handleNavigationIntent(intent)
+  }
+
+  override fun onNewIntent(intent: Intent?) {
+    super.onNewIntent(intent)
+    setIntent(intent) // Important: update the intent
+
+    // Handle ADB config on new intent too (when app is already running)
+    // If returns true, the app will restart and we should not continue
+    if (handleAdbConfig(intent)) {
+      return
+    }
+
+    // Reload config after ADB changes
+    readExternalAppConfig()
+
+    handleNavigationIntent(intent)
+  }
+
+  private fun handleNavigationIntent(intent: Intent?) {
+    val shouldNavigateToPin = intent?.getBooleanExtra("navigateToPin", false) == true
+    val isVoluntary = intent?.getBooleanExtra("voluntaryReturn", false) == true
+
+    if (shouldNavigateToPin || isVoluntary) {
+      // IMPORTANT: Mettre le flag AVANT tout traitement async
+      blockAutoRelaunch = true
+      DebugLog.d("MainActivity", "handleNavigationIntent: set blockAutoRelaunch=true (pin=$shouldNavigateToPin, voluntary=$isVoluntary)")
+    }
+    // NOTE: navigateToPin event is sent directly by OverlayService via KioskModule.
+    // No delayed duplicate send needed here - it caused double-navigation issues.
+  }
+
+  private fun sendNavigateToPinEvent() {
+    try {
+      // Use KioskModule's static method to send event to React Native
+      // This works with the new architecture
+      KioskModule.sendEventFromNative("navigateToPin", null)
+      android.util.Log.d("MainActivity", "Sent navigateToPin event via KioskModule")
+    } catch (e: Exception) {
+      android.util.Log.e("MainActivity", "Failed to send navigateToPin event: ${e.message}")
+    }
+  }
+
+  private fun sendAppReturnedEvent(voluntary: Boolean = false) {
+    try {
+      // Use KioskModule's static method to send event to React Native
+      val params = Arguments.createMap()
+      params.putBoolean("voluntary", voluntary)
+      KioskModule.sendEventFromNative("onAppReturned", params)
+      android.util.Log.d("MainActivity", "Sent onAppReturned event (voluntary=$voluntary)")
+    } catch (e: Exception) {
+      android.util.Log.e("MainActivity", "Failed to send onAppReturned event: ${e.message}")
+    }
+  }
+
+  private fun requestLocationPermission(): List<String> {
+    val needed = mutableListOf<String>()
+    if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
+        != PackageManager.PERMISSION_GRANTED) {
+      needed.add(Manifest.permission.ACCESS_FINE_LOCATION)
+    }
+    if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION)
+        != PackageManager.PERMISSION_GRANTED) {
+      needed.add(Manifest.permission.ACCESS_COARSE_LOCATION)
+    }
+    if (needed.isEmpty()) return emptyList()
+
+    if (devicePolicyManager.isDeviceOwnerApp(packageName)) {
+      needed.forEach { perm ->
+        try {
+          devicePolicyManager.setPermissionGrantState(
+            adminComponent,
+            packageName,
+            perm,
+            DevicePolicyManager.PERMISSION_GRANT_STATE_GRANTED
+          )
+        } catch (_: Exception) {}
+      }
+    } else {
+      return needed
+    }
+    return emptyList()
+  }
+
+  private fun requestCameraPermission(): List<String> {
+    if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
+        == PackageManager.PERMISSION_GRANTED) return emptyList()
+
+    // Device Owner can grant silently (consistent with location/bluetooth/wifi
+    // above); otherwise fall back to the runtime prompt.
+    if (devicePolicyManager.isDeviceOwnerApp(packageName)) {
+      try {
+        devicePolicyManager.setPermissionGrantState(
+          adminComponent,
+          packageName,
+          Manifest.permission.CAMERA,
+          DevicePolicyManager.PERMISSION_GRANT_STATE_GRANTED
+        )
+      } catch (_: Exception) {}
+    } else {
+      return listOf(Manifest.permission.CAMERA)
+    }
+    return emptyList()
+  }
+
+  private fun requestNotificationPermission(): List<String> {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return emptyList()
+    if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
+        == PackageManager.PERMISSION_GRANTED) return emptyList()
+
+    // Device Owner grants silently, like camera and location above; otherwise the prompt.
+    if (devicePolicyManager.isDeviceOwnerApp(packageName)) {
+      try {
+        devicePolicyManager.setPermissionGrantState(
+          adminComponent,
+          packageName,
+          Manifest.permission.POST_NOTIFICATIONS,
+          DevicePolicyManager.PERMISSION_GRANT_STATE_GRANTED
+        )
+      } catch (_: Exception) {}
+    } else {
+      return listOf(Manifest.permission.POST_NOTIFICATIONS)
+    }
+    return emptyList()
+  }
+
+  private fun requestBluetoothPermissions(): List<String> {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return emptyList()
+
+    val needed = mutableListOf<String>()
+    if (ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT)
+        != PackageManager.PERMISSION_GRANTED) needed.add(Manifest.permission.BLUETOOTH_CONNECT)
+    if (ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_SCAN)
+        != PackageManager.PERMISSION_GRANTED) needed.add(Manifest.permission.BLUETOOTH_SCAN)
+    if (needed.isEmpty()) return emptyList()
+
+    if (devicePolicyManager.isDeviceOwnerApp(packageName)) {
+      needed.forEach { perm ->
+        try {
+          devicePolicyManager.setPermissionGrantState(
+            adminComponent,
+            packageName,
+            perm,
+            DevicePolicyManager.PERMISSION_GRANT_STATE_GRANTED
+          )
+        } catch (_: Exception) {}
+      }
+    } else {
+      return needed
+    }
+    return emptyList()
+  }
+
+  private fun requestWifiPermissions(): List<String> {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return emptyList()
+    if (ContextCompat.checkSelfPermission(this, Manifest.permission.NEARBY_WIFI_DEVICES)
+        == PackageManager.PERMISSION_GRANTED) return emptyList()
+
+    if (devicePolicyManager.isDeviceOwnerApp(packageName)) {
+      try {
+        devicePolicyManager.setPermissionGrantState(
+          adminComponent,
+          packageName,
+          Manifest.permission.NEARBY_WIFI_DEVICES,
+          DevicePolicyManager.PERMISSION_GRANT_STATE_GRANTED
+        )
+      } catch (_: Exception) {}
+    } else {
+      return listOf(Manifest.permission.NEARBY_WIFI_DEVICES)
+    }
+    return emptyList()
+  }
+
+  /**
+   * #238: on a device WITHOUT Device Owner, we pin from onCreate (screen pinning), long
+   * before React Native has started. If JS then never finishes starting, the user is left
+   * with a frozen app pinned on screen and no way out: the reporter's device could only be
+   * recovered with `adb shell am task lock stop`, which no ordinary user has.
+   *
+   * So: if JS has not completed a settings load after the grace period, leave pinning. The
+   * device becomes usable again, and nothing is lost when the app is merely slow, because
+   * KioskScreen calls startLockTask() itself at the end of its own load and re-pins.
+   *
+   * Deliberately NOT applied to Device Owner: there the kiosk must stay locked, lock task is
+   * the security boundary rather than a convenience, and those devices have BootLockActivity
+   * and its own recovery path.
+   */
+  private fun armPinningSafetyValve() {
+    if (devicePolicyManager.isDeviceOwnerApp(packageName)) return
+    if (!isKioskEnabled()) return
+
+    pinningValveRunnable = Runnable {
+      if (KioskModule.jsReachedSettingsLoaded) return@Runnable
+      try {
+        val am = getSystemService(Context.ACTIVITY_SERVICE) as android.app.ActivityManager
+        if (am.lockTaskModeState == android.app.ActivityManager.LOCK_TASK_MODE_NONE) return@Runnable
+        DebugLog.errorProduction(
+          "MainActivity",
+          "JS never finished starting after ${JS_READY_GRACE_MS}ms — leaving screen pinning so the device stays usable"
+        )
+        stopLockTask()
+      } catch (e: Exception) {
+        DebugLog.errorProduction("MainActivity", "Pinning safety valve failed: ${e.message}")
+      }
+    }
+    Handler(Looper.getMainLooper()).postDelayed(pinningValveRunnable!!, JS_READY_GRACE_MS)
+  }
+
+  private fun checkAndStartLockTask() {
+    val kioskEnabled = isKioskEnabled()
+    DebugLog.d("MainActivity", "Kiosk enabled: $kioskEnabled")
+
+    if (kioskEnabled) {
+      startLockTaskIfPossible()
+    } else {
+      DebugLog.d("MainActivity", "Kiosk mode disabled - normal mode")
+    }
+  }
+
+  /**
+   * Opt-in default-launcher policy (#199). When the "Set FreeKiosk as default launcher"
+   * setting is ON and we are Device Owner, register FreeKiosk (MainActivity) as the PERSISTENT
+   * preferred Home activity. The system then relaunches FreeKiosk itself at every boot and on
+   * Home — with no dependency on the OEM "appear on top" / autostart / background-pop-up
+   * permissions that Samsung resets on OS updates, which is what let the kiosk drop out after a
+   * reboot/update. The policy persists across updates as long as Device Owner is active.
+   *
+   * Reconciled on every launch (self-healing after an OS update): clear our own persistent
+   * preferences, then re-add only if the setting is ON. Gated on Device Owner, and a no-op
+   * unless the opt-in is enabled — so behavior is unchanged for everyone who hasn't turned it on.
+   */
+  private fun applyDefaultLauncherPolicy() {
+    if (!devicePolicyManager.isDeviceOwnerApp(packageName)) return
+    val enabled = getAsyncStorageValue("@kiosk_default_launcher", "false") == "true"
+    try {
+      // Only ever clears persistent preferences set by THIS admin (we set none other than HOME),
+      // so this is safe and idempotent — it prevents duplicate entries accumulating.
+      devicePolicyManager.clearPackagePersistentPreferredActivities(adminComponent, packageName)
+      if (enabled) {
+        val filter = IntentFilter(Intent.ACTION_MAIN).apply {
+          addCategory(Intent.CATEGORY_HOME)
+          addCategory(Intent.CATEGORY_DEFAULT)
+        }
+        devicePolicyManager.addPersistentPreferredActivity(
+          adminComponent, filter, ComponentName(this, MainActivity::class.java)
+        )
+        DebugLog.d("MainActivity", "Default launcher policy applied (FreeKiosk = persistent Home)")
+      } else {
+        DebugLog.d("MainActivity", "Default launcher policy off — persistent Home cleared")
+      }
+    } catch (e: Exception) {
+      DebugLog.errorProduction("MainActivity", "Failed to apply default launcher policy: ${e.message}")
+    }
+  }
+
+  private fun isKioskEnabled(): Boolean {
+    return try {
+      val value = getAsyncStorageValue("@kiosk_enabled", "false")
+
+      DebugLog.d("MainActivity", "Read kiosk preference: $value")
+
+      val enabled = value == "true"
+      DebugLog.d("MainActivity", "Kiosk enabled: $enabled")
+      enabled
+    } catch (e: Exception) {
+      DebugLog.errorProduction("MainActivity", "Error reading preference: ${e.message}")
+      false
+    }
+  }
+
+  // Set when startLockTask() failed because the task was not yet in the foreground.
+  // We retry the lock task once the activity actually gains window focus (onWindowFocusChanged).
+  private var lockTaskPending = false
+
+  // #238: startup safety valve (screen pinning only).
+  private var pinningValveRunnable: Runnable? = null
+
+  /**
+   * Calls startLockTask() defensively.
+   *
+   * startLockTask() throws IllegalArgumentException("Invalid task, not in foreground")
+   * when the task is not the foreground task at the moment of the call — which happens
+   * when checkAndStartLockTask() runs from onCreate() while MainActivity is still
+   * backgrounded (e.g. at boot, or the external-app-at-boot path that moves the task to
+   * back). That exception is NOT a SecurityException, so it used to escape the catch in
+   * startLockTaskIfPossible() and crash the app on launch. On that failure we flag the
+   * attempt as pending and retry once the activity gains window focus.
+   */
+  private fun tryStartLockTask(context: String) {
+    try {
+      startLockTask()
+      lockTaskPending = false
+      DebugLog.d("MainActivity", "Lock task started ($context)")
+    } catch (e: IllegalArgumentException) {
+      // "Invalid task, not in foreground" — defer until the activity is truly foregrounded.
+      lockTaskPending = true
+      DebugLog.errorProduction("MainActivity", "Lock task not in foreground yet ($context), will retry on focus: ${e.message}")
+    } catch (e: IllegalStateException) {
+      lockTaskPending = true
+      DebugLog.errorProduction("MainActivity", "Lock task not ready yet ($context), will retry on focus: ${e.message}")
+    } catch (e: Exception) {
+      DebugLog.errorProduction("MainActivity", "Lock task failed ($context): ${e.message}")
+    }
+  }
+
+  private fun startLockTaskIfPossible() {
+    if (devicePolicyManager.isDeviceOwnerApp(packageName)) {
+      try {
+        // Mode Device Owner: Lock Task complet avec whitelist
+        enableKioskRestrictions()
+
+        // Build whitelist: toujours FreeKiosk, + app externe si configurée, + managed apps
+        val whitelist = mutableListOf(packageName)
+
+        if (isExternalAppMode && !externalAppPackage.isNullOrEmpty()) {
+          try {
+            packageManager.getPackageInfo(externalAppPackage!!, 0)
+            whitelist.add(externalAppPackage!!)
+            DebugLog.d("MainActivity", "External app added to whitelist: $externalAppPackage")
+          } catch (e: Exception) {
+            DebugLog.errorProduction("MainActivity", "External app not found: $externalAppPackage")
+          }
+        }
+
+        // Add all managed apps to lock task whitelist
+        whitelist.addAll(getManagedAppPackages())
+
+        // Add print spooler packages if window.print() is enabled
+        if (isWindowPrintSettingEnabled()) {
+            whitelist.addAll(getPrintSpoolerPackages())
+        }
+
+        if (getAsyncStorageValue("@kiosk_lockscreen_emergency_call_enabled", "false") == "true") {
+          whitelist.addAll(getEmergencyDialerPackages())
+        }
+
+        // #268: opt-in, so the "Allow USB debugging?" dialog (an activity of SystemUI) can be
+        // answered in lock mode. Off by default: with it on, anyone who can plug a computer
+        // into the tablet can see the dialog and tap Allow.
+        if (getAsyncStorageValue("@kiosk_allow_usb_debug_dialog", "false") == "true") {
+          whitelist.add("com.android.systemui")
+        }
+
+        val uniqueWhitelist = whitelist.distinct()
+
+        // Configurer la whitelist Lock Task
+        devicePolicyManager.setLockTaskPackages(adminComponent, uniqueWhitelist.toTypedArray())
+
+        // Lancer Lock Task sur MainActivity
+        // Avec la whitelist, l'utilisateur peut naviguer entre FreeKiosk et l'app externe
+        // Mais ne peut PAS sortir vers d'autres apps, launcher, ou paramètres
+        tryStartLockTask("Device Owner, whitelist: $uniqueWhitelist")
+      } catch (e: SecurityException) {
+        DebugLog.errorProduction("MainActivity", "Device Owner lock task failed (admin invalid?): ${e.message}")
+        // Fall back to screen pinning
+        tryStartLockTask("fallback screen pinning")
+      }
+    } else {
+      // #275: screen pinning only keeps the pinned task in front, so pinning FreeKiosk
+      // would push the external app back behind it. No whitelist without Device Owner.
+      if (isExternalAppMode) {
+        DebugLog.d("MainActivity", "External app mode without Device Owner - screen pinning skipped (#275)")
+        return
+      }
+      // Mode non-Device Owner: Screen Pinning manuel (demande confirmation utilisateur)
+      tryStartLockTask("Screen Pinning mode - user confirmation required")
+    }
+  }
+
+  private fun enableKioskRestrictions() {
+    if (!devicePolicyManager.isDeviceOwnerApp(packageName)) return
+
+    try {
+      // Read settings from AsyncStorage v2 database
+      // allowPowerButton: true = power menu allowed (default), false = blocked by admin
+      val allowPowerButtonValue = getAsyncStorageValue("@kiosk_allow_power_button", "true")
+      val allowPowerButton = allowPowerButtonValue == "true"
+      val allowNotificationsValue = getAsyncStorageValue("@kiosk_allow_notifications", "false")
+      val allowNotifications = allowNotificationsValue == "true"
+      val allowSystemInfoValue = getAsyncStorageValue("@kiosk_allow_system_info", "false")
+      val allowSystemInfo = allowSystemInfoValue == "true"
+
+      // Configure Lock Task features
+      // GLOBAL_ACTIONS is included by default (Android's own default when setLockTaskFeatures is never called)
+      // This prevents Samsung/OneUI from muting audio streams in lock task mode
+      if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+        // Start with GLOBAL_ACTIONS as base (matches Android default behavior)
+        var lockTaskFeatures = DevicePolicyManager.LOCK_TASK_FEATURE_GLOBAL_ACTIONS
+
+        // allowPowerButton=false means admin wants to BLOCK the power menu
+        if (!allowPowerButton) {
+          lockTaskFeatures = lockTaskFeatures and DevicePolicyManager.LOCK_TASK_FEATURE_GLOBAL_ACTIONS.inv()
+        }
+
+        // SYSTEM_INFO: shows non-interactive status bar info (time, battery)
+        if (allowSystemInfo) {
+          lockTaskFeatures = lockTaskFeatures or DevicePolicyManager.LOCK_TASK_FEATURE_SYSTEM_INFO
+        }
+        if (allowNotifications) {
+          lockTaskFeatures = lockTaskFeatures or DevicePolicyManager.LOCK_TASK_FEATURE_NOTIFICATIONS
+          // Android requires HOME feature when NOTIFICATIONS is enabled
+          lockTaskFeatures = lockTaskFeatures or DevicePolicyManager.LOCK_TASK_FEATURE_HOME
+        }
+
+        // #208 — Keep the system keyguard alive while in lock task so a native Android
+        // screen-lock (PIN/pattern/password) actually prompts after the screen turns off
+        // and back on. Without LOCK_TASK_FEATURE_KEYGUARD, Android DISABLES the keyguard in
+        // LockTask mode, so the configured screen-lock never appears in multi-app/kiosk mode.
+        // Gated on the opt-in "System screen-lock compatibility" setting AND a secure lock
+        // actually being set (same gate as the boot path in BootReceiver).
+        val screenLockCompat = BootReceiver.readScreenLockCompatFlag(this) && BootReceiver.isDeviceSecure(this)
+        if (screenLockCompat) {
+          lockTaskFeatures = lockTaskFeatures or DevicePolicyManager.LOCK_TASK_FEATURE_KEYGUARD
+        }
+
+        devicePolicyManager.setLockTaskFeatures(adminComponent, lockTaskFeatures)
+        DebugLog.d("MainActivity", "Lock task features set: blockPowerButton=${!allowPowerButton}, notifications=$allowNotifications, systemInfo=$allowSystemInfo, keyguard=$screenLockCompat (flags=$lockTaskFeatures)")
+      }
+
+      // Safety net: force unmute audio streams after configuring lock task
+      // Samsung/OneUI devices may mute audio in LOCK_TASK_MODE_LOCKED
+      try {
+        devicePolicyManager.setMasterVolumeMuted(adminComponent, false)
+        val audioManager = getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
+        val streams = intArrayOf(
+          android.media.AudioManager.STREAM_MUSIC,
+          android.media.AudioManager.STREAM_NOTIFICATION,
+          android.media.AudioManager.STREAM_ALARM,
+          android.media.AudioManager.STREAM_RING
+        )
+        for (stream in streams) {
+          audioManager.adjustStreamVolume(stream, android.media.AudioManager.ADJUST_UNMUTE, 0)
+        }
+        DebugLog.d("MainActivity", "Audio streams unmuted (Samsung audio fix)")
+      } catch (e: Exception) {
+        DebugLog.d("MainActivity", "Could not unmute audio streams: ${e.message}")
+      }
+
+      val samsungUpdateApps = arrayOf(
+        "com.samsung.android.app.updatecenter",
+        "com.sec.android.fotaclient",
+        "com.wssyncmldm",
+        "com.samsung.android.sdm.config",
+        "com.sec.android.soagent"
+      )
+
+      devicePolicyManager.setPackagesSuspended(adminComponent, samsungUpdateApps, true)
+
+      val policy = android.app.admin.SystemUpdatePolicy.createPostponeInstallPolicy()
+      devicePolicyManager.setSystemUpdatePolicy(adminComponent, policy)
+
+      DebugLog.d("MainActivity", "Kiosk restrictions enabled")
+    } catch (e: Exception) {
+      DebugLog.errorProduction("MainActivity", "Error enabling restrictions: ${e.message}")
+    }
+  }
+
+  fun disableKioskRestrictions() {
+    if (!devicePolicyManager.isDeviceOwnerApp(packageName)) return
+
+    try {
+      // Réinitialiser les features Lock Task pour permettre la navigation normale
+      if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+        // Restaurer les features par défaut (Home, Recents, etc.)
+        devicePolicyManager.setLockTaskFeatures(
+          adminComponent,
+          DevicePolicyManager.LOCK_TASK_FEATURE_HOME or
+          DevicePolicyManager.LOCK_TASK_FEATURE_OVERVIEW or
+          DevicePolicyManager.LOCK_TASK_FEATURE_NOTIFICATIONS or
+          DevicePolicyManager.LOCK_TASK_FEATURE_GLOBAL_ACTIONS
+        )
+        DebugLog.d("MainActivity", "Lock task features restored to defaults")
+      }
+
+      val samsungUpdateApps = arrayOf(
+        "com.samsung.android.app.updatecenter",
+        "com.sec.android.fotaclient",
+        "com.wssyncmldm",
+        "com.samsung.android.sdm.config",
+        "com.sec.android.soagent"
+      )
+
+      devicePolicyManager.setPackagesSuspended(adminComponent, samsungUpdateApps, false)
+      devicePolicyManager.setSystemUpdatePolicy(adminComponent, null)
+
+      DebugLog.d("MainActivity", "Kiosk restrictions disabled")
+    } catch (e: Exception) {
+      DebugLog.errorProduction("MainActivity", "Error disabling restrictions: ${e.message}")
+    }
+  }
+
+  override fun onPause() {
+    super.onPause()
+    cookieFlushHandler.removeCallbacks(cookieFlushRunnable)
+    flushCookies()
+    // Still visible here, so still allowed to start the camera service: this is the moment an
+    // external app comes in front, and settings changed inside the app have no onResume.
+  }
+
+  override fun onResume() {
+    super.onResume()
+    // #215: never leave the page frozen if the screen-on broadcast was missed.
+    if (pageTimersPaused) setPageTimersPaused(false)
+    // The lock screen comes back after the screen was off; a swipe-only one is dismissed again.
+    KeyguardHelper.dismissIfInsecure(this)
+
+    cookieFlushHandler.removeCallbacks(cookieFlushRunnable)
+    cookieFlushHandler.postDelayed(cookieFlushRunnable, COOKIE_FLUSH_INTERVAL_MS)
+
+    readExternalAppConfig()
+    applyScreenOrientation()
+
+    // Re-register screen state receiver in case it was lost
+    if (screenStateReceiver == null) {
+      registerScreenStateReceiver()
+    }
+
+    // Re-register volume change receiver in case it was lost
+    if (volumeChangeReceiver == null) {
+      registerVolumeChangeReceiver()
+    }
+
+    // Vérifier si c'est un retour volontaire (depuis l'intent de l'overlay - 5 taps)
+    val voluntaryReturn = intent?.getBooleanExtra("voluntaryReturn", false) ?: false
+    val navigateToPin = intent?.getBooleanExtra("navigateToPin", false) ?: false
+
+    if (voluntaryReturn) {
+      // Reset les flags pour les prochains resumes
+      intent?.removeExtra("voluntaryReturn")
+      intent?.removeExtra("navigateToPin")
+      isVoluntaryReturn = true
+      DebugLog.d("MainActivity", "Voluntary return detected (5-tap), will navigate to PIN: $navigateToPin")
+    }
+
+    // Screensaver activated in External App mode: KioskModule.bringToFront() set this flag.
+    // Skip all relaunch logic — FreeKiosk stays in the foreground to show the screensaver.
+    // The screensaver dismiss callback will call launchExternalApp() to return to the app.
+    if (screensaverReturn) {
+      screensaverReturn = false
+      DebugLog.d("MainActivity", "screensaverReturn=true — staying in foreground for screensaver, skipping relaunch")
+      return
+    }
+
+    // Fix #overlay-restart: OverlayService.returnToFreeKiosk() sets blockAutoRelaunch=true
+    // BEFORE calling task.moveToFront(), which fires onResume() with the OLD intent
+    // (no voluntaryReturn flag yet). Without this check, onResume() takes the fast path
+    // and relaunches 24Six without starting OverlayService.
+    if (blockAutoRelaunch && !isVoluntaryReturn) {
+      isVoluntaryReturn = true
+      DebugLog.d("MainActivity", "blockAutoRelaunch=true — treating as voluntary return to prevent fast-path relaunch")
+    }
+
+    // Fix #106: In external app mode, only stop the overlay on VOLUNTARY returns
+    // (e.g. admin 5-tap to access settings). On involuntary returns (system brought
+    // FreeKiosk back), keep the overlay running so the foreground monitor can
+    // relaunch the external app.
+    if (!isExternalAppMode || isVoluntaryReturn) {
+      stopOverlayService()
+    }
+
+    // NOTE: navigateToPin event is now sent directly by OverlayService via KioskModule.
+    // The backup send from handleNavigationIntent (500ms) handles edge cases.
+    // No need for a third send here.
+
+    val kioskEnabled = isKioskEnabled()
+
+    // #220: Honor the "Back Button Behavior" setting in external-app mode. This native
+    // fast-path (added for #106/#203) previously relaunched the external app on EVERY
+    // involuntary return, which silently overrode back_button_mode: Test Mode and Delayed
+    // Return never took effect (the app always restarted instantly). Only 'immediate'
+    // should hard-relaunch here. For 'test' and 'timer' we leave FreeKiosk in the
+    // foreground and let the JS AppState listener apply the correct behavior (stay on
+    // FreeKiosk / show the countdown). JS is not frozen in those modes because FreeKiosk
+    // stays foregrounded, and handleAppReturned/onAppReturned still stops the overlay.
+    val backButtonMode = getAsyncStorageValue("@kiosk_back_button_mode", "test")
+
+    // Fix #106: In external app mode, on involuntary returns, do NOT re-enter
+    // startLockTask on MainActivity (which would pin FreeKiosk). Instead, immediately
+    // relaunch the external app from the native layer to minimize the flash.
+    // #220 follow-up: never take this path in multi-app mode. externalAppPackage holds the
+    // SINGLE-app setting, so relaunching it here either brought back an app the user had not
+    // opened, or did nothing at all when the setting is empty. Multi-app always returns to
+    // the FreeKiosk grid instead, which is what the JS side does (KioskScreen: "Multi-app
+    // mode: ALWAYS return to grid, never relaunch any specific app").
+    val isMultiAppMode = getAsyncStorageValue("@kiosk_external_app_mode", "single") == "multi"
+
+    if (isExternalAppMode && !isMultiAppMode && !isVoluntaryReturn && kioskEnabled && backButtonMode == "immediate") {
+      // Relaunch the external app directly if possible
+      val targetPkg = externalAppPackage
+      if (targetPkg != null) {
+        DebugLog.d("MainActivity", "External app mode involuntary return — relaunching $targetPkg directly")
+        try {
+          val launchIntent = packageManager.launchIntentFor(targetPkg)
+          if (launchIntent != null) {
+            launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            // Restart OverlayService BEFORE launching 24Six so the button is present
+            // when the external app comes to the foreground.
+            startOverlayServiceFromNative(targetPkg)
+            startActivity(launchIntent)
+            // Move FreeKiosk to background so external app stays visible
+            Handler(Looper.getMainLooper()).postDelayed({ moveTaskToBack(true) }, 300)
+            // #203 — Deliberately NOT sending onAppReturned on this path: JS answers
+            // that event with stopOverlayService(), and since FreeKiosk goes straight
+            // back to the background its JS timers freeze — the pending stop then fires
+            // on the NEXT foreground pass (e.g. returning from Settings) and kills the
+            // OverlayService that was just restarted, leaving the 5-tap escape dead.
+            isVoluntaryReturn = false
+            return
+          }
+        } catch (e: Exception) {
+          DebugLog.errorProduction("MainActivity", "Failed to relaunch external app: ${e.message}")
+        }
+      }
+    }
+
+    // Notifier React Native qu'on est revenu sur FreeKiosk (depuis une app externe)
+    // NE PAS envoyer si c'est un retour volontaire (l'overlay l'a déjà envoyé),
+    // ni si le fast-path ci-dessus a relancé l'app externe directement (#203)
+    if (isExternalAppMode && !isVoluntaryReturn) {
+      sendAppReturnedEvent(false)  // voluntary=false = auto-relaunch possible
+    }
+    isVoluntaryReturn = false  // Reset pour le prochain resume
+
+    // Relancer Lock Task si nécessaire (WebView, Media, or external app voluntary return)
+    if (kioskEnabled && devicePolicyManager.isDeviceOwnerApp(packageName)) {
+      // Skip re-lock if print dialog is active — the print system activity causes
+      // onResume and we must not re-enter lock task while the user is interacting
+      // with the printer selection dialog
+      if (PrintModule.isPrintActive) {
+        DebugLog.d("MainActivity", "Skipping lock task re-entry: print dialog is active")
+      } else if (!isTaskLocked()) {
+        // Check if power button (GlobalActions) is allowed — if so, the brief focus
+        // loss may be from the power menu. Delay the re-lock to avoid dismissing it.
+        val allowPowerButton = getAsyncStorageValue("@kiosk_allow_power_button", "true") == "true"
+        val timeSinceFocusLost = System.currentTimeMillis() - lastFocusLostTime
+
+        if (allowPowerButton && timeSinceFocusLost < 2000L) {
+          // #248: the power menu was probably just shown, so defer the re-lock rather
+          // than dismissing it. This used to re-lock on a flat 2s timer, which is less
+          // time than it takes to read the menu and choose "Power off": the menu closed
+          // by itself and the device could not be powered down from the button at all.
+          //
+          // Wait for window focus instead. That fires when the menu is dismissed, so in
+          // the common case we re-lock sooner than the old timer did, and in the slow
+          // case we no longer cut the user off mid-menu. The timer stays as a bound, not
+          // as the mechanism: if focus never comes back (the user walked away with the
+          // menu open) we re-lock anyway, so #98's guarantee is relaxed by at most
+          // POWER_MENU_RELOCK_MAX_WAIT_MS, and only after a deliberate power-button
+          // press on a kiosk whose admin has explicitly allowed the power menu.
+          DebugLog.d("MainActivity", "Deferring re-lock: power menu may be active (${timeSinceFocusLost}ms since focus lost)")
+          powerMenuRelockPending = true
+          powerMenuRelockHandler.removeCallbacksAndMessages(null)
+          powerMenuRelockHandler.postDelayed({
+            if (powerMenuRelockPending) {
+              powerMenuRelockPending = false
+              if (!isTaskLocked()) {
+                enableKioskRestrictions()
+                startLockTask()
+                DebugLog.d("MainActivity", "Deferred re-lock completed (fallback timeout)")
+              }
+            }
+          }, POWER_MENU_RELOCK_MAX_WAIT_MS)
+        } else {
+          enableKioskRestrictions()
+          startLockTask()
+          DebugLog.d("MainActivity", "Re-started lock task on resume (with kiosk restrictions)")
+        }
+      }
+    }
+  }
+
+  private fun startOverlayService() {
+    try {
+      // Vérifier la permission overlay (Android M+)
+      if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+        if (!android.provider.Settings.canDrawOverlays(this)) {
+          DebugLog.d("MainActivity", "Overlay permission not granted, skipping OverlayService")
+          return
+        }
+      }
+
+      val serviceIntent = Intent(this, OverlayService::class.java)
+      startService(serviceIntent)
+      DebugLog.d("MainActivity", "Started OverlayService")
+    } catch (e: Exception) {
+      DebugLog.errorProduction("MainActivity", "Error starting OverlayService: ${e.message}")
+    }
+  }
+
+  private fun stopOverlayService() {
+    try {
+      val serviceIntent = Intent(this, OverlayService::class.java)
+      stopService(serviceIntent)
+      DebugLog.d("MainActivity", "Stopped OverlayService")
+    } catch (e: Exception) {
+      DebugLog.errorProduction("MainActivity", "Error stopping OverlayService: ${e.message}")
+    }
+  }
+
+  /**
+   * Start OverlayService from native code, reading parameters from AsyncStorage.
+   * Called from onResume() fast path (involuntary return) to ensure the overlay
+   * button is present when the external app is relaunched.
+   *
+   * This is needed because the JS layer (KioskScreen/PinScreen) cannot start the
+   * service reliably from a background context, and the fast path bypasses JS entirely.
+   */
+  private fun startOverlayServiceFromNative(lockedPackage: String) {
+    try {
+      if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+        if (!android.provider.Settings.canDrawOverlays(this)) {
+          DebugLog.d("MainActivity", "Overlay permission not granted, skipping startOverlayServiceFromNative")
+          return
+        }
+      }
+
+      val tapCount = getAsyncStorageValue("@kiosk_return_tap_count", "5").toIntOrNull() ?: 5
+      val tapTimeout = getAsyncStorageValue("@kiosk_return_tap_timeout", "1500").toIntOrNull() ?: 1500
+      val returnMode = getAsyncStorageValue("@kiosk_return_mode", "button")
+      val buttonPosition = getAsyncStorageValue("@kiosk_return_button_position", "bottom-right")
+      val autoRelaunch = getAsyncStorageValue("@kiosk_auto_relaunch_app", "true") == "true"
+      val nfcEnabled = getAsyncStorageValue("@kiosk_allow_notifications", "false") == "true"
+
+      val serviceIntent = Intent(this, OverlayService::class.java)
+      serviceIntent.putExtra("REQUIRED_TAPS", tapCount.coerceIn(2, 20))
+      serviceIntent.putExtra("TAP_TIMEOUT", tapTimeout.coerceIn(500, 5000).toLong())
+      serviceIntent.putExtra("RETURN_MODE", returnMode)
+      serviceIntent.putExtra("BUTTON_POSITION", buttonPosition)
+      serviceIntent.putExtra("LOCKED_PACKAGE", lockedPackage)
+      serviceIntent.putExtra("AUTO_RELAUNCH", autoRelaunch)
+      serviceIntent.putExtra("NFC_ENABLED", nfcEnabled)
+
+      startService(serviceIntent)
+      DebugLog.d("MainActivity", "startOverlayServiceFromNative: taps=$tapCount timeout=${tapTimeout}ms mode=$returnMode pos=$buttonPosition pkg=$lockedPackage autoRelaunch=$autoRelaunch")
+    } catch (e: Exception) {
+      DebugLog.errorProduction("MainActivity", "Failed to start OverlayService from native: ${e.message}")
+    }
+  }
+
+  internal fun isTaskLocked(): Boolean {
+    return try {
+      val activityManager = getSystemService(Context.ACTIVITY_SERVICE) as android.app.ActivityManager
+      activityManager.lockTaskModeState != android.app.ActivityManager.LOCK_TASK_MODE_NONE
+    } catch (e: Exception) {
+      false
+    }
+  }
+
+  override fun onWindowFocusChanged(hasFocus: Boolean) {
+    super.onWindowFocusChanged(hasFocus)
+    if (!hasFocus) {
+      // Track when we lost focus (e.g. power menu / GlobalActions / Print dialog appeared)
+      lastFocusLostTime = System.currentTimeMillis()
+      // Cancel any pending hideSystemUI to avoid fighting with the system window
+      hideSystemUIHandler.removeCallbacksAndMessages(null)
+    } else {
+      // Retry a lock task that was deferred because the task wasn't in the foreground
+      // when checkAndStartLockTask() ran in onCreate(). Window focus gained is the most
+      // reliable signal that the activity is now truly foregrounded.
+      if (lockTaskPending) {
+        tryStartLockTask("onWindowFocusChanged retry")
+      }
+
+      // #248: focus is back, so the power menu (if that is what took it) is gone. Re-lock
+      // now instead of waiting out the fallback timer.
+      if (powerMenuRelockPending) {
+        powerMenuRelockPending = false
+        powerMenuRelockHandler.removeCallbacksAndMessages(null)
+        // No kioskEnabled check here: the flag is only ever set inside the branch that
+        // already verified it, so reaching this point implies kiosk mode was on.
+        if (devicePolicyManager.isDeviceOwnerApp(packageName) && !isTaskLocked()) {
+          enableKioskRestrictions()
+          startLockTask()
+          DebugLog.d("MainActivity", "Deferred re-lock completed (window focus regained)")
+        }
+      }
+
+      // Focus is back while a print job is still live. That is NOT the dialog closing:
+      // clearing the flag here is what used to let the next focus loss re-enter lock
+      // task over an open printer selection. PrintModule now reads the job's own state,
+      // so this only defers immersive mode and leaves the flag alone.
+      if (PrintModule.isPrintActive) {
+        DebugLog.d("MainActivity", "Focus regained with a print job live, deferring immersive mode")
+        // Use a longer delay to let the print system activity fully dismiss
+        hideSystemUIHandler.removeCallbacksAndMessages(null)
+        hideSystemUIHandler.postDelayed({ hideSystemUI() }, 1500L)
+        return
+      }
+
+      // Debounce hideSystemUI: wait 600ms before re-applying immersive mode.
+      // This prevents the power menu from being immediately dismissed on devices
+      // where the WindowManager focus bounces rapidly (TECNO, Infinix, itel / HiOS).
+      // The Lock Task is still fully active during this window — no security impact.
+      val timeSinceFocusLost = System.currentTimeMillis() - lastFocusLostTime
+      val delay = if (timeSinceFocusLost < 1500L) 600L else 0L
+      hideSystemUIHandler.removeCallbacksAndMessages(null)
+      hideSystemUIHandler.postDelayed({ hideSystemUI() }, delay)
+    }
+  }
+
+  /**
+   * Clear "transient" system bars that Android leaves on screen.
+   *
+   * An edge swipe in immersive mode shows the bars transiently: the system shows them
+   * over the app and hides them again on its own timer. Pulling down on that transient
+   * status bar while the shade cannot open (screen pinning without Device Owner) cancels
+   * the timer, and on some devices nothing restarts it, so the bars stay for good.
+   * hideSystemUI() cannot clear them, because the app already requests them hidden, and
+   * the app cannot see them either: its insets still report the bars as hidden. Asking
+   * for them to be shown and hidden again in the same frame ends the transient state.
+   *
+   * The first swipe of that gesture starts on our window (the bars are hidden then), so
+   * a swipe that starts at the top or bottom edge and moves inward schedules the clean-up.
+   * Taps near an edge (page or nav bar buttons) do not, which keeps the show + hide away
+   * from normal use, when the bars are hidden.
+   */
+  private fun onEdgeTouchMaybeShowingTransientBars(ev: android.view.MotionEvent) {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return
+    val density = resources.displayMetrics.density
+    when (ev.actionMasked) {
+      android.view.MotionEvent.ACTION_DOWN -> {
+        // Only a swipe that starts at the top or bottom edge reveals transient bars; a tap
+        // there (a page button, a nav bar button) must not schedule anything.
+        val edge = EDGE_TOUCH_DP * density
+        val height = window.decorView.height
+        edgeSwipeStartEdge = when {
+          ev.rawY <= edge -> -1
+          ev.rawY >= height - edge -> 1
+          else -> 0
+        }
+        edgeSwipeStartY = ev.rawY
+      }
+      android.view.MotionEvent.ACTION_MOVE -> {
+        if (edgeSwipeStartEdge == 0) return
+        // Inward = down from the top edge, up from the bottom edge.
+        val inward = (ev.rawY - edgeSwipeStartY) * -edgeSwipeStartEdge
+        if (inward < EDGE_SWIPE_MIN_DP * density) return
+        edgeSwipeStartEdge = 0 // once per gesture
+        stuckBarsHandler.removeCallbacksAndMessages(null)
+        for (delay in STUCK_TRANSIENT_BARS_CHECKS_MS) {
+          stuckBarsHandler.postDelayed({ clearTransientSystemBars() }, delay)
+        }
+      }
+      android.view.MotionEvent.ACTION_UP, android.view.MotionEvent.ACTION_CANCEL -> edgeSwipeStartEdge = 0
+    }
+  }
+
+  private fun clearTransientSystemBars() {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return
+    if (!hasWindowFocus() || PrintModule.isPrintActive) return
+    window.insetsController?.show(WindowInsets.Type.statusBars() or WindowInsets.Type.navigationBars())
+    hideSystemUI()
+  }
+
+  private fun hideSystemUI() {
+    // Pour Android 11+ (API 30+), utiliser la nouvelle API WindowInsetsController
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+      window.insetsController?.apply {
+        hide(WindowInsets.Type.systemBars())
+        hide(WindowInsets.Type.statusBars())
+        hide(WindowInsets.Type.navigationBars())
+        systemBarsBehavior = WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+      }
+    } else {
+      // Pour Android 10 et inférieur, utiliser l'ancienne API
+      @Suppress("DEPRECATION")
+      window.decorView.systemUiVisibility = (
+        View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+        or View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+        or View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+        or View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+        or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+        or View.SYSTEM_UI_FLAG_FULLSCREEN
+        or View.SYSTEM_UI_FLAG_LOW_PROFILE  // Cache les contrôles système (menu Samsung)
+      )
+    }
+  }
+
+  // ===== Android TV: visible focus =====
+  // React Native emits no focus event for a plain view on Android, so the JS side cannot draw
+  // the focus itself. The remote moves the focus around, and without an outline nothing says
+  // what a press of OK will hit. This draws one over whichever view has the focus: a
+  // foreground stroke, put back as it was when the focus leaves. Text inputs draw their own
+  // (SettingsInput) and the WebView is left alone, a page does its own focus styling.
+  // Same colour as TV_FOCUS_COLOR in src/components/tv/tvFocus.ts.
+  private var ringedView: View? = null
+  private var ringedPreviousForeground: android.graphics.drawable.Drawable? = null
+
+  private fun installTvFocusRing() {
+    if (!isTelevision) return
+    val density = resources.displayMetrics.density
+    window.decorView.viewTreeObserver.addOnGlobalFocusChangeListener { _, newFocus ->
+      ringedView?.foreground = ringedPreviousForeground
+      ringedView = null
+      ringedPreviousForeground = null
+      if (newFocus == null || newFocus is android.widget.EditText ||
+          newFocus.javaClass.name.contains("WebView")) return@addOnGlobalFocusChangeListener
+      // A container that covers most of the screen (the page itself holds the focus) is not an
+      // element to point at: an outline around the whole screen is noise, not information.
+      val screen = window.decorView
+      if (newFocus.width.toLong() * newFocus.height > 0.6 * screen.width.toLong() * screen.height) {
+        return@addOnGlobalFocusChangeListener
+      }
+      ringedPreviousForeground = newFocus.foreground
+      ringedView = newFocus
+      newFocus.foreground = android.graphics.drawable.GradientDrawable().apply {
+        setColor(android.graphics.Color.TRANSPARENT)
+        setStroke((4 * density).toInt(), 0xFFFFB300.toInt())
+        cornerRadius = 8 * density
+      }
+    }
+  }
+
+  // ===== Android TV: an alert opens with its button focused (#365) =====
+  // React Native's Alert is a native dialog, and the system leaves its buttons unfocused. With a
+  // remote, OK then does nothing until DOWN has moved the focus onto a button, so a message such
+  // as "Invalid URL" looked stuck. This puts the focus on a button as the dialog starts: the
+  // negative one when there is one (Stay, Cancel), so a press of OK never confirms a destructive
+  // choice such as "Leave without saving" by accident, otherwise the only button.
+  private fun installTvAlertFocus() {
+    if (!isTelevision) return
+    supportFragmentManager.registerFragmentLifecycleCallbacks(
+      object : androidx.fragment.app.FragmentManager.FragmentLifecycleCallbacks() {
+        override fun onFragmentStarted(fm: androidx.fragment.app.FragmentManager, f: androidx.fragment.app.Fragment) {
+          val decor = (f as? androidx.fragment.app.DialogFragment)?.dialog?.window?.decorView ?: return
+          decor.post {
+            listOf(android.R.id.button2, android.R.id.button1, android.R.id.button3)
+              .mapNotNull { decor.findViewById<View>(it) }
+              .firstOrNull { it.visibility == View.VISIBLE && it.isFocusable }
+              ?.requestFocus()
+          }
+        }
+      },
+      false,
+    )
+  }
+
+  // ===== Android TV: Back x5 opens the PIN screen =====
+  // On a TV there is no touch, and the volume keys never reach the app (the system handles
+  // them), so neither the tap escape nor Volume Up x5 exists. Back is on every remote and is
+  // otherwise swallowed on the kiosk screen, so five presses in a row cost nothing. The PIN
+  // is still asked, so a stray sequence opens nothing.
+  private val isTelevision: Boolean by lazy { TvSupport.isTelevision(this) }
+  private var remoteBackCount = 0
+  private var remoteBackLastTime = 0L
+  private val remoteBackTimeout = 2000L
+
+  override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+    if (isTelevision && kioskScreenActive && event.keyCode == KeyEvent.KEYCODE_BACK &&
+        event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) {
+      val now = System.currentTimeMillis()
+      if (now - remoteBackLastTime > remoteBackTimeout) remoteBackCount = 0
+      remoteBackCount++
+      remoteBackLastTime = now
+      if (remoteBackCount >= 5) {
+        remoteBackCount = 0
+        android.util.Log.d("MainActivity", "Back x5 detected on TV! Navigating to PIN")
+        blockAutoRelaunch = true
+        Handler(Looper.getMainLooper()).postDelayed({ sendNavigateToPinEvent() }, 100)
+        return true
+      }
+    }
+
+    // Wake the screensaver with any remote key, and swallow the key (and its release) so an OK or
+    // a D-pad press does not also click or move the focus in the page that is hidden behind it.
+    // Only while the Kiosk screen is in front: the PIN page and Settings keep their keys.
+    if (isTelevision && isWakeKey(event.keyCode)) {
+      if (screensaverShowing && kioskScreenActive) {
+        if (event.action == KeyEvent.ACTION_DOWN) {
+          if (event.repeatCount == 0) KioskModule.sendEventFromNative("onTvKeyWake")
+          wakeKeyDown = event.keyCode
+        }
+        return true
+      }
+      if (event.action == KeyEvent.ACTION_UP && event.keyCode == wakeKeyDown) {
+        wakeKeyDown = -1
+        return true
+      }
+    }
+    return super.dispatchKeyEvent(event)
+  }
+
+  /** The key whose press woke the screensaver: its release is swallowed too. */
+  private var wakeKeyDown = -1
+
+  /** Volume, power and Home keep their own meaning; every other key counts as "someone is there". */
+  private fun isWakeKey(keyCode: Int): Boolean = when (keyCode) {
+    KeyEvent.KEYCODE_VOLUME_UP, KeyEvent.KEYCODE_VOLUME_DOWN, KeyEvent.KEYCODE_VOLUME_MUTE,
+    KeyEvent.KEYCODE_POWER, KeyEvent.KEYCODE_SLEEP, KeyEvent.KEYCODE_WAKEUP,
+    KeyEvent.KEYCODE_HOME -> false
+    else -> true
+  }
+
+  // Volume Up 5-tap tracking
+  private var volumeUpTapCount = 0
+  private var volumeUpLastTapTime = 0L
+  private val volumeUpTapTimeout = 2000L
+
+  override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
+    android.util.Log.d("MainActivity", "onKeyDown: keyCode=$keyCode, repeatCount=${event?.repeatCount ?: -1}")
+
+    // Ignore auto-repeat events (when user HOLDS the volume button)
+    // Only count the initial press (repeatCount == 0)
+    if (event != null && event.repeatCount > 0) {
+      if (keyCode == KeyEvent.KEYCODE_VOLUME_UP || keyCode == KeyEvent.KEYCODE_VOLUME_DOWN) {
+        android.util.Log.d("MainActivity", "Ignoring volume key repeat (repeatCount=${event.repeatCount})")
+      }
+      return super.onKeyDown(keyCode, event)
+    }
+
+    // Intercept Volume Up key events
+    if (keyCode == KeyEvent.KEYCODE_VOLUME_UP) {
+      // Check if feature is enabled
+      val volumeUp5TapEnabled = getAsyncStorageValue("@kiosk_volume_up_5tap_enabled", "true") == "true"
+
+      // #180 — Only act while the Kiosk screen is the active route, so Volume-Up x5
+      // doesn't kick the user out of Pin/Settings (same gate as the tap fallback).
+      // kioskScreenActive is set true on KioskScreen mount/focus, so a genuinely
+      // stuck user (still on the kiosk screen) keeps the escape; it only goes false
+      // once we've already navigated to Pin/Settings.
+      if (volumeUp5TapEnabled && kioskScreenActive) {
+        val currentTime = System.currentTimeMillis()
+
+        // Reset counter if timeout exceeded
+        if (currentTime - volumeUpLastTapTime > volumeUpTapTimeout) {
+          volumeUpTapCount = 0
+        }
+
+        volumeUpTapCount++
+        volumeUpLastTapTime = currentTime
+
+        android.util.Log.d("MainActivity", "Volume Up pressed! Count: $volumeUpTapCount")
+
+        if (volumeUpTapCount >= 5) {
+          volumeUpTapCount = 0
+          android.util.Log.d("MainActivity", "5-tap Volume Up detected! Navigating to PIN")
+
+          blockAutoRelaunch = true
+
+          Handler(Looper.getMainLooper()).postDelayed({
+            sendNavigateToPinEvent()
+          }, 100)
+
+          return true // Consume the 5th tap - don't change volume
+        }
+      }
+    } else if (keyCode == KeyEvent.KEYCODE_VOLUME_DOWN) {
+      // Volume Down resets the counter
+      if (volumeUpTapCount > 0) {
+        android.util.Log.d("MainActivity", "Volume Down pressed, resetting counter")
+        volumeUpTapCount = 0
+      }
+    }
+
+    // Let the event propagate normally
+    return super.onKeyDown(keyCode, event)
+  }
+
+  override fun onKeyUp(keyCode: Int, event: KeyEvent?): Boolean {
+    // Just pass through, but log for debugging
+    if (keyCode == KeyEvent.KEYCODE_VOLUME_UP || keyCode == KeyEvent.KEYCODE_VOLUME_DOWN) {
+      android.util.Log.d("MainActivity", "onKeyUp: keyCode=$keyCode")
+    }
+    return super.onKeyUp(keyCode, event)
+  }
+
+  // ============================================================================
+  // #180 — Native tap-to-settings fallback (REVERTABLE BLOCK)
+  // ----------------------------------------------------------------------------
+  // In WebView/media `tap_anywhere` mode the "N taps -> settings" gesture relies
+  // on JavaScript injected into the page (a `touchend` listener). On some OEM
+  // WebViews, or pages that route touches into a cross-origin iframe, that
+  // in-page event never reaches our listener, so the user is stranded with no
+  // way back to settings even though the page loaded fine (#180, benfrancois).
+  //
+  // dispatchTouchEvent() observes every touch at the Activity level, BEFORE it
+  // is dispatched to any view, completely independently of the page JS, iframes
+  // or OEM WebView quirks, and works under lock-task. It counts N spatially
+  // grouped taps (same proximity/timeout idea as the JS path) and then fires the
+  // existing `navigateToPin` event. It NEVER consumes the touch (always returns
+  // super.dispatchTouchEvent), so page interaction is unaffected. This mirrors
+  // the existing Volume-Up x5 escape hatch.
+  //
+  // To revert this feature entirely: delete this whole block (fields + methods +
+  // the dispatchTouchEvent override below). Nothing else references it.
+  // Disable at runtime: set AsyncStorage `@kiosk_tap_to_settings_native_enabled`
+  // to "false".
+  // ============================================================================
+  // Set from JS (KioskScreen focus/blur via KioskModule.setKioskScreenActive).
+  // This is a SINGLE-Activity app: dispatchTouchEvent() fires for every screen
+  // (Kiosk, Pin, Settings…). Without this gate, 5 grouped taps while *inside*
+  // Settings would also fire navigateToPin and kick the user out. Defaults false
+  // (fail-safe: no false positives if the focus signal never arrives).
+
+  private var tapSettingsCount = 0
+  private var tapSettingsFirstTapTime = 0L
+  private var tapSettingsFirstX = 0f
+  private var tapSettingsFirstY = 0f
+  // Physical px radius for grouping taps. ~80 CSS px (JS TAP_PROXIMITY_RADIUS)
+  // maps to roughly this on typical tablet densities; kept generous on purpose
+  // since this is an escape hatch, not a precision gesture.
+  private val tapSettingsProximityPx = 150f
+
+  // Cached config — AsyncStorage is SQLite-backed, so we must NOT read it on
+  // every touch. Re-read at most once per TTL.
+  private var tapSettingsCfgReadAt = 0L
+  private val tapSettingsCfgTtlMs = 3000L
+  private var tapSettingsEnabled = false
+  private var tapSettingsRequiredTaps = 5
+  private var tapSettingsTimeoutMs = 1500L
+
+  private fun refreshTapSettingsConfig() {
+    val now = System.currentTimeMillis()
+    if (now - tapSettingsCfgReadAt < tapSettingsCfgTtlMs) return
+    tapSettingsCfgReadAt = now
+    try {
+      val featureEnabled = getAsyncStorageValue("@kiosk_tap_to_settings_native_enabled", "true") == "true"
+      val displayMode = getAsyncStorageValue("@kiosk_display_mode", "webview")
+      val returnMode = getAsyncStorageValue("@kiosk_return_mode", "tap_anywhere")
+      // Only active where the JS path is the sole escape: WebView/media + tap_anywhere.
+      // (button mode has its own RN return button; external_app uses OverlayService.)
+      tapSettingsEnabled = featureEnabled &&
+        (displayMode == "webview" || displayMode == "media_player") &&
+        returnMode == "tap_anywhere"
+      tapSettingsRequiredTaps = getAsyncStorageValue("@kiosk_return_tap_count", "5").toIntOrNull()?.coerceIn(2, 20) ?: 5
+      tapSettingsTimeoutMs = getAsyncStorageValue("@kiosk_return_tap_timeout", "1500").toLongOrNull()?.coerceIn(500L, 5000L) ?: 1500L
+    } catch (e: Exception) {
+      tapSettingsEnabled = false
+    }
+  }
+
+  private fun handleTapForSettings(x: Float, y: Float) {
+    val now = System.currentTimeMillis()
+    if (tapSettingsCount == 0) {
+      tapSettingsFirstTapTime = now
+      tapSettingsFirstX = x
+      tapSettingsFirstY = y
+      tapSettingsCount = 1
+    } else {
+      val elapsed = now - tapSettingsFirstTapTime
+      val dx = x - tapSettingsFirstX
+      val dy = y - tapSettingsFirstY
+      val withinProximity = (dx * dx + dy * dy) <= (tapSettingsProximityPx * tapSettingsProximityPx)
+      if (elapsed > tapSettingsTimeoutMs || !withinProximity) {
+        // Too slow or too far from the first tap -> start a fresh sequence here.
+        tapSettingsFirstTapTime = now
+        tapSettingsFirstX = x
+        tapSettingsFirstY = y
+        tapSettingsCount = 1
+      } else {
+        tapSettingsCount++
+      }
+    }
+
+    if (tapSettingsCount >= tapSettingsRequiredTaps) {
+      tapSettingsCount = 0
+      android.util.Log.d("MainActivity", "Native $tapSettingsRequiredTaps-tap detected (#180 fallback) - navigating to PIN")
+      blockAutoRelaunch = true
+      Handler(Looper.getMainLooper()).postDelayed({
+        sendNavigateToPinEvent()
+      }, 100)
+    }
+  }
+
+  override fun dispatchTouchEvent(ev: android.view.MotionEvent?): Boolean {
+    // Observe (never consume) the initial press of each gesture.
+    if (ev != null) {
+      onEdgeTouchMaybeShowingTransientBars(ev)
+    }
+    if (ev != null && ev.actionMasked == android.view.MotionEvent.ACTION_DOWN && kioskScreenActive) {
+      refreshTapSettingsConfig()
+      if (tapSettingsEnabled) {
+        handleTapForSettings(ev.rawX, ev.rawY)
+      }
+    }
+    // Dashboard tile navigation (not part of #180; keep if #180 is reverted).
+    val navGesture = if (ev != null && navGestureEnabled) feedNavGesture(ev) else null
+    val handled = super.dispatchTouchEvent(ev)
+    // After super, so the page has already had the final ACTION_UP when the tile switches.
+    if (navGesture != null) sendNavGesture(navGesture)
+    return handled
+  }
+  // ===== END #180 native tap-to-settings fallback =====
+
+  // ===== Dashboard tile navigation =====
+  // Two-finger gestures, observed here so nothing is injected into the page and they work
+  // whatever state it is in. KioskScreen turns this on only while a tile is on screen. Up/down
+  // arrive in JS as "onNavGesture" ("up"/"down"); a sideways drag slides the tiles natively
+  // (TileSlider, in step with the fingers) and reports "left"/"right" once the slide is done.
+  // See TwoFingerSwipeDetector.
+  @Volatile var navGestureEnabled = false
+  private val navGestureDensity by lazy { resources.displayMetrics.density }
+  private val navGestureDetector by lazy {
+    TwoFingerSwipeDetector(
+      TwoFingerSwipeDetector.MIN_DRAG_DP * navGestureDensity,
+      TwoFingerSwipeDetector.MAX_GAP_CHANGE_DP * navGestureDensity,
+      TwoFingerSwipeDetector.DRAG_SLOP_DP * navGestureDensity,
+    )
+  }
+  val tileSlider by lazy { TileSlider(this) }
+  private val navGestureXs = FloatArray(2)
+  private val navGestureYs = FloatArray(2)
+
+  private fun feedNavGesture(ev: android.view.MotionEvent): TwoFingerSwipeDetector.Event? {
+    val count = minOf(ev.pointerCount, 2)
+    for (i in 0 until count) {
+      navGestureXs[i] = ev.getX(i)
+      navGestureYs[i] = ev.getY(i)
+    }
+    val event = navGestureDetector.onTouch(ev.actionMasked, ev.pointerCount, navGestureXs, navGestureYs, ev.eventTime)
+    val over = ev.actionMasked == android.view.MotionEvent.ACTION_UP ||
+      ev.actionMasked == android.view.MotionEvent.ACTION_CANCEL
+    if (over && event !is TwoFingerSwipeDetector.Event.DragEnd && event !is TwoFingerSwipeDetector.Event.DragCancel) {
+      tileSlider.idle()
+    }
+    return event
+  }
+
+  private fun sendNavGesture(event: TwoFingerSwipeDetector.Event) {
+    val toJs = { direction: String -> KioskModule.sendEventFromNative("onNavGesture", direction) }
+    when (event) {
+      is TwoFingerSwipeDetector.Event.Begin -> tileSlider.begin()
+      is TwoFingerSwipeDetector.Event.Swipe -> toJs(event.direction.jsName)
+      is TwoFingerSwipeDetector.Event.Drag -> tileSlider.drag(event.dxPx)
+      is TwoFingerSwipeDetector.Event.DragEnd ->
+        tileSlider.end(event.dxPx, event.velocityPxPerSec, resources.displayMetrics.widthPixels, toJs)
+      is TwoFingerSwipeDetector.Event.DragCancel -> tileSlider.cancel()
+    }
+  }
+  // ===== END Dashboard tile navigation =====
+
+  // Every Back reaches this method: below Android 16 the platform calls it (the manifest leaves
+  // enableOnBackInvokedCallback out for that, see the comment there, #221), and on Android 16
+  // React Native calls it from its own back callback (ReactActivity). super.onBackPressed() hands
+  // Back to React Native's BackHandler, where the kiosk screen consumes it. For the three valid
+  // modes the body ends in super.onBackPressed(), so it only differs from the default for an
+  // unknown back_button_mode set by hand over ADB.
+  @SuppressLint("GestureBackNavigation")
+  override fun onBackPressed() {
+    val prefs = getSharedPreferences("FreeKioskSettings", Context.MODE_PRIVATE)
+    val backButtonMode = prefs.getString("back_button_mode", "test") ?: "test"
+
+    android.util.Log.i("FreeKiosk", "Back button pressed - back_button_mode=$backButtonMode")
+
+    when (backButtonMode) {
+      "test" -> {
+        // Mode test: allow back button (shows FreeKiosk, user can see test UI)
+        android.util.Log.i("FreeKiosk", "Back button: test mode - allowing back")
+        super.onBackPressed()
+      }
+      "immediate", "timer" -> {
+        // Mode immediate/timer: allow back, AppState listener in JS will handle relaunch
+        android.util.Log.i("FreeKiosk", "Back button: $backButtonMode mode - allowing back for JS handling")
+        super.onBackPressed()
+      }
+      else -> {
+        // Unknown mode: block back button for safety
+        android.util.Log.i("FreeKiosk", "Back button: unknown mode '$backButtonMode' - blocking")
+      }
+    }
+  }
+
+  /**
+   * Read a value from AsyncStorage (React Native SQLite database)
+   * Uses database "RKStorage" with table "catalystLocalStorage"
+   */
+  // ===== #215: pause the page while the screen is off =====
+  // WebView.onPause() does not stop a page's timers: a slideshow kept fetching its images with the
+  // screen off (checked with a page that sends a request every second, 10 in 10 s on and off).
+  // pauseTimers() does. It is global to the process's WebViews, so it is lifted as soon as the screen
+  // is on, when the activity resumes, and never applied unless the option is on.
+  private var pageTimersPaused = false
+
+  /** Called by ScreenStateReceiver on every screen on/off. */
+  fun onScreenStateChanged(screenOn: Boolean) {
+    val enabled = getAsyncStorageValue("@kiosk_pause_page_screen_off", "false") == "true"
+    setPageTimersPaused(!screenOn && enabled)
+  }
+
+  private fun setPageTimersPaused(paused: Boolean) {
+    runOnUiThread {
+      val webView = KioskModule.findWebView(window.decorView)
+      if (webView != null) {
+        if (paused) webView.pauseTimers() else webView.resumeTimers()
+      }
+      pageTimersPaused = paused && webView != null
+    }
+  }
+
+  private fun getAsyncStorageValue(key: String, defaultValue: String): String {
+    return try {
+      val dbPath = getDatabasePath("RKStorage").absolutePath
+      val db = android.database.sqlite.SQLiteDatabase.openDatabase(dbPath, null, android.database.sqlite.SQLiteDatabase.OPEN_READONLY)
+
+      val cursor = db.rawQuery(
+        "SELECT value FROM catalystLocalStorage WHERE key = ?",
+        arrayOf(key)
+      )
+
+      val value = if (cursor.moveToFirst()) {
+        cursor.getString(0) ?: defaultValue
+      } else {
+        defaultValue
+      }
+
+      cursor.close()
+      db.close()
+      value
+    } catch (e: Exception) {
+      DebugLog.d("MainActivity", "Error reading AsyncStorage key $key: ${e.message}")
+      defaultValue
+    }
+  }
+
+  /**
+   * Read all managed app package names from AsyncStorage.
+   * Used to add them to the lock task whitelist.
+   */
+  private fun getManagedAppPackages(): List<String> {
+    return try {
+      val json = getAsyncStorageValue("@kiosk_managed_apps", "[]")
+      val apps = org.json.JSONArray(json)
+      val packages = mutableListOf<String>()
+      for (i in 0 until apps.length()) {
+        val app = apps.getJSONObject(i)
+        val pkg = app.getString("packageName")
+        try {
+          packageManager.getPackageInfo(pkg, 0)
+          packages.add(pkg)
+        } catch (e: Exception) {
+          DebugLog.d("MainActivity", "Managed app not installed, skipping: $pkg")
+        }
+      }
+      packages
+    } catch (e: Exception) {
+      DebugLog.d("MainActivity", "Could not read managed apps: ${e.message}")
+      emptyList()
+    }
+  }
+
+  /**
+   * Check if window.print() (Allow Printing) is enabled in settings (read from AsyncStorage)
+   */
+  private fun isWindowPrintSettingEnabled(): Boolean {
+    return getAsyncStorageValue("@kiosk_print_enabled", "false") == "true"
+  }
+
+  /**
+   * Dynamically discover all print spooler/service packages installed on the device.
+   * Covers com.android.printspooler, Samsung Print Service, HP Print, etc.
+   */
+  private fun getPrintSpoolerPackages(): List<String> {
+    val packages = mutableSetOf<String>()
+    packages.add("com.android.printspooler")
+    try {
+      val printServices = packageManager.queryIntentServices(
+        Intent("android.printservice.PrintService"),
+        PackageManager.GET_META_DATA
+      )
+      for (service in printServices) {
+        service.serviceInfo?.packageName?.let { pkg ->
+          packages.add(pkg)
+        }
+      }
+      DebugLog.d("MainActivity", "Print spooler packages for whitelist: $packages")
+    } catch (e: Exception) {
+      DebugLog.d("MainActivity", "Could not discover print services: ${e.message}")
+    }
+    return packages.toList()
+  }
+
+  private fun getEmergencyDialerPackages(): List<String> {
+    val packages = mutableSetOf<String>()
+    val emergencyIntent = Intent(emergencyDialAction)
+    try {
+      packageManager.resolveActivity(emergencyIntent, PackageManager.MATCH_DEFAULT_ONLY)
+        ?.activityInfo?.packageName
+        ?.let { packages.add(it) }
+
+      packageManager.queryIntentActivities(emergencyIntent, PackageManager.MATCH_DEFAULT_ONLY)
+        .forEach { info ->
+          info.activityInfo?.packageName?.let { packages.add(it) }
+        }
+      DebugLog.d("MainActivity", "Emergency dialer packages for whitelist: $packages")
+    } catch (e: Exception) {
+      DebugLog.errorProduction("MainActivity", "Could not resolve emergency dialer packages: ${e.message}")
+    }
+    return packages.toList()
+  }
+
+  private fun bringToFrontWithPinNavigation() {
+    try {
+      val intent = Intent(this, MainActivity::class.java)
+      intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+      intent.putExtra("navigateToPin", true)
+      startActivity(intent)
+      DebugLog.d("MainActivity", "Bringing FreeKiosk to front with PIN navigation")
+    } catch (e: Exception) {
+      DebugLog.errorProduction("MainActivity", "Error bringing FreeKiosk to front with PIN: ${e.message}")
+    }
+  }
+
+  private fun readExternalAppConfig() {
+    try {
+      val displayMode = getAsyncStorageValue("@kiosk_display_mode", "webview")
+      externalAppPackage = getAsyncStorageValue("@kiosk_external_app_package", "")
+      if (externalAppPackage.isNullOrEmpty()) externalAppPackage = null
+      isExternalAppMode = displayMode == "external_app"
+      isDeviceOwner = devicePolicyManager.isDeviceOwnerApp(packageName)
+
+      DebugLog.d("MainActivity", "External app config: mode=$displayMode, package=$externalAppPackage, isDeviceOwner=$isDeviceOwner")
+    } catch (e: Exception) {
+      DebugLog.errorProduction("MainActivity", "Error reading external app config: ${e.message}")
+    }
+  }
+
+  /**
+   * Ensure the BootReceiver component is enabled when auto-launch is ON.
+   * Fixes a regression where toggleAutoLaunch stopped calling enableAutoLaunch(),
+   * leaving the component disabled in PackageManager even though AsyncStorage says "true".
+   */
+  private fun ensureBootReceiverEnabled() {
+    try {
+      val autoLaunchValue = getAsyncStorageValue("@kiosk_auto_launch", "false")
+      val autoLaunchEnabled = autoLaunchValue == "true"
+
+      if (autoLaunchEnabled) {
+        val componentName = ComponentName(this, BootReceiver::class.java)
+        val currentState = packageManager.getComponentEnabledSetting(componentName)
+        if (currentState != PackageManager.COMPONENT_ENABLED_STATE_ENABLED && 
+            currentState != PackageManager.COMPONENT_ENABLED_STATE_DEFAULT) {
+          packageManager.setComponentEnabledSetting(
+            componentName,
+            PackageManager.COMPONENT_ENABLED_STATE_ENABLED,
+            PackageManager.DONT_KILL_APP
+          )
+          DebugLog.d("MainActivity", "BootReceiver re-enabled (was disabled)")
+        }
+      }
+    } catch (e: Exception) {
+      DebugLog.d("MainActivity", "Error ensuring BootReceiver state: ${e.message}")
+    }
+  }
+
+  /**
+   * Start KioskWatchdogService if kiosk mode is enabled (#96).
+   * Uses START_STICKY so Android restarts FreeKiosk after an OOM kill.
+   */
+  private fun startKioskWatchdogIfNeeded() {
+    try {
+      // #234: always go through the companion helpers, they persist which mode the
+      // service must come back in after a START_STICKY restart.
+      if (isKioskEnabled()) {
+        KioskWatchdogService.startForKiosk(this)
+      } else {
+        // No Lock Mode: the process is an ordinary background app, so keep it alive when
+
+      }
+    } catch (e: Exception) {
+      DebugLog.d("MainActivity", "Error starting KioskWatchdogService: ${e.message}")
+    }
+  }
+
+  /**
+   * Applies the Screen Orientation setting (#189) to this activity. Read here, before React
+   * Native has loaded, so a locked kiosk does not show the other orientation first.
+   */
+  private fun applyScreenOrientation() {
+    try {
+      // Not behind an external app, where the setting is not offered (KioskScreen does the same).
+      val mode = if (getAsyncStorageValue("@kiosk_display_mode", "webview") == "external_app") "auto"
+        else getAsyncStorageValue("@kiosk_screen_orientation", "auto")
+      requestedOrientation = RotationControlModule.orientationFor(mode)
+    } catch (e: Exception) {
+      DebugLog.d("MainActivity", "Could not apply the screen orientation: ${e.message}")
+    }
+  }
+
+
+
+
+  /**
+   * Stop KioskWatchdogService and cancel its notification (#96 fix).
+   * Called during intentional kiosk exit to prevent the watchdog from relaunching the app.
+   */
+  private fun stopKioskWatchdog() {
+    try {
+      val serviceIntent = Intent(this, KioskWatchdogService::class.java)
+      stopService(serviceIntent)
+      val nm = getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
+      nm.cancel(2002) // KioskWatchdogService.NOTIFICATION_ID
+      DebugLog.d("MainActivity", "KioskWatchdogService stopped and notification cleared")
+
+    } catch (e: Exception) {
+      DebugLog.d("MainActivity", "Error stopping KioskWatchdogService: ${e.message}")
+    }
+  }
+
+  // ==================== ADB Configuration ====================
+
+  /**
+   * Handle ADB intent configuration
+   * Allows setting up FreeKiosk via ADB commands:
+   * 
+   * First setup (no PIN configured):
+   *   adb shell am start -n top.lhlnb.easykiosk/.MainActivity --es lock_package "com.app" --es pin "1234"
+   * 
+   * Modify existing config (PIN required):
+   *   adb shell am start -n top.lhlnb.easykiosk/.MainActivity --es lock_package "com.app" --es pin "1234"
+   * 
+   * Full config with URL:
+   *   adb shell am start -n top.lhlnb.easykiosk/.MainActivity --es url "https://example.com" --es pin "1234"
+   * 
+   * @return true if config was applied and app will restart, false otherwise
+   */
+  private fun handleAdbConfig(intent: Intent?): Boolean {
+    if (intent == null) return false
+
+    // Check if this is an ADB config intent
+    val lockPackage = intent.getStringExtra("lock_package")
+    val url = intent.getStringExtra("url")
+    val pin = intent.getStringExtra("pin")
+    val configJson = intent.getStringExtra("config") // Full JSON config
+
+    // Skip if no config parameters. Recognized keys are derived from ADB_SIMPLE_KEYS plus
+    // the ones with their own handling, so adding a setting to the map is enough and this
+    // list can no longer drift out of sync with what is actually read (#193).
+    if ((ADB_SIMPLE_KEYS.keys + ADB_SPECIAL_KEYS).none { intent.hasExtra(it) }) return false
+
+    android.util.Log.i("FreeKiosk-ADB", "ADB config received: lock_package=$lockPackage, url=$url, config=${configJson != null}")
+
+    // Prevent processing the same intent twice (after recreate)
+    val intentHash = ((lockPackage ?: "").hashCode() + (url ?: "").hashCode() + (pin ?: "").hashCode() + System.currentTimeMillis() / 2000).toLong()
+    if (intentHash == lastProcessedAdbIntent) return false
+    lastProcessedAdbIntent = intentHash
+
+    // Check if device is already configured (has PIN)
+    val isVirginSetup = !hasExistingPin()
+
+    if (isVirginSetup) {
+      // First setup - PIN is REQUIRED to be set
+      if (pin.isNullOrEmpty()) {
+        android.util.Log.w("FreeKiosk-ADB", "Rejected: PIN required for first setup")
+        showAdbToast("❌ ADB Config rejected: PIN required for first setup")
+        return false
+      }
+      // Save the new PIN (hashed for ADB verification AND in AsyncStorage for UI)
+      saveAdbPinHash(pin)
+      savePinDirectly(pin)
+
+    } else {
+      // Already configured - verify PIN
+      if (pin.isNullOrEmpty()) {
+        android.util.Log.w("FreeKiosk-ADB", "Rejected: PIN required")
+        showAdbToast("❌ ADB Config rejected: PIN required")
+        return false
+      }
+
+      if (!verifyAdbPin(pin)) {
+        android.util.Log.w("FreeKiosk-ADB", "Rejected: Invalid PIN")
+        showAdbToast("❌ ADB Config rejected: Invalid PIN")
+        return false
+      }
+    }
+
+    // PIN verified - Save configuration to SharedPreferences as "pending config"
+    // React Native (KioskScreen) will read this on startup and apply to AsyncStorage
+    // This avoids Room/AsyncStorage v2 database compatibility issues
+    val pendingConfig = getSharedPreferences("FreeKioskPendingConfig", Context.MODE_PRIVATE)
+    val editor = pendingConfig.edit()
+    editor.clear() // Clear any previous pending config
+
+    android.util.Log.i("FreeKiosk-ADB", "Writing pending config to SharedPreferences...")
+
+    try {
+
+      // Handle full JSON config
+      if (configJson != null) {
+        try {
+          val config = org.json.JSONObject(configJson)
+          applyJsonConfigToPrefs(editor, config)
+        } catch (e: Exception) {
+          android.util.Log.e("FreeKiosk-ADB", "Invalid JSON: ${e.message}")
+          showAdbToast("❌ ADB Config: Invalid JSON")
+          return false
+        }
+      }
+
+    // Every passthrough key, whatever type it was passed as. This is the other half of
+    // #240: kiosk_enabled was read with getBooleanExtra, so "--es kiosk_enabled true" handed
+    // it a String, getBooleanExtra fell back to its default of false, and the command turned
+    // Lock Mode off instead of on without a word. Reading the raw extra and stringifying it
+    // means --es, --ez and --ei all work, for every key in the map.
+    for ((extraKey, storageKey) in ADB_SIMPLE_KEYS) {
+      val raw = intent.extras?.get(extraKey) ?: continue
+      editor.putString(storageKey, raw.toString())
+      val shown = if (extraKey in ADB_SENSITIVE_KEYS) "***" else raw.toString()
+      android.util.Log.i("FreeKiosk-ADB", "Set $extraKey -> $storageKey = $shown")
+    }
+
+    // Say which keys were not understood. A mistyped or unsupported key used to be dropped
+    // without a word, so the command looked like it had worked and the operator only found
+    // out by checking every screen by hand (#240).
+    val unknownExtras = intent.extras?.keySet()?.filter { isUnknownAdbExtra(it) } ?: emptyList()
+    if (unknownExtras.isNotEmpty()) {
+      android.util.Log.w("FreeKiosk-ADB", "Ignored unknown config keys: ${unknownExtras.joinToString(", ")}")
+      showAdbToast("⚠️ ADB Config: ignored ${unknownExtras.size} unknown key(s): ${unknownExtras.take(3).joinToString(", ")}")
+    }
+
+    // Handle individual parameters (override JSON if both provided)
+    // Always include PIN in pending config so it's visible in Settings UI
+    if (pin != null) {
+      editor.putString("@kiosk_pin", pin)
+    }
+
+    if (lockPackage != null) {
+      // Verify package exists
+      try {
+        packageManager.getPackageInfo(lockPackage, 0)
+        editor.putString("@kiosk_external_app_package", lockPackage)
+        editor.putString("@kiosk_display_mode", "external_app")
+      } catch (e: Exception) {
+        android.util.Log.w("FreeKiosk-ADB", "Package not found: $lockPackage")
+        showAdbToast("❌ ADB Config: Package not found: $lockPackage")
+        return false
+      }
+    }
+
+    if (url != null) {
+      editor.putString("@kiosk_url", url)
+      // Only set display_mode to webview if lock_package was NOT provided
+      // lock_package takes priority over url for display_mode. An explicit display_mode
+      // wins over both: passing one and having it silently overwritten was part of #240.
+      if (lockPackage == null && !intent.hasExtra("display_mode")) {
+        editor.putString("@kiosk_display_mode", "webview")
+      }
+    }
+
+    // Handle auto_launch as string or auto_start as boolean
+    intent.getStringExtra("auto_launch")?.let {
+      editor.putString("@kiosk_auto_launch", it)
+    }
+    intent.extras?.get("auto_start")?.let {
+      editor.putString("@kiosk_auto_launch", it.toString())
+    }
+
+    // test_mode: "true" = show return button with timer, "false" = immediate return (production)
+    intent.getStringExtra("test_mode")?.let {
+      editor.putString("@kiosk_external_app_test_mode", it)
+      // Also set back_button_mode: test_mode=false → immediate, test_mode=true → test
+      if (it == "false") {
+        editor.putString("@kiosk_back_button_mode", "immediate")
+      } else {
+        editor.putString("@kiosk_back_button_mode", "test")
+      }
+    }
+
+    // back_button_mode: "test" = stay on FreeKiosk, "timer" = countdown then relaunch, "immediate" = relaunch immediately
+    intent.getStringExtra("back_button_mode")?.let {
+      editor.putString("@kiosk_back_button_mode", it)
+    }
+
+    intent.getStringExtra("status_bar")?.let {
+      editor.putString("@kiosk_status_bar_enabled", it)
+    }
+
+    intent.getStringExtra("pin_mode")?.let {
+      // Only accept valid values: "numeric" or "alphanumeric"
+      if (it == "numeric" || it == "alphanumeric") {
+        editor.putString("@kiosk_pin_mode", it)
+      }
+    }
+
+
+
+    // Multi-app mode configuration
+    intent.getStringExtra("external_app_mode")?.let {
+      if (it == "single" || it == "multi") {
+        editor.putString("@kiosk_external_app_mode", it)
+        // If switching to multi mode, set display_mode to external_app
+        if (it == "multi") {
+          editor.putString("@kiosk_display_mode", "external_app")
+        }
+      } else {
+        android.util.Log.w("FreeKiosk-ADB", "Invalid external_app_mode: $it (must be 'single' or 'multi')")
+      }
+    }
+
+    // Managed apps: JSON array of apps for multi-app mode
+    // Format: '[{"packageName":"com.app1"},{"packageName":"com.app2","launchOnBoot":true}]'
+    intent.getStringExtra("managed_apps")?.let { jsonStr ->
+      try {
+        val appsArray = org.json.JSONArray(jsonStr)
+        val validatedApps = org.json.JSONArray()
+        for (i in 0 until appsArray.length()) {
+          val appObj = appsArray.getJSONObject(i)
+          val pkg = appObj.getString("packageName")
+          // Verify each package is installed
+          try {
+            val appInfo = packageManager.getApplicationInfo(pkg, 0)
+            val displayName = if (appObj.has("displayName") && appObj.getString("displayName").isNotEmpty()) {
+              appObj.getString("displayName")
+            } else {
+              packageManager.getApplicationLabel(appInfo).toString()
+            }
+            val validApp = org.json.JSONObject()
+            validApp.put("packageName", pkg)
+            validApp.put("displayName", displayName)
+            validApp.put("showOnHomeScreen", appObj.optBoolean("showOnHomeScreen", true))
+            validApp.put("launchOnBoot", appObj.optBoolean("launchOnBoot", false))
+            validApp.put("keepAlive", appObj.optBoolean("keepAlive", false))
+            validApp.put("allowAccessibility", appObj.optBoolean("allowAccessibility", false))
+            validatedApps.put(validApp)
+            android.util.Log.i("FreeKiosk-ADB", "Managed app added: $pkg ($displayName)")
+          } catch (e: android.content.pm.PackageManager.NameNotFoundException) {
+            android.util.Log.w("FreeKiosk-ADB", "Managed app not installed, skipping: $pkg")
+          }
+        }
+        if (validatedApps.length() > 0) {
+          editor.putString("@kiosk_managed_apps", validatedApps.toString())
+          android.util.Log.i("FreeKiosk-ADB", "Managed apps configured: ${validatedApps.length()} apps")
+        } else {
+          android.util.Log.w("FreeKiosk-ADB", "No valid managed apps found in the provided list")
+        }
+      } catch (e: Exception) {
+        android.util.Log.e("FreeKiosk-ADB", "Invalid managed_apps JSON: ${e.message}")
+        showAdbToast("❌ ADB Config: Invalid managed_apps JSON")
+      }
+    }
+
+    // Dashboard mode. The tile grid only exists inside the WebView display mode
+    // (KioskScreen renders DashboardGrid under displayMode === 'webview'), so enabling it
+    // without setting the mode would write a setting the runtime never reads. This mirrors
+    // what lock_package already does for external_app.
+    if (intent.extras?.get("dashboard_mode")?.toString() == "true" &&
+        lockPackage == null && !intent.hasExtra("display_mode")) {
+      editor.putString("@kiosk_display_mode", "webview")
+    }
+
+    // Dashboard tiles: JSON array, one object per tile.
+    // Format: '[{"label":"Main","url":"https://app.example"},{"label":"Docs","url":"..."}]'
+    intent.getStringExtra("dashboard_tiles")?.let { jsonStr ->
+      val normalized = normalizeDashboardTiles(jsonStr)
+      if (normalized != null) {
+        editor.putString("@kiosk_dashboard_tiles", normalized)
+      } else {
+        showAdbToast("❌ ADB Config: Invalid dashboard_tiles JSON")
+      }
+    }
+
+    // Mark that there is pending config
+    editor.putBoolean("has_pending_config", true)
+
+    // Use commit() (synchronous) instead of apply() to ensure data is written before process kill
+    editor.commit()
+
+    // Verify
+    val verifyPrefs = getSharedPreferences("FreeKioskPendingConfig", Context.MODE_PRIVATE)
+    val allEntries = verifyPrefs.all
+    android.util.Log.i("FreeKiosk-ADB", "Pending config verification - ${allEntries.size} entries:")
+    for ((key, value) in allEntries) {
+      // The pending keys are storage keys ("@kiosk_pin"), the sensitive list holds ADB names ("pin")
+      val shown = if (ADB_SENSITIVE_KEYS.any { key.endsWith(it) }) "***" else value
+      android.util.Log.i("FreeKiosk-ADB", "  Pending: $key = $shown")
+    }
+
+    } catch (e: Exception) {
+      android.util.Log.e("FreeKiosk-ADB", "Error applying config: ${e.message}")
+      showAdbToast("❌ ADB Config: Error: ${e.message}")
+      return false
+    }
+
+    // Show success toast
+    val configType = when {
+      lockPackage != null -> "app: $lockPackage"
+      url != null -> "URL: $url"
+      configJson != null -> "full config"
+      else -> "settings"
+    }
+    android.util.Log.i("FreeKiosk-ADB", "Config applied: $configType")
+    showAdbToast("✅ ADB Config applied: $configType")
+
+    // Broadcast that config is saved (before restart)
+    sendBroadcast(Intent("top.lhlnb.easykiosk.ADB_CONFIG_SAVED").apply {
+      putExtra("config_type", configType)
+    })
+
+    // Restart in a handler to allow database sync to complete
+    Handler(Looper.getMainLooper()).postDelayed({
+      // Broadcast that restart is starting
+      sendBroadcast(Intent("top.lhlnb.easykiosk.ADB_CONFIG_RESTARTING"))
+
+      // Create restart intent - FreeKiosk will restart, load settings (including
+      // lock_package), activate kiosk mode, then launch the external app via 
+      // KioskScreen.loadSettings() → launchExternalApp() → AppLauncherModule
+      // which will emit the EXTERNAL_APP_LAUNCHED broadcast
+      val restartIntent = packageManager.getLaunchIntentForPackage(packageName)
+      restartIntent?.apply {
+        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+      }
+
+      if (intent.getBooleanExtra("auto_start", false) && lockPackage != null) {
+        android.util.Log.i("FreeKiosk-ADB", "App will auto-start after restart via normal loadSettings flow")
+      }
+
+      // Relaunch through AlarmManager a moment after this process is gone. Starting the
+      // new instance before the kill made it bind a WebView renderer slot while the
+      // system was still tearing down the old one, and on slow devices that bind stayed
+      // pending forever (blank "Loading..." until reboot, #280).
+      if (restartIntent != null) {
+        // From Android 14 the creator of a PendingIntent must opt in to let it start an
+        // activity from the background, and the process is gone when the alarm fires: without
+        // this the system blocks the relaunch and the app stays closed after provisioning.
+        val launchOptions = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+          android.app.ActivityOptions.makeBasic().setPendingIntentCreatorBackgroundActivityStartMode(
+            android.app.ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOWED
+          ).toBundle()
+        } else null
+        val pending = android.app.PendingIntent.getActivity(
+          this, 0, restartIntent,
+          android.app.PendingIntent.FLAG_CANCEL_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE,
+          launchOptions
+        )
+        val alarmManager = getSystemService(Context.ALARM_SERVICE) as android.app.AlarmManager
+        alarmManager.set(
+          android.app.AlarmManager.RTC,
+          System.currentTimeMillis() + ADB_RESTART_DELAY_MS,
+          pending
+        )
+      }
+
+      android.os.Process.killProcess(android.os.Process.myPid())
+      System.exit(0)
+    }, 500) // Wait 500ms for toast to show
+
+    return true
+  }
+
+  /**
+   * Restart the app by killing the process and relaunching
+   * This ensures React Native picks up the new config from SharedPreferences
+   */
+  private fun restartApp() {
+    try {
+      // Create a fresh intent without the ADB config extras
+      val restartIntent = packageManager.getLaunchIntentForPackage(packageName)
+      restartIntent?.apply {
+        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+      }
+
+      // Start the new instance
+      if (restartIntent != null) {
+        startActivity(restartIntent)
+        // Kill the current process
+        android.os.Process.killProcess(android.os.Process.myPid())
+      } else {
+        android.util.Log.e("FreeKiosk-ADB", "Failed to get launch intent for restart")
+      }
+    } catch (e: Exception) {
+      android.util.Log.e("FreeKiosk-ADB", "Failed to restart app: ${e.message}")
+    }
+  }
+
+  /**
+   * Open the AsyncStorage SQLite database (create if not exists)
+   * Uses database "RKStorage" with table "catalystLocalStorage"
+   */
+  private fun openAsyncStorageDb(): SQLiteDatabase? {
+    return try {
+      val dbPath = getDatabasePath("RKStorage").absolutePath
+
+      // Create parent directory if it doesn't exist
+      val dbFile = java.io.File(dbPath)
+      dbFile.parentFile?.let { parent ->
+        if (!parent.exists()) {
+          parent.mkdirs()
+        }
+      }
+
+      // Open or create database
+      val db = SQLiteDatabase.openOrCreateDatabase(dbPath, null)
+
+      // Ensure the catalystLocalStorage table exists (same schema as AsyncStorage)
+      db.execSQL("""
+        CREATE TABLE IF NOT EXISTS catalystLocalStorage (
+          `key` TEXT NOT NULL,
+          `value` TEXT,
+          PRIMARY KEY(`key`)
+        )
+      """.trimIndent())
+
+      db
+    } catch (e: Exception) {
+      android.util.Log.e("FreeKiosk-ADB", "Failed to open AsyncStorage DB: ${e.message}")
+      null
+    }
+  }
+
+  /**
+   * Set a value in AsyncStorage SQLite database
+   */
+  private fun setAsyncStorageValue(db: SQLiteDatabase, key: String, value: String) {
+    val contentValues = ContentValues().apply {
+      put("key", key)
+      put("value", value)
+    }
+    db.insertWithOnConflict("catalystLocalStorage", null, contentValues, SQLiteDatabase.CONFLICT_REPLACE)
+  }
+
+  /**
+   * Apply full JSON configuration to SharedPreferences (pending config)
+   */
+  /**
+   * Normalize a dashboard tiles array coming from ADB into the shape DashboardTile
+   * (src/types/dashboard.ts) expects: id, label, url, iconMode, iconValue?, order.
+   *
+   * A provisioning script should not have to invent stable ids or keep an order counter,
+   * so both are filled in when absent, and label falls back to the URL. A tile without a
+   * url is dropped rather than written: the grid would render an entry that navigates
+   * nowhere. Returns null when nothing usable came out, so the caller can say so instead
+   * of silently writing an empty grid.
+   */
+  private fun normalizeDashboardTiles(jsonStr: String): String? {
+    return try {
+      val input = org.json.JSONArray(jsonStr)
+      val out = org.json.JSONArray()
+      for (i in 0 until input.length()) {
+        val tile = input.getJSONObject(i)
+        val url = tile.optString("url", "")
+        if (url.isEmpty()) {
+          android.util.Log.w("FreeKiosk-ADB", "Dashboard tile #$i has no url, skipping")
+          continue
+        }
+        val iconMode = tile.optString("iconMode", "favicon").let {
+          if (it == "favicon" || it == "image" || it == "letter") it else "favicon"
+        }
+        val normalized = org.json.JSONObject()
+        normalized.put("id", tile.optString("id", "").ifEmpty { "adb-$i-${System.currentTimeMillis()}" })
+        normalized.put("label", tile.optString("label", "").ifEmpty { url })
+        normalized.put("url", url)
+        normalized.put("iconMode", iconMode)
+        if (tile.has("iconValue")) normalized.put("iconValue", tile.optString("iconValue"))
+        normalized.put("order", tile.optInt("order", i))
+        out.put(normalized)
+      }
+      if (out.length() == 0) {
+        android.util.Log.w("FreeKiosk-ADB", "No usable dashboard tiles in the provided list")
+        null
+      } else {
+        android.util.Log.i("FreeKiosk-ADB", "Dashboard tiles configured: ${out.length()}")
+        out.toString()
+      }
+    } catch (e: Exception) {
+      android.util.Log.e("FreeKiosk-ADB", "Invalid dashboard tiles JSON: ${e.message}")
+      null
+    }
+  }
+
+  private fun applyJsonConfigToPrefs(editor: android.content.SharedPreferences.Editor, config: org.json.JSONObject) {
+    // Map of JSON keys to AsyncStorage keys. The bulk of it is ADB_SIMPLE_KEYS, shared with
+    // the direct extras so the two can never support different sets of settings; only the
+    // keys that exist under a different name here are added on top.
+    val keyMapping = ADB_SIMPLE_KEYS + mapOf(
+      "url" to "@kiosk_url",
+      "lock_package" to "@kiosk_external_app_package",
+      "auto_launch" to "@kiosk_auto_launch",
+      "back_button_mode" to "@kiosk_back_button_mode",
+      "pin_mode" to "@kiosk_pin_mode",
+      "external_app_mode" to "@kiosk_external_app_mode"
+    )
+
+    for ((jsonKey, storageKey) in keyMapping) {
+      if (config.has(jsonKey)) {
+        val value = config.get(jsonKey)
+        editor.putString(storageKey, value.toString())
+      }
+    }
+
+    // Handle lock_package -> also set display_mode
+    if (config.has("lock_package") && !config.has("display_mode")) {
+      editor.putString("@kiosk_display_mode", "external_app")
+    }
+
+
+
+    // Managed apps: validate packages and resolve display names
+    if (config.has("managed_apps")) {
+      try {
+        val appsArray = config.getJSONArray("managed_apps")
+        val validatedApps = org.json.JSONArray()
+        val pm = packageManager
+        for (i in 0 until appsArray.length()) {
+          val appObj = appsArray.getJSONObject(i)
+          val pkg = appObj.getString("packageName")
+          try {
+            val appInfo = pm.getApplicationInfo(pkg, 0)
+            val displayName = if (appObj.has("displayName") && appObj.getString("displayName").isNotEmpty()) {
+              appObj.getString("displayName")
+            } else {
+              pm.getApplicationLabel(appInfo).toString()
+            }
+            val validApp = org.json.JSONObject()
+            validApp.put("packageName", pkg)
+            validApp.put("displayName", displayName)
+            validApp.put("showOnHomeScreen", appObj.optBoolean("showOnHomeScreen", true))
+            validApp.put("launchOnBoot", appObj.optBoolean("launchOnBoot", false))
+            validApp.put("keepAlive", appObj.optBoolean("keepAlive", false))
+            validApp.put("allowAccessibility", appObj.optBoolean("allowAccessibility", false))
+            validatedApps.put(validApp)
+          } catch (e: android.content.pm.PackageManager.NameNotFoundException) {
+            android.util.Log.w("FreeKiosk-ADB", "JSON config: managed app not installed, skipping: $pkg")
+          }
+        }
+        if (validatedApps.length() > 0) {
+          editor.putString("@kiosk_managed_apps", validatedApps.toString())
+        }
+      } catch (e: Exception) {
+        android.util.Log.e("FreeKiosk-ADB", "Invalid managed_apps in JSON config: ${e.message}")
+      }
+    }
+
+    // Dashboard tiles: same normalization as the dashboard_tiles extra.
+    if (config.has("dashboard_tiles")) {
+      val normalized = normalizeDashboardTiles(config.getJSONArray("dashboard_tiles").toString())
+      if (normalized != null) {
+        editor.putString("@kiosk_dashboard_tiles", normalized)
+      }
+    }
+
+    // The dashboard grid only exists inside the WebView display mode.
+    if (config.optBoolean("dashboard_mode", false) && !config.has("display_mode")) {
+      editor.putString("@kiosk_display_mode", "webview")
+    }
+
+    // If external_app_mode is set to multi, ensure display_mode is external_app
+    if (config.optString("external_app_mode") == "multi" && !config.has("display_mode")) {
+      editor.putString("@kiosk_display_mode", "external_app")
+    }
+  }
+
+  /**
+   * Check if a PIN is already configured
+   */
+  private fun hasExistingPin(): Boolean {
+    val adbPrefs = getSharedPreferences("FreeKioskAdbConfig", Context.MODE_PRIVATE)
+    return adbPrefs.getString("pin_hash", null) != null
+  }
+
+  /**
+   * Save PIN hash for ADB verification
+   * Uses SHA-256 with salt for secure storage
+   */
+  private fun saveAdbPinHash(pin: String) {
+    try {
+      val salt = java.util.UUID.randomUUID().toString()
+      val hash = hashPinWithSalt(pin, salt)
+
+      val prefs = getSharedPreferences("FreeKioskAdbConfig", Context.MODE_PRIVATE)
+      prefs.edit()
+        .putString("pin_hash", hash)
+        .putString("pin_salt", salt)
+        .apply()
+
+      DebugLog.d("MainActivity", "ADB PIN hash saved")
+    } catch (e: Exception) {
+      DebugLog.errorProduction("MainActivity", "Failed to save ADB PIN hash: ${e.message}")
+    }
+  }
+
+  /**
+   * Save PIN directly to pending config SharedPreferences for UI
+   */
+  private fun savePinDirectly(pin: String) {
+    try {
+      val pendingConfig = getSharedPreferences("FreeKioskPendingConfig", Context.MODE_PRIVATE)
+      pendingConfig.edit().putString("@kiosk_pin", pin).commit()
+      android.util.Log.i("FreeKiosk-ADB", "PIN saved to pending config")
+    } catch (e: Exception) {
+      android.util.Log.e("FreeKiosk-ADB", "Failed to save PIN: ${e.message}")
+    }
+  }
+
+  /**
+   * Verify PIN against stored hash
+   */
+  private fun verifyAdbPin(pin: String): Boolean {
+    try {
+      val prefs = getSharedPreferences("FreeKioskAdbConfig", Context.MODE_PRIVATE)
+      val storedHash = prefs.getString("pin_hash", null)
+      val storedSalt = prefs.getString("pin_salt", null)
+
+      if (storedHash != null && storedSalt != null) {
+        val inputHash = hashPinWithSalt(pin, storedSalt)
+        return inputHash == storedHash
+      }
+
+      // Fallback: check legacy plaintext PIN from AsyncStorage v2
+      val legacyPin = getAsyncStorageValue("@kiosk_pin", "")
+      if (legacyPin.isNotEmpty()) {
+        if (pin == legacyPin) {
+          // Migrate to hashed storage
+          saveAdbPinHash(pin)
+          return true
+        }
+        return false
+      }
+
+      // No PIN stored, check default (for backward compatibility)
+      return pin == "1234"
+
+    } catch (e: Exception) {
+      DebugLog.errorProduction("MainActivity", "Failed to verify ADB PIN: ${e.message}")
+      return false
+    }
+  }
+
+  /**
+   * Hash PIN with salt using SHA-256
+   */
+  private fun hashPinWithSalt(pin: String, salt: String): String {
+    val combined = "$pin:$salt:freekiosk_adb"
+    val digest = MessageDigest.getInstance("SHA-256")
+    val hashBytes = digest.digest(combined.toByteArray(Charsets.UTF_8))
+    return hashBytes.joinToString("") { "%02x".format(it) }
+  }
+
+  /**
+   * Show toast for ADB feedback
+   */
+  private fun showAdbToast(message: String) {
+    Handler(Looper.getMainLooper()).post {
+      Toast.makeText(this, message, Toast.LENGTH_LONG).show()
+    }
+  }
+
+  override fun onDestroy() {
+    super.onDestroy()
+    if (liveActivity?.get() === this) {
+      liveActivity = null
+    }
+    pinningValveRunnable?.let { Handler(Looper.getMainLooper()).removeCallbacks(it) }
+    pinningValveRunnable = null
+
+    // #237: only lift the kiosk restrictions on a deliberate exit. onDestroy() also fires
+    // when the system destroys this activity while an external app holds the foreground,
+    // which is the normal state in single-app mode (the very case the watchdog check below
+    // already accounts for). Restoring the permissive feature set there hands the user the
+    // status bar, the notification panel, Home and Overview INSIDE lock task, and nothing
+    // puts the restrictive set back until MainActivity is recreated: exactly the reported
+    // "bars stay visible until settings / exit / reboot".
+    //
+    // The deliberate path does not depend on this call: KioskModule.exitKioskMode() calls
+    // disableKioskRestrictions() itself before stopLockTask() and finish().
+    if (blockAutoRelaunch) {
+      disableKioskRestrictions()
+    }
+
+    // Stop KioskWatchdogService if kiosk mode was intentionally disabled (#96 fix)
+    // This prevents the watchdog from relaunching the app after an intentional exit.
+    // We check the flag rather than isKioskEnabled() because onDestroy may also fire
+    // during an OOM kill — in that case we want the watchdog to keep running.
+    if (blockAutoRelaunch) {
+      stopKioskWatchdog()
+    }
+
+    // Clean up blocking overlays
+    try {
+      BlockingOverlayManager.getInstance(this).destroy()
+      DebugLog.d("MainActivity", "Blocking overlays cleaned up")
+    } catch (e: Exception) {
+      DebugLog.errorProduction("MainActivity", "Error cleaning up blocking overlays: ${e.message}")
+    }
+
+    // Unregister screen state receiver
+    try {
+      if (screenStateReceiver != null) {
+        unregisterReceiver(screenStateReceiver)
+        screenStateReceiver = null
+        DebugLog.d("MainActivity", "Screen state receiver unregistered")
+      }
+    } catch (e: Exception) {
+      DebugLog.errorProduction("MainActivity", "Error unregistering screen state receiver: ${e.message}")
+    }
+
+    // Unregister volume change receiver
+    try {
+      if (volumeChangeReceiver != null) {
+        unregisterReceiver(volumeChangeReceiver)
+        volumeChangeReceiver = null
+        DebugLog.d("MainActivity", "Volume change receiver unregistered")
+      }
+    } catch (e: Exception) {
+      DebugLog.errorProduction("MainActivity", "Error unregistering volume change receiver: ${e.message}")
+    }
+  }
+
+  /**
+   * Register broadcast receiver to detect screen on/off events
+   * Safe to call multiple times - will skip if already registered
+   */
+  private fun registerScreenStateReceiver() {
+    try {
+      // Skip if already registered
+      if (screenStateReceiver != null) {
+        android.util.Log.d("MainActivity", "Screen state receiver already registered")
+        return
+      }
+
+      screenStateReceiver = ScreenStateReceiver(this)
+
+      val filter = IntentFilter()
+      filter.addAction(Intent.ACTION_SCREEN_ON)
+      filter.addAction(Intent.ACTION_SCREEN_OFF)
+
+      registerReceiver(screenStateReceiver, filter)
+      android.util.Log.d("MainActivity", "Screen state receiver registered successfully")
+    } catch (e: Exception) {
+      android.util.Log.e("MainActivity", "Error registering screen state receiver: ${e.message}")
+    }
+  }
+
+  /**
+   * Register broadcast receiver to detect volume changes from hardware buttons
+   * Safe to call multiple times - will skip if already registered
+   */
+  private fun registerVolumeChangeReceiver() {
+    try {
+      // Skip if already registered
+      if (volumeChangeReceiver != null) {
+        android.util.Log.d("MainActivity", "Volume change receiver already registered")
+        return
+      }
+
+      volumeChangeReceiver = VolumeChangeReceiver()
+
+      val filter = IntentFilter()
+      filter.addAction("android.media.VOLUME_CHANGED_ACTION")
+
+      registerReceiver(volumeChangeReceiver, filter)
+      android.util.Log.d("MainActivity", "Volume change receiver registered successfully")
+    } catch (e: Exception) {
+      android.util.Log.e("MainActivity", "Error registering volume change receiver: ${e.message}")
+    }
+  }
+
+  /**
+   * Prevent OEM multi-window/freeform controls from closing the app (#94).
+   * Lenovo ZUI (and similar OEMs) show a "three-dot" overlay that can close apps in
+   * windowed mode. If multi-window is triggered despite resizeableActivity=false,
+   * immediately re-launch as full-screen single-task.
+   * Only active when kiosk mode is enabled to avoid interfering with normal usage
+   * or external app mode (where FreeKiosk is in the background).
+   */
+  override fun onMultiWindowModeChanged(isInMultiWindowMode: Boolean, newConfig: android.content.res.Configuration) {
+    super.onMultiWindowModeChanged(isInMultiWindowMode, newConfig)
+    if (isInMultiWindowMode && isKioskEnabled()) {
+      DebugLog.d("MainActivity", "Multi-window detected in kiosk mode — forcing full-screen relaunch")
+      // Re-launch ourselves as a full-screen single task to exit multi-window
+      val relaunch = Intent(this, MainActivity::class.java)
+      relaunch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+      startActivity(relaunch)
+    }
+  }
+
+  /**
+   * Block finish() when kiosk lock task is active (#94).
+   * Prevents OEM UI elements (Lenovo ZUI "X" button, freeform close) from closing the app.
+   * The check uses isTaskLocked() (not isKioskEnabled()) so that intentional exits
+   * via exitKioskMode — which calls stopLockTask() before finish() — still work.
+   */
+  override fun finish() {
+    if (isTaskLocked()) {
+      DebugLog.d("MainActivity", "finish() blocked — lock task active")
+      return
+    }
+    super.finish()
+  }
+
+  override fun finishAndRemoveTask() {
+    if (isTaskLocked()) {
+      DebugLog.d("MainActivity", "finishAndRemoveTask() blocked — lock task active")
+      return
+    }
+    super.finishAndRemoveTask()
+  }
+
+  /**
+   * Handle configuration changes (rotation, screen size, etc.)
+   */
+  override fun onConfigurationChanged(newConfig: android.content.res.Configuration) {
+    super.onConfigurationChanged(newConfig)
+
+    // Re-hide system UI after rotation (system bars can reappear on config change)
+    hideSystemUI()
+
+    // Notify blocking overlay manager about configuration change
+    try {
+      val manager = BlockingOverlayManager.getInstance(this)
+      manager.onConfigurationChanged(newConfig)
+      DebugLog.d("MainActivity", "Configuration changed - blocking overlays updated")
+    } catch (e: Exception) {
+      DebugLog.e("MainActivity", "Error handling configuration change: ${e.message}")
+    }
+  }
+}

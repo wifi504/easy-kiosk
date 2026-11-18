@@ -11,7 +11,7 @@ Device Owner 是 Android 系统管理身份，不是 Cloud 订阅或 root。需�
 当前上游包名的命令（实际操作前用 `adb devices` 选定设备）：
 
 ```text
-adb -s <设备序列号> shell dpm set-device-owner com.freekiosk/.DeviceAdminReceiver
+adb -s <设备序列号> shell dpm set-device-owner top.lhlnb.easykiosk/.DeviceAdminReceiver
 ```
 
 未来包名切换后，这条命令和组件名必须同步更新，不能混用。通过应用管理员入口解除 Device Owner；ADB 移除不保证在 release 构建上可用。恢复出厂只作为有备份且明确接受数据清除后的最后恢复方式。
