@@ -1,49 +1,19 @@
 ---
-name: Feature Request
-about: Suggest a feature for FreeKiosk
-title: '[FEATURE] '
-labels: enhancement
-assignees: ''
+name: 功能建议
+about: 提出专用展台场景的改进
+title: ""
+labels: ""
+assignees: ""
 ---
 
-## 💡 Feature Description
+## 展台场景
 
-Clear and concise description of the feature you'd like.
+说明设备、使用者及需要解决的具体问题。
 
-## 🎯 Problem/Use Case
+## 期望行为与验收
 
-Describe the problem this feature would solve or the use case it addresses.
+描述可观察的行为、维护入口及验收方式。
 
-**Example**: "I need to display multiple URLs in rotation because..."
+## 与当前范围的关系
 
-## 🔧 Proposed Solution
-
-Describe how you envision this feature working.
-
-## 🔄 Alternatives Considered
-
-Have you considered any alternative solutions or workarounds?
-
-## 📊 Priority
-
-How important is this feature to you?
-- [ ] Nice to have
-- [ ] Important
-- [ ] Critical
-
-## 👥 Who Would Benefit?
-
-Who else would benefit from this feature?
-- [ ] Home users
-- [ ] Businesses
-- [ ] Hotels/Restaurants
-- [ ] Developers
-- [ ] Other: ___
-
-## 📸 Mockups/Examples
-
-If applicable, add mockups or examples from other apps.
-
-## 🔧 Additional Context
-
-Any other information about the feature request.
+说明是否涉及单网页展台、构建预置、设备管理或现场维护。

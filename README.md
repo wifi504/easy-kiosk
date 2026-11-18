@@ -1,150 +1,37 @@
-<div align="center">
-  <h1>FreeKiosk</h1>
-  <p><strong>Free open-source kiosk mode for Android tablets</strong></p>
-  <p>Alternative to Fully Kiosk Browser (<a href="https://freekiosk.app/vs-fully-kiosk/">see how they compare</a>)</p>
-  
-  <p>
-    <a href="https://freekiosk.app">Website</a> •
-    <a href="#-install-in-60-seconds">Installation</a> •
-    <a href="docs/faq.md">FAQ</a> •
-    <a href="#-key-capabilities">Features</a>
-  </p>
-  
-  <p>
-    <img src="https://img.shields.io/badge/Version-2.0.0-blue.svg" alt="Version 2.0.0">
-    <a href="https://github.com/rushb-fr/freekiosk/releases"><img src="https://img.shields.io/github/downloads/rushb-fr/freekiosk/total.svg" alt="Downloads"></a>
-    <img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License: MIT">
-    <img src="https://img.shields.io/badge/Android-8.0%2B-green.svg" alt="Android 8.0+">
-    <img src="https://img.shields.io/badge/Device%20Owner-Supported-brightgreen" alt="Device Owner">
-    <img src="https://img.shields.io/badge/REST%20API-40%2B%20Endpoints-orange" alt="REST API">
-    <img src="https://img.shields.io/badge/MQTT-Home%20Assistant%20Discovery-41BDF5" alt="MQTT">
-  </p>
-  
-  <p><strong>A <a href="https://rushb.fr">Rushb</a> Project</strong></p>
-</div>
+# easy-kiosk
 
-FreeKiosk is an open-source kiosk platform for Android tablets, built for teams that want **full control without license costs**.
+面向固定网页的 Android 专用展台项目，由 [FreeKiosk](https://github.com/RushB-fr/freekiosk) 派生。
 
-<p align="center">
-  <a href="https://play.google.com/store/apps/details?id=com.freekiosk"><img src="https://img.shields.io/badge/Google%20Play-Get%20it-34A853?logo=googleplay&logoColor=white" alt="Get it on Google Play"></a>
-  <a href="https://github.com/rushb-fr/freekiosk/releases/latest"><img src="https://img.shields.io/badge/APK-GitHub%20Releases-181717?logo=github&logoColor=white" alt="Download the APK from GitHub Releases"></a>
-</p>
+目标是：在 GitHub Actions 中通过环境变量预置网址和展台参数，编译出安装后首次打开即可使用的 APK；管理员仍可通过 PIN 进入设置修改。
 
-<p align="center">
-  <img src="docs/screenshots/any-web-page-full-screen.png" alt="FreeKiosk showing a web page full screen on a tablet (demo page)" width="49%">
-  <img src="docs/screenshots/lock-it-down.png" alt="FreeKiosk Security settings with Lock Mode on (demo)" width="49%">
-</p>
+## 当前阶段
 
-Instead of burying everything in one long page, this README gives you the essentials and points to complete docs in `docs/`.
+**目前仅完成改造准备，尚未实现安装即用。** 代码基线来自上游 `release/2.1.0-beta.3`，提交 `e7dfcc327b47e48c5468124bcbe3da5e8333409d`。此次清理的是文档和上游文档发布流程，业务代码、应用名称、包名、版本、设置入口及现有功能均未改造。
 
-### Why teams choose it
+当前代码仍需按上游方式配置。仓库暂未提供 APK 编译 Action；根目录 `.env.example` 是下一阶段的变量契约，**当前程序不会读取这些变量**。不能直接复制示例后宣称已生成预置 APK。
 
-- ✅ Free and MIT licensed
-- ✅ Device Owner support for true lockdown
-- ✅ Works in WebView mode or External App mode
-- ✅ Native REST API and MQTT integration
-- ✅ Headless ADB provisioning for mass rollout
-- ✅ Privacy-first: no mandatory tracking layer
-- ✅ Available in English, French and Brazilian Portuguese
+## 目标使用方式
 
-## ✨ Key capabilities
+1. 在自己的 GitHub 仓库设置构建变量和签名密钥。
+2. 手动运行 APK 编译 Action，下载对应设备配置的签名 APK。
+3. 安装并首次启动，直接全屏打开预设网址，无需填写初始化表单。
+4. 通过约定手势和管理员 PIN 进入设置；本地修改重启后继续生效。
 
-| Area | What you get | Deep dive |
-|---|---|---|
-| Kiosk modes | Website (WebView), External App, Dashboard of pages, Media Player (videos and images) | [Features and Modes](docs/features-and-modes.md) |
-| Device control | Lock task, boot behavior, status bar policies, PIN access | [Installation](docs/installation.md) |
-| Automation | 40+ REST endpoints, MQTT discovery for Home Assistant, ioBroker adapter | [Integrations](docs/INTEGRATIONS.md) |
-| Provisioning | ADB command-based configuration and scripting | [ADB Configuration](docs/adb-configuration.md) |
-| Fleet management | Optional FreeKiosk Cloud (open beta): remote config, commands, groups, alerts, QR enrollment | See [FreeKiosk Cloud](#-freekiosk-cloud-open-beta) below |
-| Digital signage (beta) | Playlists of videos, images, web pages and YouTube videos built in the cloud, with schedules and offline playback; Android TV, Google TV and Fire TV | [Digital signage](docs/digital-signage.md), [Android TV](docs/android-tv.md) |
+首次启动不等于安装后自动执行。Android 授权、Device Owner 开通和设备首次部署属于系统步骤，APK 内置参数不能替代它们。
 
-## 📦 Install in 60 seconds
+## 文档
 
-1. Install FreeKiosk from [Google Play](https://play.google.com/store/apps/details?id=com.freekiosk), or download the latest APK from [Releases](https://github.com/rushb-fr/freekiosk/releases).
-2. Install on Android 8.0+ tablet.
-3. Configure URL/app + PIN.
-4. Start kiosk mode.
+- [文档索引](docs/README.md)
+- [改造范围与行为约定](docs/product-scope.md)
+- [构建变量契约](docs/build-configuration.md)
+- [GitHub Actions 编译设计](docs/github-actions.md)
+- [源码现状与实施计划](docs/implementation-plan.md)
+- [设备部署与验收](docs/deployment-and-acceptance.md)
+- [开发环境](docs/development.md)
+- [来源、作者与许可证](docs/attribution.md)
 
-For production lockdown, use Device Owner mode:
+## 项目与许可
 
-```bash
-adb shell dpm set-device-owner com.freekiosk/.DeviceAdminReceiver
-```
+本项目仓库：[wifi504/easy-kiosk](https://github.com/wifi504/easy-kiosk)。本地仅保留 `origin`，唯一开发分支为 `main`；上游地址仅用于来源说明，不配置为 Git remote。
 
-👉 Full setup guide: [docs/installation.md](docs/installation.md)
-
-## 🧩 Docs map
-
-| I want to... | Go to |
-|---|---|
-| Deploy tablets correctly | [Installation Guide](docs/installation.md) |
-| Understand display/kiosk modes | [Features and Modes](docs/features-and-modes.md) |
-| Integrate with Home Assistant | [Integrations Overview](docs/INTEGRATIONS.md) |
-| Integrate with ioBroker | [ioBroker](docs/INTEGRATIONS.md#iobroker) |
-| Manage a fleet from a dashboard | [FreeKiosk Cloud](docs/cloud.md) |
-| Use API endpoints | [REST API Docs](docs/rest-api.md) |
-| Configure MQTT topics/discovery | [MQTT Docs](docs/MQTT.md) |
-| Provision with scripts | [ADB Configuration](docs/adb-configuration.md) |
-| Follow release direction | [Roadmap and Changelog](docs/roadmap-and-changelog.md) |
-| Contribute code | [Development Guide](docs/development.md) |
-
-## ☁️ FreeKiosk Cloud (open beta)
-
-**FreeKiosk Cloud** is a companion service that manages a fleet from a web dashboard: live status, configuration pushed to devices or groups, remote commands and screenshots. A tablet can be enrolled by scanning a QR code, and a factory-reset tablet can be provisioned end to end from the Android setup wizard.
-
-**The cloud is in open beta, with self-service sign-up** at [cloud.freekiosk.app](https://cloud.freekiosk.app): the first device is free, then it is priced per device (see [freekiosk.app/cloud](https://freekiosk.app/cloud) and the [cloud guide](docs/cloud.md)). The free device has the whole service except APK distribution, remote screenshots, the scheduler, renaming the organization and additional team members, which come with the first paid licence. The app itself, `v2.0.0`, is stable. Some cloud paths (over-the-air app updates, QR provisioning, Lock Mode behaviour on every model) have not been proven across enough real hardware for us to call the cloud finished.
-
-**Digital signage is in beta** on both sides: build a playlist of videos, images, web pages and YouTube videos in the dashboard and a screen plays it, with schedules and from an offline cache (web pages and YouTube need the network). It needs the app `v2.1.0-beta.1`, a [GitHub pre-release](https://github.com/RushB-fr/freekiosk/releases) (Google Play still has `2.0.0`), and also runs on Android TV, Google TV and Fire TV, **tested on emulators only so far**. Details and limits: [Digital signage](docs/digital-signage.md).
-
-**The app itself is unaffected.** FreeKiosk stays free and MIT licensed, and the cloud is entirely opt-in: nothing leaves the device until you enroll it. Every kiosk feature, the REST API and the MQTT integration work exactly as before without a cloud account, and always will.
-
-> [!NOTE]
-> **The management server will be released as open source in 2027, so you can self-host it.**
-> That is the intended end state, not an afterthought: a kiosk platform you cannot host yourself is only half free. We are holding it back until it is stable and feature-complete rather than publishing something that would be painful to run.
-
-## 🛠️ Tech stack
-
-- React Native + TypeScript
-- Kotlin native modules (Android policy and system control)
-- Android SDK 26+ (Android 8+)
-
-## 🗺️ Roadmap snapshot
-
-- `v1.2.x`: reliability and operational hardening (shipped)
-- `v2.0.0`: stable app, with optional cloud enrollment (shipped)
-- FreeKiosk Cloud: open beta, until the OTA update path, QR provisioning and Lock Mode behaviour are proven on real fleets
-- 2027: the management server released as open source for self-hosting
-
-Detailed notes: [docs/roadmap-and-changelog.md](docs/roadmap-and-changelog.md)
-
-## 🤝 Contributing
-
-Contributions are welcome.
-
-- Guidelines: [CONTRIBUTING.md](CONTRIBUTING.md)
-- Issues: [GitHub Issues](https://github.com/rushb-fr/freekiosk/issues)
-- Discussions: [GitHub Discussions](https://github.com/rushb-fr/freekiosk/discussions)
-
----
-
-## 📄 License
-
-MIT License. See [LICENSE](LICENSE).
-
-The app also contains third-party software and assets under their own licenses (Apache-2.0, MIT, BSD, and a few Google components under Google's terms): see [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md), which also travels inside the APK.
-
-<div align="center">
-  <img src="https://img.shields.io/github/stars/rushb-fr/freekiosk?style=social" alt="Stars">
-  <img src="https://img.shields.io/github/forks/rushb-fr/freekiosk?style=social" alt="Forks">
-  <img src="https://img.shields.io/github/issues/rushb-fr/freekiosk" alt="Issues">
-  <img src="https://img.shields.io/github/license/rushb-fr/freekiosk" alt="License">
-</div>
-
-<div align="center">
-  <p><strong>Made with ❤️ in France by Rushb</strong></p>
-  <p>
-    <a href="https://freekiosk.app">Website</a> •
-    <a href="https://github.com/rushb-fr/freekiosk">GitHub</a> •
-    <a href="mailto:support@freekiosk.app">Contact</a>
-  </p>
-</div>
+原作者署名：**Copyright (c) 2025 Rushb**。原始 [MIT 许可证](LICENSE) 与 [第三方许可声明](THIRD-PARTY-NOTICES.md) 完整保留。easy-kiosk 是独立派生项目，不代表上游官方产品。

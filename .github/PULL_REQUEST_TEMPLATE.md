@@ -1,51 +1,15 @@
-## 📝 Description
+## 解决的问题
 
-Brief description of the changes in this PR.
+说明具体触发场景与预期行为。
 
-Fixes # (issue number, if applicable)
+## 变更范围
 
-## 🔧 Type of Change
+列出业务、配置、构建或文档的实际变化，区分已实现与计划。
 
-- [ ] 🐛 Bug fix (non-breaking change which fixes an issue)
-- [ ] ✨ New feature (non-breaking change which adds functionality)
-- [ ] 💥 Breaking change (fix or feature that would cause existing functionality to not work as expected)
-- [ ] 📝 Documentation update
-- [ ] 🎨 UI/UX improvement
-- [ ] ♻️ Code refactoring
-- [ ] ⚡ Performance improvement
+## 验证
 
-## ✅ Testing
+记录执行的命令、设备与结果；未执行的检查注明原因。
 
-Please describe the tests you ran to verify your changes:
+## 兼容与许可
 
-- [ ] Tested on real Android device
-- [ ] Tested in Device Owner mode
-- [ ] Tested on multiple Android versions: ___
-- [ ] No regressions found
-
-**Device(s) tested:**
-- Device: [e.g., Samsung Galaxy Tab A8]
-- Android version: [e.g., Android 12]
-
-## 📸 Screenshots/Videos
-
-If applicable, add screenshots or videos demonstrating the changes.
-
-## 📋 Checklist
-
-- [ ] My code follows the project's code style
-- [ ] I have commented my code where necessary
-- [ ] I have updated the documentation accordingly
-- [ ] My changes generate no new warnings
-- [ ] I have tested on a real device (not just emulator)
-- [ ] All existing tests still pass
-
-## 🔗 Related Issues/PRs
-
-List any related issues or pull requests:
-- Related to #___
-- Depends on #___
-
-## 📝 Additional Notes
-
-Any additional information or context.
+说明本地配置/升级迁移影响；确认 MIT 和第三方署名保留，未提交密钥。

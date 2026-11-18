@@ -1,96 +1,11 @@
-# Contributing to FreeKiosk
+# 开发与贡献
 
-Thank you for considering contributing to FreeKiosk! 🎉
+先阅读 [改造范围](docs/product-scope.md)、[实施计划](docs/implementation-plan.md) 和 [开发环境](docs/development.md)。当前阶段是改造准备，下一阶段才接入业务实现。
 
-## How to Contribute
+改动说明需交代目标行为、涉及文件、验证结果和剩余限制。预置配置修改必须同时核对 JS、Kotlin 原生启动、持久化与升级迁移；不要只修改某个 getter 的默认值。
 
-### Reporting Bugs
+只保留个人仓库 `origin` 和 `main`；不自行恢复上游 remote 或发布分支。新增提交使用仓库本地作者 `WIFI连接超时 <localaccount@qq.com>`。
 
-1. Check if the bug already exists in [Issues](https://github.com/rushb/freekiosk/issues)
-2. If not, create a new issue with:
-   - **Device model** (e.g., Samsung Galaxy Tab A8)
-   - **Android version** (e.g., Android 12)
-   - **FreeKiosk version** (e.g., v1.0.1)
-   - **Steps to reproduce**
-   - **Expected behavior**
-   - **Actual behavior**
-   - **Screenshots** if applicable
+所有依赖与资源保留其许可，更新依赖时同步第三方声明。不要提交签名密钥、密码、真实部署 `.env`、设备访问令牌、生成配置或 APK。
 
-### Suggesting Features
-
-1. Open a feature request issue
-2. Describe the feature and its use case
-3. Explain why it would benefit users
-4. Be open to discussion and feedback
-
-### Code Contributions
-
-1. **Fork** the repository
-2. **Create a branch**: `git checkout -b feature/amazing-feature`
-3. **Make your changes**
-4. **Test** on a real Android device
-5. **Commit**: `git commit -m '✨ Add amazing feature'`
-6. **Push**: `git push origin feature/amazing-feature`
-7. **Open a Pull Request**
-
-## Development Setup
-
-Clone repository
-git clone https://github.com/rushb-fr/freekiosk.git
-cd freekiosk
-
-Install dependencies
-npm install
-
-Start Metro bundler
-npm start
-
-Run on Android device
-npm run android
-
-text
-
-## Code Style
-
-- Use **TypeScript** for all new code
-- Follow **React Native** best practices
-- Add **comments** for complex logic
-- Keep functions **small and focused**
-- Use **meaningful variable names**
-
-## Testing
-
-- Test on **real Android device** (not just emulator)
-- Test **Device Owner mode** if your changes affect it
-- Verify on **multiple Android versions** if possible
-- Check for **memory leaks** or performance issues
-
-## Commit Messages
-
-Use [Conventional Commits](https://www.conventionalcommits.org/):
-
-- `✨ feat: Add new feature`
-- `🐛 fix: Fix bug`
-- `📝 docs: Update documentation`
-- `♻️ refactor: Refactor code`
-- `🎨 style: Improve styling`
-- `⚡ perf: Performance improvement`
-- `✅ test: Add tests`
-
-## Pull Request Guidelines
-
-- Keep PRs **focused** (one feature/fix per PR)
-- Update **documentation** if needed
-- Add **screenshots** for UI changes
-- Reference **issue numbers** if applicable
-- Be **responsive** to feedback
-
-## Questions?
-
-Open a [Discussion](https://github.com/rushb-fr/freekiosk/discussions) or email support@freekiosk.app
-
----
-
-**Thank you for making FreeKiosk better! 🚀**
-
-*— The Rushb Team*
+功能改动执行相关测试及仓库要求的类型和 lint 检查；文档改动检查链接、术语、状态说明和示例一致性。没有实测的数据不标记为通过。

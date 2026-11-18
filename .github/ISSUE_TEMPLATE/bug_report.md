@@ -1,47 +1,19 @@
 ---
-name: Bug Report
-about: Report a bug or issue with FreeKiosk
-title: '[BUG] '
-labels: bug
-assignees: ''
+name: 问题反馈
+about: 反馈 easy-kiosk 的可复现问题
+title: ""
+labels: ""
+assignees: ""
 ---
 
-## 🐛 Bug Description
+## 设备和版本
 
-Clear and concise description of the bug.
+机型、Android/ROM、APK 版本与来源、是否 Device Owner。
 
-## 📱 Device Information
+## 复现步骤
 
-- **Device model**: [e.g., Samsung Galaxy Tab A8]
-- **Android version**: [e.g., Android 12]
-- **FreeKiosk version**: [e.g., v1.0.0]
-- **Device Owner activated**: [Yes/No]
+写明操作、预期结果和实际结果。
 
-## 🔄 Steps to Reproduce
+## 证据
 
-1. Go to '...'
-2. Click on '...'
-3. See error
-
-## ✅ Expected Behavior
-
-What should happen.
-
-## ❌ Actual Behavior
-
-What actually happens.
-
-## 📸 Screenshots
-
-If applicable, add screenshots to help explain the problem.
-
-## 📋 Logs
-
-If possible, provide logcat output:
-adb logcat | grep FreeKiosk
-
-text
-
-## 🔧 Additional Context
-
-Any other information about the problem (e.g., started after update, happens only in Device Owner mode, etc.).
+附脱敏日志或截图，不附 PIN、令牌、密码、私有网址或签名密钥。
