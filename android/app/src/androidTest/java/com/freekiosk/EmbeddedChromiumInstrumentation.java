@@ -37,6 +37,22 @@ public class EmbeddedChromiumInstrumentation extends Instrumentation {
   }
   return null;
  }
+ private boolean loadingVisible(View view) {
+  if(!view.isShown() || view.getAlpha()<0.05f)return false;
+  if(view instanceof android.widget.TextView && ((android.widget.TextView)view).getText().toString().startsWith("Loading"))return true;
+  if(view instanceof ViewGroup){ViewGroup group=(ViewGroup)view;for(int i=0;i<group.getChildCount();i++)if(loadingVisible(group.getChildAt(i)))return true;}
+  return false;
+ }
+ private void waitForVisiblePage(Activity activity) throws Exception {
+  long deadline=System.currentTimeMillis()+15000;
+  while(System.currentTimeMillis()<deadline){
+   AtomicReference<Boolean> visible=new AtomicReference<>(false);
+   runOnMainSync(()->{View root=activity.getWindow().getDecorView();WebView view=findWebView(root);visible.set(view!=null && view.isShown() && view.getAlpha()>0.05f && view.getWidth()>0 && view.getHeight()>0 && view.getProgress()==100 && !loadingVisible(root));});
+   if(visible.get()){waitForIdleSync();Thread.sleep(200);return;}
+   Thread.sleep(100);
+  }
+  throw new AssertionError("Rendered page remained hidden behind the loading screen");
+ }
  private void put(SQLiteDatabase db,String key,String value) {
   ContentValues row=new ContentValues();row.put("key",key);row.put("value",value);
   db.insertWithOnConflict("catalystLocalStorage",null,row,SQLiteDatabase.CONFLICT_REPLACE);
@@ -80,6 +96,7 @@ public class EmbeddedChromiumInstrumentation extends Instrumentation {
     if(findWebView(activity.getWindow().getDecorView()).getWebViewRenderProcess()==null)throw new AssertionError("Renderer is not out of process");
     actual.set(WebView.getCurrentWebViewPackage().versionName);});
    if(!expectedVersion.equals(actual.get()))throw new AssertionError("Wrong actual engine: "+actual.get());
+   waitForVisiblePage(activity);
    Bitmap screenshot=getUiAutomation().takeScreenshot();
    if(screenshot!=null)try(FileOutputStream out=new FileOutputStream(new File(context.getExternalFilesDir(null),"engine-smoke.png"))){screenshot.compress(Bitmap.CompressFormat.PNG,100,out);}
    report.putString("stream","EASYKIOSK_EMBEDDED_ENGINE_OK version="+actual.get()+" "+payload+"\n");finish(Activity.RESULT_OK,report);
