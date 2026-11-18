@@ -149,6 +149,12 @@ android {
         }
     }
     gradle.taskGraph.whenReady { graph ->
+        if (project.hasProperty('ciCompileOnlyEngine') && graph.allTasks.any {
+            it.name == 'assembleRelease' || it.name == 'bundleRelease' ||
+            (it.name.startsWith('package') && it.name.contains('Release'))
+        }) {
+            throw new GradleException('Compile-only engine configuration must never produce an APK or bundle')
+        }
         if (graph.allTasks.any { it.name == "assembleRelease" || it.name == "bundleRelease" } &&
             (!project.hasProperty('ciUnsigned') || System.getenv('GITHUB_ACTIONS') != 'true')) {
             throw new GradleException('Release assembly is an Actions-only unsigned intermediate; signing is a separate job')

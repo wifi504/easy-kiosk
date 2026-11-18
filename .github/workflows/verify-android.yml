@@ -53,7 +53,7 @@ jobs:
           ./node_modules/.bin/eslint . -f json > "$RUNNER_TEMP/lint-dev.json" || test $? -eq 1
           node scripts/check-lint-regressions.mjs "$BASE" "$GITHUB_WORKSPACE" "$RUNNER_TEMP/lint-main.json" "$RUNNER_TEMP/lint-dev.json"
       - name: 构建辅助工具语法检查
-        run: python3 -m py_compile scripts/prepare-embedded-chromium.py scripts/embed-chromium-apk.py scripts/engine-fixture-server.py
+        run: python3 -m py_compile scripts/prepare-embedded-chromium.py scripts/prepare-embedded-loader.py scripts/embed-chromium-apk.py scripts/engine-fixture-server.py scripts/generate-app-icons.py
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -65,8 +65,46 @@ jobs:
       - name: 单元测试
         if: success() || failure()
         run: npm test -- --runInBand --detectOpenHandles
-  build:
+  native-checks:
+    name: 原生接入编译检查（无需等待内核）
     needs: checks
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: JonaNorman/WebViewUpgrade
+          ref: 5a5a7d11b5e67bba37787a697f45c9f5d45e6dda
+          path: .engine-loader
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+      - run: npm ci
+      - name: 准备编译检查（不包含内核，不生成 APK）
+        run: |
+          sdkmanager 'platforms;android-36' 'build-tools;36.0.0' 'ndk;27.1.12297006'
+          python3 -m pip install 'Pillow==11.3.0'
+          python3 scripts/generate-app-icons.py
+          cp android/gradle.properties.template android/gradle.properties
+          chmod +x android/gradlew
+          VERSION=$(jq -r .version config/chromium.json)
+          python3 scripts/prepare-embedded-loader.py "$VERSION" compile-only-no-engine x86_64
+      - name: 原生 Manifest、Kotlin 与单元测试
+        working-directory: android
+        run: ./gradlew --no-daemon :app:processReleaseMainManifest :app:compileReleaseKotlin :app:testReleaseUnitTest -PciUnsigned -PciCompileOnlyEngine -PreactNativeArchitectures=x86_64
+  build:
+    needs: [checks, native-checks]
     runs-on: ubuntu-24.04
     timeout-minutes: 350
     strategy:
