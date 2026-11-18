@@ -7,7 +7,7 @@ on:
       - 'tools/embedded-chromium-probe/**'
       - 'scripts/*engine-probe*.py'
       - '.github/workflows/embedded-chromium-probe.yml'
-      - '.github/workflows/chromium-source-build.yml'
+      - '.github/workflows/prebuilt-chromium-audit.yml'
       - 'docs/embedded-chromium.md'
   workflow_dispatch:
 

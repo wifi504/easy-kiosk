@@ -1,0 +1,33 @@
+name: 预编译内核结构检查
+on:
+  workflow_dispatch:
+  push:
+    branches: [dev]
+    paths: ['.github/workflows/prebuilt-chromium-audit.yml']
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: 'build-tools;36.0.0'
+      - name: 下载固定内核并检查文件布局
+        run: |
+          python3 scripts/download-embedded-chromium.py x86_64 "$RUNNER_TEMP/chromium"
+          APK="$RUNNER_TEMP/chromium/Chromium-158.0.8127.36-x64.apk"
+          "$ANDROID_HOME/build-tools/36.0.0/aapt" dump badging "$APK" > kernel-audit.txt
+          "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --print-certs "$APK" >> kernel-audit.txt
+          unzip -l "$APK" >> kernel-audit.txt
+          "$ANDROID_HOME/build-tools/36.0.0/aapt" dump resources "$APK" | grep -i -E 'licen[cs]e|notice|raw/' >> kernel-audit.txt || true
+          cat kernel-audit.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: prebuilt-kernel-audit
+          path: kernel-audit.txt
+          retention-days: 7
