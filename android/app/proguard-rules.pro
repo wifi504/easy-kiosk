@@ -3,7 +3,13 @@
 # Keep host obfuscated names separate from the upstream engine's already-obfuscated DEX.
 -repackageclasses com.wifi504.easykiosk.internal
 
-# The engine is merged after R8; preserve the shared Kotlin binary API it can call.
+# The engine is merged after R8; preserve shared runtime names and binary APIs.
+# Otherwise R8 can rename/remove AndroidX code referenced only by the later engine.
+-keep class androidx.** { *; }
+-keep interface androidx.** { *; }
+-keep class android.support.** { *; }
+-keep interface android.support.** { *; }
+-keep interface com.google.common.util.concurrent.ListenableFuture { *; }
 -keep class kotlin.** { *; }
 -keep interface kotlin.** { *; }
 -keep class kotlinx.** { *; }
