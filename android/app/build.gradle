@@ -150,8 +150,7 @@ android {
     }
     gradle.taskGraph.whenReady { graph ->
         if (project.hasProperty('ciCompileOnlyEngine') && graph.allTasks.any {
-            it.name == 'assembleRelease' || it.name == 'bundleRelease' ||
-            (it.name.startsWith('package') && it.name.contains('Release'))
+            it.project == project && it.name in ['assembleRelease', 'bundleRelease', 'packageRelease', 'packageReleaseBundle']
         }) {
             throw new GradleException('Compile-only engine configuration must never produce an APK or bundle')
         }
