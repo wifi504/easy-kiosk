@@ -101,8 +101,6 @@
       "dashboardMode": "Utiliser le mode Tableau de bord",
       "dashboardModeHint": "Remplacer l'URL unique par un tableau de bord multi-URL",
       "dashboardActive": "Le mode Tableau de bord est actif. Configurez vos tuiles dans l'onglet Tableau de bord.",
-      "placeholder": "https://exemple.com",
-      "hint": "Exemple : https://www.freekiosk.app",
       "pickLocalFile": "Choisir un fichier HTML local",
       "pickLocalFileHint": "Le fichier est lu là où il se trouve : une page qu'une autre appli réécrit s'affiche à jour. Les images et scripts à côté ne se chargent pas : utilisez un fichier autonome, ou saisissez une adresse file:// pour un dossier.",
       "httpWarning": "SÉCURITÉ : Cette URL utilise HTTP (non chiffré).\nVos données peuvent être interceptées. Utilisez HTTPS à la place."
@@ -181,7 +179,7 @@
       "hintModeChanged": "Mode modifié - Vous DEVEZ entrer un nouveau mot de passe",
       "hintConfigured": "Mot de passe configuré - Laisser vide pour conserver le mot de passe actuel",
       "hintAlphanumeric": "Minimum 4 caractères. Peut inclure lettres, chiffres et caractères spéciaux.",
-      "hintNumeric": "Code PIN numérique : 4-6 chiffres (par défaut : 1234)",
+      "hintNumeric": "Code PIN numérique : 4-6 chiffres",
       "maxAttempts": "Tentatives max avant blocage (15 min)",
       "maxAttemptsHint": "Nombre de tentatives de mot de passe incorrectes autorisées (1-100)",
       "notSetPlaceholder": "Non défini : saisissez un PIN"
@@ -904,7 +902,6 @@
       "accountLocked": "Compte verrouillé",
       "tooManyFailedAttempts": "Trop de tentatives échouées",
       "retryIn": "Réessayer dans : {{time}}",
-      "defaultCode": "Code par défaut : 1234",
       "passwordPlaceholder": "Entrez le mot de passe",
       "validate": "Valider",
       "wifi": "Wi-Fi",

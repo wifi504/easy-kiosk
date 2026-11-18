@@ -101,8 +101,6 @@
       "dashboardMode": "Użyj trybu pulpitu",
       "dashboardModeHint": "Zastąp pojedynczy URL pulpitem z wieloma adresami URL",
       "dashboardActive": "Tryb pulpitu jest aktywny. Skonfiguruj kafelki na karcie Pulpit.",
-      "placeholder": "https://example.com",
-      "hint": "Przykład: https://www.freekiosk.app",
       "pickLocalFile": "Wybierz lokalny plik HTML",
       "pickLocalFileHint": "Plik jest odczytywany tam, gdzie się znajduje, więc strona przepisywana przez inną aplikację jest zawsze aktualna. Obrazy i skrypty obok niego nie są ładowane: użyj jednego samodzielnego pliku lub wpisz adres file:// dla folderu.",
       "httpWarning": "BEZPIECZEŃSTWO: ten URL używa HTTP (bez szyfrowania).\nDane mogą zostać przechwycone. Użyj HTTPS."
@@ -181,7 +179,7 @@
       "hintModeChanged": "Tryb zmieniony – MUSISZ wprowadzić nowe hasło",
       "hintConfigured": "Hasło skonfigurowane – pozostaw puste, aby zachować obecne hasło",
       "hintAlphanumeric": "Minimum 4 znaki. Może zawierać litery, cyfry i znaki specjalne.",
-      "hintNumeric": "Numeryczny PIN: 4-6 cyfr (domyślnie: 1234)",
+      "hintNumeric": "Numeryczny PIN: 4-6 cyfr",
       "maxAttempts": "Maks. liczba prób przed blokadą (15 min)",
       "maxAttemptsHint": "Dozwolona liczba błędnych prób wprowadzenia hasła (1-100)",
       "notSetPlaceholder": "Nie ustawiono: wprowadź PIN"
@@ -904,7 +902,6 @@
       "accountLocked": "Konto zablokowane",
       "tooManyFailedAttempts": "Zbyt wiele nieudanych prób",
       "retryIn": "Ponów za: {{time}}",
-      "defaultCode": "Kod domyślny: 1234",
       "passwordPlaceholder": "Wprowadź hasło",
       "validate": "Zatwierdź",
       "wifi": "Wi-Fi",

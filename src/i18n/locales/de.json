@@ -101,8 +101,6 @@
       "dashboardMode": "Dashboard-Modus verwenden",
       "dashboardModeHint": "Die einzelne URL durch ein Dashboard mit mehreren URLs ersetzen",
       "dashboardActive": "Der Dashboard-Modus ist aktiv. Konfiguriere deine Kacheln im Tab Dashboard.",
-      "placeholder": "https://example.com",
-      "hint": "Beispiel: https://www.freekiosk.app",
       "pickLocalFile": "Lokale HTML-Datei auswählen",
       "pickLocalFileHint": "Die Datei wird dort gelesen, wo sie liegt – eine Seite, die eine andere App neu schreibt, wird also aktuell angezeigt. Bilder und Skripte daneben werden nicht geladen: Nutzen Sie eine eigenständige Datei oder geben Sie eine file://-Adresse für einen Ordner ein.",
       "httpWarning": "SICHERHEIT: Diese URL verwendet HTTP (unverschlüsselt).\nDeine Daten können abgefangen werden. Verwende stattdessen HTTPS."
@@ -181,7 +179,7 @@
       "hintModeChanged": "Modus geändert - Du MUSST ein neues Passwort eingeben",
       "hintConfigured": "Passwort konfiguriert - Leer lassen, um das aktuelle Passwort zu behalten",
       "hintAlphanumeric": "Mindestens 4 Zeichen. Kann Buchstaben, Zahlen und Sonderzeichen enthalten.",
-      "hintNumeric": "Numerischer PIN: 4-6 Ziffern (Standard: 1234)",
+      "hintNumeric": "Numerischer PIN: 4-6 Ziffern",
       "maxAttempts": "Max. Versuche vor Sperrung (15 Min.)",
       "maxAttemptsHint": "Anzahl erlaubter falscher Passworteingaben (1-100)",
       "notSetPlaceholder": "Nicht festgelegt: PIN eingeben"
@@ -904,7 +902,6 @@
       "accountLocked": "Konto gesperrt",
       "tooManyFailedAttempts": "Zu viele fehlgeschlagene Versuche",
       "retryIn": "Erneut versuchen in: {{time}}",
-      "defaultCode": "Standardcode: 1234",
       "passwordPlaceholder": "Passwort eingeben",
       "validate": "Bestätigen",
       "wifi": "Wi-Fi",

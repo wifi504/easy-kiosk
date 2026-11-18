@@ -698,9 +698,7 @@ const GeneralTab: React.FC<GeneralTabProps> = ({
                 label=""
                 value={url}
                 onChangeText={onUrlChange}
-                placeholder={t('general.urlSection.placeholder')}
                 keyboardType="url"
-                hint={t('general.urlSection.hint')}
               />
 
               {filePickerAvailable === true && (

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, TextInput, StyleSheet, Alert, ActivityIndicator, NativeModules, Platform, TouchableOpacity } from 'react-native';
-import { verifySecurePin, getLockoutStatus, hasSecurePin } from '../utils/secureStorage';
+import { verifySecurePin, getLockoutStatus } from '../utils/secureStorage';
 import { StorageService } from '../utils/storage';
 import WifiDialog from './WifiDialog';
 import BluetoothDialog from './BluetoothDialog';
@@ -24,7 +24,6 @@ const PinInput: React.FC<PinInputProps> = ({ onSuccess }) => {
   const [isLockedOut, setIsLockedOut] = useState<boolean>(false);
   const [lockoutTimeRemaining, setLockoutTimeRemaining] = useState<number>(0);
   const [attemptsRemaining, setAttemptsRemaining] = useState<number>(5);
-  const [hasPinConfigured, setHasPinConfigured] = useState<boolean>(false);
   const [pinMode, setPinMode] = useState<'numeric' | 'alphanumeric'>('numeric');
   const inputRef = useRef<TextInput>(null);
   const [showWifiButton, setShowWifiButton] = useState(false);
@@ -47,7 +46,6 @@ const PinInput: React.FC<PinInputProps> = ({ onSuccess }) => {
 
   useEffect(() => {
     checkLockoutStatus();
-    checkPinConfiguration();
     loadPinMode();
     loadLockscreenSettings();
     const interval = setInterval(checkLockoutStatus, 1000);
@@ -120,10 +118,6 @@ const PinInput: React.FC<PinInputProps> = ({ onSuccess }) => {
     setPinMode(mode);
   };
 
-  const checkPinConfiguration = async (): Promise<void> => {
-    const isPinConfigured = await hasSecurePin();
-    setHasPinConfigured(isPinConfigured);
-  };
 
   const checkLockoutStatus = async (): Promise<void> => {
     const status = await getLockoutStatus();
@@ -288,9 +282,6 @@ const PinInput: React.FC<PinInputProps> = ({ onSuccess }) => {
         </>
       ) : (
         <>
-          {!hasPinConfigured && (
-            <Text style={styles.subtitle}>{t('components.pinInput.defaultCode')}</Text>
-          )}
 
           {attemptsRemaining < 5 && (
             <View style={styles.warningContainer}>

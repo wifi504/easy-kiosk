@@ -101,8 +101,6 @@
       "dashboardMode": "Usa la modalità Dashboard",
       "dashboardModeHint": "Sostituisce l'URL singolo con una Dashboard multi-URL",
       "dashboardActive": "La modalità Dashboard è attiva. Configura i tuoi riquadri nella scheda Dashboard.",
-      "placeholder": "https://example.com",
-      "hint": "Esempio: https://www.freekiosk.app",
       "pickLocalFile": "Scegli un file HTML locale",
       "pickLocalFileHint": "Il file viene letto dove si trova, quindi una pagina riscritta da un'altra app viene mostrata aggiornata. Le immagini e gli script accanto non si caricano: usa un file autonomo o scrivi un indirizzo file:// per una cartella.",
       "httpWarning": "SICUREZZA: questo URL usa HTTP (non cifrato).\nI tuoi dati possono essere intercettati. Usa HTTPS."
@@ -181,7 +179,7 @@
       "hintModeChanged": "Modalità cambiata - DEVI inserire una nuova password",
       "hintConfigured": "Password configurata - Lascia vuoto per mantenere la password attuale",
       "hintAlphanumeric": "Minimo 4 caratteri. Può includere lettere, numeri e caratteri speciali.",
-      "hintNumeric": "PIN numerico: 4-6 cifre (predefinito: 1234)",
+      "hintNumeric": "PIN numerico: 4-6 cifre",
       "maxAttempts": "Tentativi max prima del blocco (15min)",
       "maxAttemptsHint": "Numero di tentativi di password errati consentiti (1-100)",
       "notSetPlaceholder": "Non impostato: inserisci un PIN"
@@ -904,7 +902,6 @@
       "accountLocked": "Account bloccato",
       "tooManyFailedAttempts": "Troppi tentativi falliti",
       "retryIn": "Riprova tra: {{time}}",
-      "defaultCode": "Codice predefinito: 1234",
       "passwordPlaceholder": "Inserisci la password",
       "validate": "Conferma",
       "wifi": "Wi-Fi",

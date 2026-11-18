@@ -101,8 +101,6 @@
       "dashboardMode": "Use Dashboard Mode",
       "dashboardModeHint": "Replace single URL with a multi-URL dashboard",
       "dashboardActive": "Dashboard mode is active. Configure your tiles in the Dashboard tab.",
-      "placeholder": "https://example.com",
-      "hint": "Example: https://www.freekiosk.app",
       "pickLocalFile": "Choose a local HTML file",
       "pickLocalFileHint": "The file is read where it is, so a page that another app rewrites is shown fresh. Images and scripts next to it do not load: use one self-contained file, or type a file:// address for a folder.",
       "httpWarning": "SECURITY: This URL uses HTTP (unencrypted).\nYour data can be intercepted. Use HTTPS instead."
@@ -181,7 +179,7 @@
       "hintModeChanged": "Mode changed - You MUST enter a new password",
       "hintConfigured": "Password configured - Leave empty to keep current password",
       "hintAlphanumeric": "Minimum 4 characters. Can include letters, numbers, and special characters.",
-      "hintNumeric": "Numeric PIN: 4-6 digits (default: 1234)",
+      "hintNumeric": "Numeric PIN: 4-6 digits",
       "maxAttempts": "Max Attempts Before Lockout (15min)",
       "maxAttemptsHint": "Number of incorrect password attempts allowed (1-100)",
       "notSetPlaceholder": "Not set: enter a PIN"
@@ -904,7 +902,6 @@
       "accountLocked": "Account Locked",
       "tooManyFailedAttempts": "Too many failed attempts",
       "retryIn": "Retry in: {{time}}",
-      "defaultCode": "Default code: 1234",
       "passwordPlaceholder": "Enter password",
       "validate": "Validate",
       "wifi": "Wi-Fi",

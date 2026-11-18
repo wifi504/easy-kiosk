@@ -101,8 +101,6 @@
       "dashboardMode": "Dashboardmodus gebruiken",
       "dashboardModeHint": "Vervang de enkele URL door een dashboard met meerdere URL's",
       "dashboardActive": "De dashboardmodus is actief. Stel je tegels in op het tabblad Dashboard.",
-      "placeholder": "https://example.com",
-      "hint": "Voorbeeld: https://www.freekiosk.app",
       "pickLocalFile": "Kies een lokaal HTML-bestand",
       "pickLocalFileHint": "Het bestand wordt gelezen waar het staat, dus een pagina die een andere app herschrijft wordt actueel getoond. Afbeeldingen en scripts ernaast worden niet geladen: gebruik één zelfstandig bestand of typ een file://-adres voor een map.",
       "httpWarning": "BEVEILIGING: deze URL gebruikt HTTP (niet versleuteld).\nJe gegevens kunnen worden onderschept. Gebruik in plaats daarvan HTTPS."
@@ -181,7 +179,7 @@
       "hintModeChanged": "Modus gewijzigd - je MOET een nieuw wachtwoord invoeren",
       "hintConfigured": "Wachtwoord ingesteld - laat leeg om het huidige wachtwoord te behouden",
       "hintAlphanumeric": "Minimaal 4 tekens. Mag letters, cijfers en speciale tekens bevatten.",
-      "hintNumeric": "Numerieke pincode: 4-6 cijfers (standaard: 1234)",
+      "hintNumeric": "Numerieke pincode: 4-6 cijfers",
       "maxAttempts": "Max. pogingen vóór blokkering (15 min)",
       "maxAttemptsHint": "Aantal toegestane onjuiste wachtwoordpogingen (1-100)",
       "notSetPlaceholder": "Niet ingesteld: voer een pincode in"
@@ -904,7 +902,6 @@
       "accountLocked": "Account vergrendeld",
       "tooManyFailedAttempts": "Te veel mislukte pogingen",
       "retryIn": "Opnieuw proberen over: {{time}}",
-      "defaultCode": "Standaardcode: 1234",
       "passwordPlaceholder": "Voer wachtwoord in",
       "validate": "Bevestigen",
       "wifi": "Wi-Fi",

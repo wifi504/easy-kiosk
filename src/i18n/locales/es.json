@@ -101,8 +101,6 @@
       "dashboardMode": "Usar el modo panel",
       "dashboardModeHint": "Reemplazar la URL única por un panel de varias URL",
       "dashboardActive": "El modo panel está activo. Configura tus mosaicos en la pestaña Panel.",
-      "placeholder": "https://example.com",
-      "hint": "Ejemplo: https://www.freekiosk.app",
       "pickLocalFile": "Elegir un archivo HTML local",
       "pickLocalFileHint": "El archivo se lee donde está, así que una página que otra app reescribe se muestra actualizada. Las imágenes y scripts junto a él no se cargan: use un archivo autónomo o escriba una dirección file:// para una carpeta.",
       "httpWarning": "SEGURIDAD: Esta URL usa HTTP (sin cifrar).\nTus datos pueden ser interceptados. Usa HTTPS en su lugar."
@@ -181,7 +179,7 @@
       "hintModeChanged": "Modo cambiado: DEBES ingresar una nueva contraseña",
       "hintConfigured": "Contraseña configurada: déjalo vacío para conservar la contraseña actual",
       "hintAlphanumeric": "Mínimo 4 caracteres. Puede incluir letras, números y caracteres especiales.",
-      "hintNumeric": "PIN numérico: 4-6 dígitos (predeterminado: 1234)",
+      "hintNumeric": "PIN numérico: 4-6 dígitos",
       "maxAttempts": "Intentos máx. antes del bloqueo (15 min)",
       "maxAttemptsHint": "Número de intentos de contraseña incorrectos permitidos (1-100)",
       "notSetPlaceholder": "Sin definir: ingresa un PIN"
@@ -904,7 +902,6 @@
       "accountLocked": "Cuenta bloqueada",
       "tooManyFailedAttempts": "Demasiados intentos fallidos",
       "retryIn": "Reintentar en: {{time}}",
-      "defaultCode": "Código predeterminado: 1234",
       "passwordPlaceholder": "Introduce la contraseña",
       "validate": "Validar",
       "wifi": "Wi-Fi",
