@@ -71,6 +71,8 @@ jobs:
         env:
           KEYSTORE_BASE64: ${{ secrets.EASYKIOSK_KEYSTORE_BASE64 }}
         run: |
+          export EASYKIOSK_KEYSTORE_FILE="$RUNNER_TEMP/easy-kiosk.jks"
+          echo "EASYKIOSK_KEYSTORE_FILE=$EASYKIOSK_KEYSTORE_FILE" >> "$GITHUB_ENV"
           test -n "$KEYSTORE_BASE64"
           umask 077
           printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$EASYKIOSK_KEYSTORE_FILE"
