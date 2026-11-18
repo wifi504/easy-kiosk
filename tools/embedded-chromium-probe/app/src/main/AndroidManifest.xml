@@ -1,5 +1,5 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-  <application android:theme="@android:style/Theme.Material.Light.NoActionBar" android:label="EasyKiosk Chromium Probe" android:use32bitAbi="true" android:extractNativeLibs="true" android:usesCleartextTraffic="false">
+  <application android:theme="@android:style/Theme.Material.Light.NoActionBar" android:label="EasyKiosk Chromium Probe" android:use32bitAbi="true" android:extractNativeLibs="true" android:usesCleartextTraffic="true">
     <meta-data android:name="com.android.webview.WebViewLibrary" android:value="libwebviewchromium.so" />
     <activity android:name=".ProbeActivity" android:exported="true" />
   </application>

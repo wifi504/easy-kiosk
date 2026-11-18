@@ -53,8 +53,8 @@ jobs:
       - name: 构建独立 WebView（不是 Chrome 浏览器 APK）
         working-directory: ${{ runner.temp }}/chromium/src
         run: |
-          gn gen out/Release --args='target_os="android" target_cpu="${{ matrix.cpu }}" is_debug=false is_official_build=true is_component_build=false use_official_google_api_keys=false android_channel="stable" disable_fieldtrial_testing_config=true symbol_level=0 blink_symbol_level=0 v8_symbol_level=0 use_remoteexec=false'
-          autoninja -C out/Release system_webview_apk
+          gn gen out/Release --args='target_os="android" target_cpu="${{ matrix.cpu }}" is_debug=false is_official_build=true is_component_build=false use_official_google_api_keys=false android_channel="stable" disable_fieldtrial_testing_config=true symbol_level=0 blink_symbol_level=0 v8_symbol_level=0 use_remoteexec=false v8_builtins_profiling_log_file="" chrome_pgo_phase=0 use_thin_lto=false'
+          autoninja -C out/Release -j 4 system_webview_apk
           cp out/Release/apks/SystemWebView.apk "$RUNNER_TEMP/Chromium-158.0.8127.42-${{ matrix.cpu }}.apk"
           sha256sum "$RUNNER_TEMP/Chromium-158.0.8127.42-${{ matrix.cpu }}.apk" > "$RUNNER_TEMP/Chromium-158.0.8127.42-${{ matrix.cpu }}.apk.sha256"
       - uses: actions/upload-artifact@v4

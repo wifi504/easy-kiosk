@@ -10,6 +10,9 @@ public class ProbeInstrumentation extends Instrumentation {
     @Override public void onStart() {
         Bundle report = new Bundle();
         try {
+            try (java.io.FileOutputStream out = getTargetContext().openFileOutput("engine-isolation-canary", 0)) {
+                out.write("private-host-fixture".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            }
             Intent intent = new Intent(getTargetContext(), ProbeActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             startActivitySync(intent);
             long deadline = System.currentTimeMillis() + 90000;
@@ -22,7 +25,7 @@ public class ProbeInstrumentation extends Instrumentation {
                 throw new AssertionError("Bundled engine failed: " + result);
             }
             org.json.JSONObject payload = new org.json.JSONObject((String) new org.json.JSONTokener(result).nextValue());
-            if (!payload.getBoolean("js") || !payload.getBoolean("css")) throw new AssertionError("Modern JS/CSS did not execute: " + payload);
+            if (!payload.getBoolean("js") || !payload.getBoolean("css") || !payload.getBoolean("net")) throw new AssertionError("Modern JS/CSS did not execute: " + payload);
             report.putString("stream", "EMBEDDED_ENGINE_OK " + result + "\n");
             finish(Activity.RESULT_OK, report);
         } catch (Throwable error) {

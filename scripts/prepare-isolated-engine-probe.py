@@ -14,6 +14,11 @@ public class StubSandboxedProcessService{index} extends org.chromium.content.app
         int appId = uid % 100000;
         if (appId < 90000 || appId > 99999) throw new SecurityException("Renderer is not isolated: " + uid);
         android.util.Log.i("EasyKioskEngineProbe", "ISOLATED_RENDERER_UID " + uid);
+        try (java.io.FileInputStream privateFile = new java.io.FileInputStream("/data/user/0/com.wifi504.easykiosk.engineprobe/files/engine-isolation-canary")) {{
+            throw new SecurityException("Renderer can read host private data");
+        }} catch (java.io.FileNotFoundException expected) {{
+            android.util.Log.i("EasyKioskEngineProbe", "PRIVATE_DATA_ACCESS_DENIED " + uid);
+        }} catch (java.io.IOException error) {{ throw new RuntimeException(error); }}
     }}
 }}
 ''')

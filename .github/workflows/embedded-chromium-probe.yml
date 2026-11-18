@@ -77,6 +77,7 @@ jobs:
             adb shell dumpsys webviewupdate > system-webview-after.txt
             grep -F 'EMBEDDED_ENGINE_OK' engine-probe-result.txt
             grep -E 'ISOLATED_RENDERER_UID 9[0-9]{4}' engine-probe-logcat.txt
+            grep -E 'PRIVATE_DATA_ACCESS_DENIED 9[0-9]{4}' engine-probe-logcat.txt
       - uses: actions/upload-artifact@v4
         if: always()
         with:
