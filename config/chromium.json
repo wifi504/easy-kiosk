@@ -1,7 +1,19 @@
 {
-  "version": "158.0.8127.42",
-  "source_commit": "52bdd21723d5db0c9ab11716d38feac74828cf84",
-  "source_run": 44278366744,
+  "version": "158.0.8127.36",
+  "source_commit": "14d6f648e8cd7ad750a4044200ce94d3321be260",
+  "provider_repository": "holtdroid/chromium-builds",
+  "provider_release_id": 444800915,
   "loader_commit": "5a5a7d11b5e67bba37787a697f45c9f5d45e6dda",
-  "source_workflow_commit": "2b3883751df10f3e063dd49875704119c7fdbeee"
+  "artifacts": {
+    "arm64-v8a": {
+      "asset_id": 745623519,
+      "name": "webview-158.0.8127.36-arm64.apk",
+      "sha256": "a09580899fe5200fdb9473a6965dfe807914c97b29f2aac1902107934d2ca50a"
+    },
+    "x86_64": {
+      "asset_id": 745403449,
+      "name": "webview-158.0.8127.36-x86_64.apk",
+      "sha256": "875af9f446e0abacb3fb252cb0071ade49c1fe7cf37a218e20ad515dc2ed91bf"
+    }
+  }
 }

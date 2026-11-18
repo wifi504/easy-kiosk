@@ -53,7 +53,7 @@ jobs:
           ./node_modules/.bin/eslint . -f json > "$RUNNER_TEMP/lint-dev.json" || test $? -eq 1
           node scripts/check-lint-regressions.mjs "$BASE" "$GITHUB_WORKSPACE" "$RUNNER_TEMP/lint-main.json" "$RUNNER_TEMP/lint-dev.json"
       - name: 构建辅助工具语法检查
-        run: python3 -m py_compile scripts/prepare-embedded-chromium.py scripts/prepare-embedded-loader.py scripts/embed-chromium-apk.py scripts/engine-fixture-server.py scripts/generate-app-icons.py
+        run: python3 -m py_compile scripts/download-embedded-chromium.py scripts/prepare-embedded-chromium.py scripts/prepare-embedded-loader.py scripts/embed-chromium-apk.py scripts/engine-fixture-server.py scripts/generate-app-icons.py
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -70,6 +70,8 @@ jobs:
     needs: checks
     runs-on: ubuntu-24.04
     timeout-minutes: 35
+    env:
+      GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/checkout@v4
@@ -91,22 +93,26 @@ jobs:
         with:
           packages: platform-tools
       - run: npm ci
-      - name: 准备编译检查（不包含内核，不生成 APK）
+      - uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/chromium
+          key: embedded-chromium-x86_64-${{ hashFiles('config/chromium.json') }}
+      - name: 准备真实预编译内核及原生编译检查（不生成 APK）
         run: |
           sdkmanager 'platforms;android-36' 'build-tools;36.0.0' 'ndk;27.1.12297006'
           python3 -m pip install 'Pillow==11.3.0'
           python3 scripts/generate-app-icons.py
           cp android/gradle.properties.template android/gradle.properties
           chmod +x android/gradlew
-          VERSION=$(jq -r .version config/chromium.json)
-          python3 scripts/prepare-embedded-loader.py "$VERSION" compile-only-no-engine x86_64
+          python3 scripts/download-embedded-chromium.py x86_64 "$RUNNER_TEMP/chromium"
+          python3 scripts/prepare-embedded-chromium.py x86_64 "$RUNNER_TEMP/chromium"
       - name: 原生 Manifest、Kotlin 与单元测试
         working-directory: android
         run: ./gradlew --no-daemon :app:processReleaseMainManifest :app:compileReleaseKotlin :app:testReleaseUnitTest -PciUnsigned -PciCompileOnlyEngine -PreactNativeArchitectures=x86_64
   build:
     needs: [checks, native-checks]
     runs-on: ubuntu-24.04
-    timeout-minutes: 350
+    timeout-minutes: 75
     strategy:
       fail-fast: false
       matrix:
@@ -119,17 +125,12 @@ jobs:
       GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v4
-      - name: 等待固定版本的官方内核产物
-        run: |
-          SOURCE_RUN=$(python3 -c 'import json; print(json.load(open("config/chromium.json"))["source_run"])')
-          while true; do
-            STATE=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$SOURCE_RUN/jobs" --jq '.jobs[] | select(.name == "kernel (${{ matrix.cpu }})") | .conclusion')
-            if [ "$STATE" = success ]; then break; fi
-            case "$STATE" in failure|cancelled|timed_out|action_required) echo "Kernel build failed: $STATE"; exit 1;; esac
-            echo "Waiting for pinned Chromium ${{ matrix.cpu }} source build..."
-            sleep 30
-          done
-          gh run download "$SOURCE_RUN" --repo "$GITHUB_REPOSITORY" --name 'chromium-158-${{ matrix.cpu }}' --dir "$RUNNER_TEMP/chromium"
+      - uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/chromium
+          key: embedded-chromium-${{ matrix.abi }}-${{ hashFiles('config/chromium.json') }}
+      - name: 获取并校验固定版本的预编译内核
+        run: python3 scripts/download-embedded-chromium.py '${{ matrix.abi }}' "$RUNNER_TEMP/chromium"
       - uses: actions/checkout@v4
         with:
           repository: JonaNorman/WebViewUpgrade
@@ -285,7 +286,7 @@ jobs:
             APK="release/EasyKiosk-${GITHUB_SHA:0:7}-$ABI.apk"
             cp "incoming/ci-intermediate-do-not-install-$ABI/app-release.apk" "$APK"
             "$TOOLS/aapt" dump badging "$APK" | grep -F "package: name='com.freekiosk'" | grep -F "versionName='${GITHUB_SHA:0:7}'"
-            unzip -p "$APK" assets/embedded-chromium.json | jq -e '.version == "158.0.8127.42" and .source_commit == "52bdd21723d5db0c9ab11716d38feac74828cf84"' > /dev/null
+            unzip -p "$APK" assets/embedded-chromium.json | jq -e '.version == "158.0.8127.36" and .source_commit == "14d6f648e8cd7ad750a4044200ce94d3321be260"' > /dev/null
             BEFORE=$(payload_hash "$APK")
             "$TOOLS/apksigner" sign --v4-signing-enabled false --ks "$KEYSTORE" --ks-pass env:STORE_PASSWORD --key-pass env:KEY_PASSWORD --ks-key-alias "$KEY_ALIAS" "$APK"
             "$TOOLS/apksigner" verify --verbose --print-certs "$APK"

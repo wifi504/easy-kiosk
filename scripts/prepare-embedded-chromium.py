@@ -13,12 +13,7 @@ expected = (directory / (name + '.sha256')).read_text().split()[0].lower()
 if not re.fullmatch('[0-9a-f]{64}', expected): raise SystemExit('Invalid kernel SHA-256 metadata')
 sha = hashlib.file_digest(engine.open('rb'), 'sha256').hexdigest()
 if sha != expected: raise SystemExit('Kernel SHA-256 mismatch')
-run = json.loads(subprocess.check_output(['gh', 'api', f"repos/wifi504/easy-kiosk/actions/runs/{lock['source_run']}"]))
-if run['head_branch'] != 'dev' or run['head_sha'] != lock['source_workflow_commit'] or run['path'] != '.github/workflows/chromium-source-build.yml':
-    raise SystemExit('Unexpected kernel source workflow provenance')
-jobs = json.loads(subprocess.check_output(['gh', 'api', f"repos/wifi504/easy-kiosk/actions/runs/{lock['source_run']}/jobs"]))['jobs']
-if not any(job['name'] == f'kernel ({cpu})' and job['conclusion'] == 'success' for job in jobs):
-    raise SystemExit('The matching architecture source-build job has not succeeded')
+if sha != lock['artifacts'][abi]['sha256']: raise SystemExit('Engine differs from pinned precompiled release')
 
 tools = Path(os.environ['ANDROID_HOME']) / 'build-tools/36.0.0'
 subprocess.run([str(tools / 'apksigner'), 'verify', str(engine)], check=True)
@@ -43,4 +38,4 @@ meta = dict(lock, abi=abi, package=package, sha256=sha)
 notices = assets / 'third-party'; notices.mkdir(exist_ok=True)
 shutil.copyfile(root / '.engine-loader/LICENSE', notices / 'WebViewUpgrade-LICENSE.txt')
 subprocess.run([sys.executable, str(root / 'scripts/prepare-embedded-loader.py'), version, sha, abi], check=True)
-print(f'Verified bundled Chromium {version}, ABI={abi}, SHA256={sha}, source run={lock["source_run"]}')
+print(f'Verified bundled Chromium {version}, ABI={abi}, SHA256={sha}, minSdk={min_sdk} provider={lock["provider_repository"]} release={lock["provider_release_id"]}')

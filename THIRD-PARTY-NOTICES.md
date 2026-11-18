@@ -289,18 +289,14 @@ SOFTWARE.
 
 ## Bundled Chromium and app-scoped loader
 
-The Android APK bundles a pinned Chromium WebView build from the official Chromium source tag recorded in
-`config/chromium.json`. Chromium and its dependencies retain their upstream licenses; the engine's
-`assets/webview_licenses` and original engine APK travel with the application.
+The Android APK bundles Chromium WebView 158.0.8127.36 from the precompiled release at
+https://github.com/holtdroid/chromium-builds/releases/tag/158.0.8127.36 .
+The provider states it is built from the official Chromium release tag. The exact release,
+asset identities and SHA-256 values are recorded in `config/chromium.json`.
+Chromium and its dependencies retain their upstream licenses; the engine's
+`assets/webview_licenses.notice` and original engine APK travel with the application.
 
-The app-scoped loader is derived from JonaNorman/WebViewUpgrade at the commit recorded in that same lock file,
-under Apache License 2.0. Its full license is copied into `assets/third-party/WebViewUpgrade-LICENSE.txt`.
+The app-scoped loader is derived from JonaNorman/WebViewUpgrade at the commit recorded in that
+same lock file, under Apache License 2.0. Its full license is copied into
+`assets/third-party/WebViewUpgrade-LICENSE.txt`.
 The renderer-service integration is modified to use isolated Android processes and installed host code.
-
-## Bundled Chromium and app-scoped loader
-
-The Android APK bundles the official Chromium WebView source version pinned in `config/chromium.json`.
-Chromium and its dependencies retain their upstream licenses; `assets/webview_licenses` and the original
-engine APK travel with the application. The modified app-scoped loader is derived from
-JonaNorman/WebViewUpgrade at the commit pinned in that file, under Apache License 2.0.
-Its full license travels in `assets/third-party/WebViewUpgrade-LICENSE.txt`.
