@@ -1,4 +1,4 @@
-"""Actions-only merge of engine code/native/assets, followed by the owner's release signature."""
+"""Actions-only engine merge and public CI test signature; deployment signing is isolated."""
 from pathlib import Path
 import os, sys, json, subprocess, tempfile, zipfile
 if os.environ.get('GITHUB_ACTIONS') != 'true': raise SystemExit('APK assembly must run in Actions')
@@ -28,7 +28,9 @@ with tempfile.TemporaryDirectory() as temp:
     merged = temp / 'merged.apk'
     with zipfile.ZipFile(apk) as host, zipfile.ZipFile(engine) as browser, zipfile.ZipFile(merged, 'w', compression=zipfile.ZIP_DEFLATED) as out:
         for item in host.infolist():
-            if item.filename.startswith('META-INF/') or (item.filename.startswith('classes') and item.filename.endswith('.dex') and '/' not in item.filename): continue
+            upper = item.filename.upper()
+            is_signature = upper == 'META-INF/MANIFEST.MF' or (upper.startswith('META-INF/') and upper.endswith(('.SF', '.RSA', '.DSA', '.EC')))
+            if is_signature or (item.filename.startswith('classes') and item.filename.endswith('.dex') and '/' not in item.filename): continue
             out.writestr(item, host.read(item.filename))
         names = set(out.namelist())
         for item in browser.infolist():

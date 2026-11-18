@@ -209,7 +209,8 @@ jobs:
           digest=hashlib.sha256()
           with zipfile.ZipFile(sys.argv[1]) as archive:
               for name in sorted(archive.namelist()):
-                  if name.startswith('META-INF/'): continue
+                  upper=name.upper()
+                  if upper == 'META-INF/MANIFEST.MF' or (upper.startswith('META-INF/') and upper.endswith(('.SF','.RSA','.DSA','.EC'))): continue
                   digest.update(name.encode()+b'\0')
                   with archive.open(name) as stream: digest.update(hashlib.file_digest(stream,'sha256').digest())
           print(digest.hexdigest())

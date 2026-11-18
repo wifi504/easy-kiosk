@@ -8,7 +8,7 @@
 - `EASYKIOSK_KEY_ALIAS`
 - `EASYKIOSK_KEY_PASSWORD`
 
-Actions 临时还原密钥，构建完成后清理。缺少密钥时不允许回退到测试签名。
+Actions 独立签名步骤临时还原密钥，签名完成后清理。缺少密钥时不允许回退到测试签名。
 密钥及密码应独立备份；之后发布始终沿用此密钥。
 
 Android `versionName` 为构建提交 SHA 前 7 位；设置界面从已安装 APK 读取。
