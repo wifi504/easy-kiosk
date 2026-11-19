@@ -40,7 +40,10 @@ jobs:
         run: npm run typecheck
       - name: ESLint 零错误检查
         if: success() || failure()
-        run: npm run lint -- --quiet
+        run: |
+          npm run lint -- --quiet
+          echo '### ESLint 检查' >> "$GITHUB_STEP_SUMMARY"
+          echo '当前代码：0 个错误。' >> "$GITHUB_STEP_SUMMARY"
       - name: 构建辅助工具语法检查
         run: python3 -m py_compile scripts/download-embedded-chromium.py scripts/prepare-embedded-chromium.py scripts/prepare-embedded-loader.py scripts/embed-chromium-apk.py scripts/engine-fixture-server.py scripts/generate-app-icons.py scripts/extract-chromium-notices.py scripts/stage-renderer-assets.py scripts/prepare-independent-engine-probe.py scripts/check-android-guest.py scripts/configure-android-guest.py
       - name: 单元测试
