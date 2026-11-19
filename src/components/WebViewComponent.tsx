@@ -1780,7 +1780,7 @@ const WebViewComponent = forwardRef<WebViewComponentRef, WebViewComponentProps>(
       />
 
       {loading && !error && (
-        <View style={[styles.loadingContainer, darkLoading && styles.loadingContainerDark]}>
+        <View accessibilityLabel="browser-page-loading" style={[styles.loadingContainer, darkLoading && styles.loadingContainerDark]}>
 
           {/* Fallback settings button inside loading overlay */}
           <TouchableOpacity

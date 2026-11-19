@@ -40,6 +40,7 @@ public class EmbeddedChromiumInstrumentation extends Instrumentation {
  }
  private boolean loadingVisible(View view) {
   if(!view.isShown() || view.getAlpha()<0.05f)return false;
+  if("browser-page-loading".contentEquals(view.getContentDescription()))return true;
   if(view instanceof android.widget.TextView && ((android.widget.TextView)view).getText().toString().startsWith("Loading"))return true;
   if(view instanceof ViewGroup){ViewGroup group=(ViewGroup)view;for(int i=0;i<group.getChildCount();i++)if(loadingVisible(group.getChildAt(i)))return true;}
   return false;
@@ -88,6 +89,7 @@ public class EmbeddedChromiumInstrumentation extends Instrumentation {
   }
   try {
    Context context=getTargetContext();fixtureConfig(context);
+   long startupBegin=android.os.SystemClock.elapsedRealtime();
    Activity activity=startActivitySync(new Intent().setClassName(context.getPackageName(),context.getPackageName()+".MainActivity").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
    long deadline=System.currentTimeMillis()+240000;JSONObject payload=null;String last="No WebView";
    while(System.currentTimeMillis()<deadline && payload==null) {
@@ -114,7 +116,7 @@ public class EmbeddedChromiumInstrumentation extends Instrumentation {
    waitForVisiblePage(activity);
    Bitmap screenshot=getUiAutomation().takeScreenshot();
    if(screenshot!=null)try(FileOutputStream out=new FileOutputStream(new File(context.getExternalFilesDir(null),"engine-smoke.png"))){screenshot.compress(Bitmap.CompressFormat.PNG,100,out);}
-   report.putString("stream","EASYKIOSK_EMBEDDED_ENGINE_OK version="+actual.get()+" "+payload+"\n");finish(Activity.RESULT_OK,report);
+   report.putString("stream","EASYKIOSK_EMBEDDED_ENGINE_OK version="+actual.get()+" startup_ms="+(android.os.SystemClock.elapsedRealtime()-startupBegin)+" "+payload+"\n");finish(Activity.RESULT_OK,report);
   } catch(Throwable error) {screenshot("engine-failure.png");report.putString("stream","EASYKIOSK_EMBEDDED_ENGINE_FAILED "+android.util.Log.getStackTraceString(error));finish(Activity.RESULT_CANCELED,report);}
  }
 }
