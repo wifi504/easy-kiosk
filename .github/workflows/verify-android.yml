@@ -378,12 +378,29 @@ jobs:
             AFTER=$(payload_hash "$APK")
             test "$BEFORE" = "$AFTER"
           done
-      - uses: actions/upload-artifact@v7.0.2
+      - name: 直接上传 ARM64 APK（不打 ZIP）
+        id: upload-arm64
+        uses: actions/upload-artifact@v7.0.2
         with:
-          name: EasyKiosk-signed-${{ github.sha }}-${{ needs.validate-auth.outputs.mode }}
-          path: release/*.apk
+          path: release/*-arm64-v8a.apk
+          archive: false
           if-no-files-found: error
           retention-days: 7
+      - name: 直接上传模拟器 APK（不打 ZIP）
+        id: upload-x64
+        uses: actions/upload-artifact@v7.0.2
+        with:
+          path: release/*-x86_64.apk
+          archive: false
+          if-no-files-found: error
+          retention-days: 7
+      - name: 核对 GitHub 摘要对应 APK 本身
+        env:
+          ARM64_DIGEST: ${{ steps.upload-arm64.outputs.artifact-digest }}
+          X64_DIGEST: ${{ steps.upload-x64.outputs.artifact-digest }}
+        run: |
+          test "$(sha256sum release/*-arm64-v8a.apk | cut -d ' ' -f 1)" = "$ARM64_DIGEST"
+          test "$(sha256sum release/*-x86_64.apk | cut -d ' ' -f 1)" = "$X64_DIGEST"
 
   cleanup:
     name: 清理本次运行的中间产物

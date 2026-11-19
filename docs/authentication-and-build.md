@@ -2,7 +2,7 @@
 
 在 Actions 的「EasyKiosk APK 构建与验证」中点击 Run workflow 可手动构建，推送 main 也会自动触发。组件使用支持 Node24 的版本，ESLint 要求零错误。
 
-最终只上传一个 EasyKiosk-signed-提交SHA-认证模式 附件，内容为 ARM64、x86_64 两个 APK，不再单独生成 SHA 文件（GitHub 页面显示附件 Digest）。临时交接包在最终 cleanup 任务中删除；诊断保留在任务日志，不另传附件。强制取消整个运行时 cleanup 可能来不及执行，临时包自身一天过期。
+最终分别直接上传 ARM64、x86_64 两个 .apk 文件，archive: false，不再额外打 ZIP，也不生成 SHA 文件。GitHub 页面显示的 Digest 对应每个 APK 本身，上传后会与原始 APK 的 SHA-256 进行比对。临时交接包在最终 cleanup 任务中删除；诊断保留在任务日志，不另传附件。强制取消整个运行时 cleanup 可能来不及执行，临时包自身一天过期。
 
 未配置 EASYKIOSK_2FA_TOTP_SECRETS 或值为空时：初始管理密码为 123456，可以在设置中修改。已有自定义密码升级后保留。
 
