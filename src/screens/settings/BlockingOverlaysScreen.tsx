@@ -142,7 +142,7 @@ const BlockingOverlaysScreen: React.FC<{ navigation: any }> = ({ navigation }) =
       if (!success) {
         Alert.alert(t('screens.blockingOverlays.error'), t('screens.blockingOverlays.touchLoggerFailed'));
       }
-    } catch (error) {
+    } catch {
       Alert.alert(t('screens.blockingOverlays.error'), t('screens.blockingOverlays.touchLoggerError'));
     }
   };
@@ -154,7 +154,7 @@ const BlockingOverlaysScreen: React.FC<{ navigation: any }> = ({ navigation }) =
       if (!success) {
         Alert.alert(t('screens.blockingOverlays.error'), t('screens.blockingOverlays.gridHelperFailed'));
       }
-    } catch (error) {
+    } catch {
       Alert.alert(t('screens.blockingOverlays.error'), t('screens.blockingOverlays.gridHelperError'));
     }
   };

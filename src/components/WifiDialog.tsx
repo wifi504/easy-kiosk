@@ -24,7 +24,6 @@ import {
   Switch,
   DeviceEventEmitter,
   Alert,
-  Platform,
 } from 'react-native';
 import { NativeModules } from 'react-native';
 import {
@@ -91,18 +90,6 @@ export default function WifiDialog({ visible, onClose }: Props) {
   useEffect(() => {
     connectingRef.current = connecting;
   }, [connecting]);
-
-  useEffect(() => {
-    if (!visible) return;
-    refresh();
-
-    const sub = DeviceEventEmitter.addListener('wifiScanResults', (results: WifiNetwork[]) => {
-      setNetworks(results);
-      setScanning(false);
-      void autoConnectKnownNetwork(results);
-    });
-    return () => sub.remove();
-  }, [visible, refresh]);
 
   const handleToggleWifi = async () => {
     if (!wifiInfo || togglingWifi) return;
@@ -195,7 +182,7 @@ export default function WifiDialog({ visible, onClose }: Props) {
     }
   };
 
-  const connectTo = async (ssid: string, pwd: string, usedSavedPassword = false) => {
+  const connectTo = useCallback(async (ssid: string, pwd: string, usedSavedPassword = false) => {
     setPasswordSsid(null);
     setConnecting(ssid);
     connectingRef.current = ssid;
@@ -232,9 +219,9 @@ export default function WifiDialog({ visible, onClose }: Props) {
         autoConnectingSsidRef.current = null;
       }
     }
-  };
+  }, [refresh, t]);
 
-  const autoConnectKnownNetwork = async (scanResults: WifiNetwork[]) => {
+  const autoConnectKnownNetwork = useCallback(async (scanResults: WifiNetwork[]) => {
     const currentInfo = wifiInfoRef.current;
     if (!currentInfo?.isEnabled || currentInfo.isConnected || connectingRef.current || autoConnectingSsidRef.current) {
       return;
@@ -249,7 +236,19 @@ export default function WifiDialog({ visible, onClose }: Props) {
       connectTo(network.ssid, savedPassword, true);
       return;
     }
-  };
+  }, [connectTo]);
+
+  useEffect(() => {
+    if (!visible) return;
+    refresh();
+
+    const sub = DeviceEventEmitter.addListener('wifiScanResults', (results: WifiNetwork[]) => {
+      setNetworks(results);
+      setScanning(false);
+      void autoConnectKnownNetwork(results);
+    });
+    return () => sub.remove();
+  }, [visible, refresh, autoConnectKnownNetwork]);
 
   const handleDisconnect = async () => {
     if (!wifiInfo?.isConnected || disconnectingWifi) return;

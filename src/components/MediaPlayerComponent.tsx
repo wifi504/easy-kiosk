@@ -6,7 +6,7 @@
  */
 
 import React, { useRef, useMemo, useCallback } from 'react';
-import { View, StyleSheet, Text, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, Text } from 'react-native';
 import { WebView } from 'react-native-webview';
 import Icon from './Icon';
 import type { MediaItem, MediaFitMode } from '../types/mediaPlayer';

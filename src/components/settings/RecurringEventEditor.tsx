@@ -36,7 +36,6 @@ const RecurringEventEditor: React.FC<RecurringEventEditorProps> = ({
   event,
   onSave,
   onCancel,
-  existingEvents,
 }) => {
   const { t } = useTranslation();
   const [name, setName] = useState('');

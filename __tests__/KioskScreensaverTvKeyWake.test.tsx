@@ -69,11 +69,6 @@ async function mount() {
 const screensaverShown = () =>
   renderer.root.findAll((n: any) => typeof n.type === 'string' && StyleSheet.flatten(n.props.style)?.zIndex === 1000).length > 0;
 
-// The page's own WebView (the screensaver overlay has no onUserInteraction)
-const pageInteraction = (event?: object) => {
-  const [webView] = renderer.root.findAll((n: any) => typeof n.props.onUserInteraction === 'function');
-  return act(async () => { await webView.props.onUserInteraction(event); });
-};
 
 beforeEach(async () => {
   jest.useFakeTimers();

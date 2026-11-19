@@ -19,7 +19,7 @@ interface PinScreenProps {
 const PinScreen: React.FC<PinScreenProps> = ({ navigation, route }) => {
   const initialTab = route?.params?.initialTab;
   const { t } = useTranslation();
-  const [storedPin, setStoredPin] = useState<string>('1234');
+  const storedPin = '1234';
   const [migrationDone, setMigrationDone] = useState<boolean>(false);
   const [displayMode, setDisplayMode] = useState<'webview' | 'external_app' | 'media_player'>('webview');
   const [externalAppPackage, setExternalAppPackage] = useState<string | null>(null);

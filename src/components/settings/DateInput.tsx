@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Platform } from 'react-native';
+import { View, Text, TextInput, StyleSheet } from 'react-native';
 import { Colors, Spacing, Typography } from '../../theme';
 
 interface DateInputProps {

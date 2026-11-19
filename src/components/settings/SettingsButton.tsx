@@ -5,7 +5,7 @@
 
 import React from 'react';
 import { TouchableOpacity, Text, StyleSheet, ViewStyle, ActivityIndicator, View } from 'react-native';
-import { Colors, Spacing, Typography } from '../../theme';
+import { Colors, Spacing } from '../../theme';
 import Icon, { IconName } from '../Icon';
 
 interface SettingsButtonProps {

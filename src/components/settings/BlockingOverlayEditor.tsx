@@ -22,7 +22,6 @@ import {
   BlockingRegion,
   OverlayDisplayMode,
   validateRegion,
-  getDisplayModeLabel,
 } from '../../types/blockingOverlay';
 import { useTranslation } from 'react-i18next';
 

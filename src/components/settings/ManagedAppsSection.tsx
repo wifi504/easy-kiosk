@@ -17,7 +17,7 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
-import { ManagedApp, createManagedApp, isValidPackageName } from '../../types/managedApps';
+import { ManagedApp, createManagedApp } from '../../types/managedApps';
 import AppLauncherModule, { AppInfoAll } from '../../utils/AppLauncherModule';
 import { Colors, Spacing, Typography } from '../../theme';
 import Icon from '../Icon';

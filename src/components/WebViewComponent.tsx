@@ -131,7 +131,7 @@ const WebViewComponent = forwardRef<WebViewComponentRef, WebViewComponentProps>(
   onUserInteraction,
   jsToExecute,
   onJsExecuted,
-  showBackButton = false,
+  showBackButton: _showBackButton = false,
   onNavigationStateChange,
   onPageNavigated,
   urlFilterMode,
@@ -1357,7 +1357,7 @@ const WebViewComponent = forwardRef<WebViewComponentRef, WebViewComponentProps>(
             webViewRef.current.goBack();
           }
         }
-      } catch (e) {
+      } catch {
         // Ignore parse errors
       }
     } else if (message === 'FIVE_TAP_CLICK' && onUserInteraction) {
@@ -1650,7 +1650,7 @@ const WebViewComponent = forwardRef<WebViewComponentRef, WebViewComponentProps>(
                     }
                   }
                 }
-              } catch (e) {
+              } catch {
                 // Invalid URL, ignore
               }
             }

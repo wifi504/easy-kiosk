@@ -1,3 +1,4 @@
+/* eslint-env jest */
 // The app tree pulls in a dozen native modules that are null under Jest, so it cannot be
 // imported without mocking them. Keep this list in sync when a new native dependency is
 // added, otherwise every test that mounts a screen fails at import time.

@@ -620,7 +620,7 @@ export async function hasSecurePin(): Promise<boolean> {
     // Check for legacy plaintext PIN in AsyncStorage
     const legacyPin = await checkLegacyPlaintextPin();
     return !!legacyPin;
-  } catch (error) {
+  } catch {
     return false;
   }
 }

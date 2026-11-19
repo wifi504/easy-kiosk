@@ -36,7 +36,7 @@ describe('the playlist inside the player page', () => {
     const html: string = build(title);
     const line = html.split('\n').find((l: string) => l.includes('var playlist = ')) as string;
     const json = line.slice(line.indexOf('= ') + 2).replace(/;\s*$/, '');
-    const playlist = new Function(`return ${json};`)();
+    const playlist = JSON.parse(json);
     expect(playlist[0].title).toBe(title);
     expect(playlist[0].url).toBe('https://cdn.test/a.mp4');
   });
@@ -54,7 +54,7 @@ describe('web pages and YouTube videos inside the player page', () => {
   it('hands the player the type, the id and the cap, as data', () => {
     const line = html.split('\n').find((l: string) => l.includes('var playlist = ')) as string;
     const json = line.slice(line.indexOf('= ') + 2).replace(/;\s*$/, '');
-    const playlist = new Function(`return ${json};`)();
+    const playlist = JSON.parse(json);
     expect(playlist[0]).toMatchObject({ type: 'web', url: 'https://example.com/menu', duration: 20, capSeconds: 0 });
     expect(playlist[1]).toMatchObject({ type: 'youtube', videoId: 'dQw4w9WgXcQ', capSeconds: 45 });
     expect(html.match(/<\/script>/gi)).toHaveLength(1);

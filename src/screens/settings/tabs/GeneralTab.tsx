@@ -4,7 +4,7 @@
  */
 
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Alert, Linking, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Alert, Platform } from 'react-native';
 import {
   SettingsSection,
   SettingsInput,
@@ -24,14 +24,12 @@ import { MultiAppAppearance } from '../../../types/multiAppAppearance';
 import MultiAppAppearanceSection from '../../../components/settings/MultiAppAppearanceSection';
 import Icon from '../../../components/Icon';
 import { Colors, Spacing, Typography } from '../../../theme';
-import AppLauncherModule, { AppInfo } from '../../../utils/AppLauncherModule';
 import { ScheduledEvent } from '../../../types/planner';
 import type { MediaItem, MediaFitMode } from '../../../types/mediaPlayer';
-import { generateMediaItemId, detectMediaType, isLocalMedia, getMediaDisplayName } from '../../../types/mediaPlayer';
+import { generateMediaItemId, detectMediaType, getMediaDisplayName } from '../../../types/mediaPlayer';
 import { useFilePickerAvailable } from '../../../utils/useFilePickerAvailable';
 import MediaCacheStatus from '../../../components/settings/MediaCacheStatus';
 import FilePickerModule from '../../../utils/FilePickerModule';
-import type { PickedFile } from '../../../utils/FilePickerModule';
 import { useTranslation } from 'react-i18next';
 import { LANGUAGE_OPTIONS, type SupportedLanguage } from '../../../i18n';
 

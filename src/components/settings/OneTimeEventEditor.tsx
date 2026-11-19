@@ -36,7 +36,6 @@ const OneTimeEventEditor: React.FC<OneTimeEventEditorProps> = ({
   event,
   onSave,
   onCancel,
-  existingEvents,
 }) => {
   const { t } = useTranslation();
   const [name, setName] = useState('');
@@ -153,7 +152,7 @@ const OneTimeEventEditor: React.FC<OneTimeEventEditorProps> = ({
     if (startDate && endDate && endDate < startDate) {
       setEndDate(startDate);
     }
-  }, [startDate]);
+  }, [startDate, endDate]);
 
   return (
     <Modal

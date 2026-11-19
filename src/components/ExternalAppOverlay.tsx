@@ -4,7 +4,7 @@ import StatusBar from './StatusBar';
 import MultiAppHeader from './MultiAppHeader';
 import { DEFAULT_MULTI_APP_APPEARANCE, MultiAppAppearance, getMultiAppForeground } from '../types/multiAppAppearance';
 import Icon from './Icon';
-import AppLauncherModule, { AppInfo } from '../utils/AppLauncherModule';
+import AppLauncherModule from '../utils/AppLauncherModule';
 import { ManagedApp } from '../types/managedApps';
 import { useTranslation } from 'react-i18next';
 
@@ -158,7 +158,7 @@ const ExternalAppOverlay: React.FC<ExternalAppOverlayProps> = ({
   }, [returnButtonPosition]);
 
   // Only show multi-app grid when explicitly in multi mode
-  const homeScreenApps = externalAppMode === 'multi' ? managedApps.filter(app => app.showOnHomeScreen) : [];
+  const homeScreenApps = useMemo(() => externalAppMode === 'multi' ? managedApps.filter(app => app.showOnHomeScreen) : [], [externalAppMode, managedApps]);
   const isMultiAppMode = externalAppMode === 'multi' && homeScreenApps.length > 0;
 
   // Resolve app labels and icons for display
@@ -187,7 +187,7 @@ const ExternalAppOverlay: React.FC<ExternalAppOverlayProps> = ({
       setAppIcons(icons);
     };
     resolveLabelsAndIcons();
-  }, [homeScreenApps.length, externalAppPackage]);
+  }, [homeScreenApps, isMultiAppMode, externalAppPackage]);
 
   const handleAppPress = (packageName: string) => {
     if (onLaunchApp) {

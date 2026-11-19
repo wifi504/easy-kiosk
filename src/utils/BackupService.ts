@@ -4,7 +4,7 @@
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Platform, PermissionsAndroid, Alert } from 'react-native';
+import { Platform, PermissionsAndroid } from 'react-native';
 import RNFS from 'react-native-fs';
 import UpdateModule from './UpdateModule';
 import { hasSecurePin } from './secureStorage';

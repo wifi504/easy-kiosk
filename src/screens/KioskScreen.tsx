@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { View, StyleSheet, TouchableOpacity, TouchableWithoutFeedback, NativeEventEmitter, NativeModules, AppState, DeviceEventEmitter, Dimensions, Pressable, BackHandler, Keyboard, Animated, findNodeHandle } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, TouchableWithoutFeedback, NativeEventEmitter, NativeModules, AppState, DeviceEventEmitter, BackHandler, Keyboard, Animated, findNodeHandle } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import RNBrightness from '../utils/BrightnessModule';
 import { rampBrightness, cancelBrightnessRamp } from '../utils/brightnessRamp';
@@ -108,7 +108,7 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
   const [isPreCheckingMotion, setIsPreCheckingMotion] = useState(false); // Pre-check phase: motion is being monitored before activating the screensaver
   const preCheckTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [statusBarEnabled, setStatusBarEnabled] = useState(false);
-  const [statusBarOnOverlay, setStatusBarOnOverlay] = useState(true);
+  const [, setStatusBarOnOverlay] = useState(true);
   const [statusBarOnReturn, setStatusBarOnReturn] = useState(true);
   const [showBattery, setShowBattery] = useState(true);
   const [showWifi, setShowWifi] = useState(true);
@@ -126,12 +126,12 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
   const relaunchTimerRef = useRef<any>(null);
   const [isAppLaunched, setIsAppLaunched] = useState<boolean>(false);
   const [backButtonMode, setBackButtonMode] = useState<string>('test');
-  const [backButtonTimerDelay, setBackButtonTimerDelay] = useState<number>(10);
+  const [, setBackButtonTimerDelay] = useState<number>(10);
   const [countdownActive, setCountdownActive] = useState<boolean>(false);
   const [countdownSeconds, setCountdownSeconds] = useState<number>(0);
   const countdownTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [keyboardMode, setKeyboardMode] = useState<string>('default');
-  const [allowPowerButton, setAllowPowerButton] = useState<boolean>(false);
+  const [, setAllowPowerButton] = useState<boolean>(false);
   const [allowNotifications, setAllowNotifications] = useState<boolean>(false);
   const appStateRef = useRef(AppState.currentState);
   const appLaunchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -316,7 +316,7 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
   const [basicAuthPassword, setBasicAuthPassword] = useState<string>('');
 
   // Lock screen quick controls
-  const [lockscreenEmergencyEnabled, setLockscreenEmergencyEnabled] = useState<boolean>(false);
+  const [, setLockscreenEmergencyEnabled] = useState<boolean>(false);
 
   // Media Player states
   const [mediaPlayerItems, setMediaPlayerItems] = useState<MediaItem[]>([]);
@@ -337,6 +337,104 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
 
 
   // "no touch for a while" says nothing about it: the screensaver must not cover the playlist.
+
+  const clearTimer = useCallback(() => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+    if (preCheckTimerRef.current) {
+      clearTimeout(preCheckTimerRef.current);
+      preCheckTimerRef.current = null;
+    }
+    setIsPreCheckingMotion(false);
+  }, []);
+
+  const clearInactivityReturnTimer = useCallback(() => {
+    if (inactivityReturnTimerRef.current) {
+      clearTimeout(inactivityReturnTimerRef.current);
+      inactivityReturnTimerRef.current = null;
+    }
+  }, []);
+
+  const triggerScreensaverTimeout = useCallback(() => {
+    if (isScheduledSleep) return;
+    if (!(screensaverEnabled && inactivityEnabled)) return;
+
+    // sleep schedule, a command or the schedule's own blank screen still can)
+    // #190 — No motion pre-check in External App mode: FreeKiosk is backgrounded there,
+    // so the 10s pre-check setTimeout below is frozen by RN (the exact timer freeze the
+    // native countdown works around) and the screensaver never activated. The camera
+    // can't capture from the background anyway, so the pre-check could never see motion.
+    // Activate directly; wake-on-motion still works once the screensaver has brought
+    // FreeKiosk back to the foreground.
+    if (motionEnabled && displayMode !== 'external_app') {
+      console.log('[KioskScreen] Inactivity expired — starting motion pre-check');
+      setIsPreCheckingMotion(true);
+      // Pre-check window; if no motion is detected within it, activate the screensaver
+      preCheckTimerRef.current = setTimeout(() => {
+        console.log(`[KioskScreen] No motion detected after ${MOTION_PRE_CHECK_DELAY_MS}ms — activating screensaver`);
+        Keyboard.dismiss();
+        setIsScreensaverActive(true);
+        setIsPreCheckingMotion(false);
+      }, MOTION_PRE_CHECK_DELAY_MS);
+    } else {
+      Keyboard.dismiss();
+      setIsScreensaverActive(true);
+    }
+  }, [isScheduledSleep, screensaverEnabled, inactivityEnabled, motionEnabled, displayMode]);
+
+  const resetTimer = useCallback(() => {
+    clearTimer();
+    // Don't start inactivity timer if screen is in scheduled sleep
+    if (isScheduledSleep) return;
+    // External App mode: RN freezes JS timers while FreeKiosk is backgrounded, so the
+    // native countdown in OverlayService drives screensaver activation instead. #190
+    if (displayMode === 'external_app') return;
+    // PIN or Settings in front: the click that follows the last tap of the N-tap sequence
+    // arrives after the navigation, and would start a screensaver that dims the PIN page.
+    // navigation.isFocused() rather than isFocused: it is current before the next render.
+    if (!navigation.isFocused()) return;
+    if (screensaverEnabled && inactivityEnabled) {
+      timerRef.current = setTimeout(() => {
+        triggerScreensaverTimeout();
+      }, inactivityDelay);
+    }
+  }, [clearTimer, isScheduledSleep, displayMode, navigation, screensaverEnabled, inactivityEnabled, inactivityDelay, triggerScreensaverTimeout]);
+  resetTimerRef.current = resetTimer;
+
+  const applyScreensaverBrightness = useCallback(async () => {
+    if (screensaverFadeMs > 0) {
+      // A new ramp (e.g. the screensaver brightness changed while active) lights the room
+      // again: keep camera motion ignored until it has ended too
+      ignoreCameraMotionUntilRef.current = Date.now() + screensaverFadeMs + FADE_MOTION_SETTLE_MS;
+    }
+    await rampBrightness(() => RNBrightness.getBrightnessLevel(), screensaverBrightness, screensaverFadeMs,
+      RNBrightness.setBrightnessLevel);
+  }, [screensaverBrightness, screensaverFadeMs]);
+
+  const enableScreensaverEffects = useCallback(async () => {
+    // Content modes (URL/video) keep the current brightness so the user can see the content
+    if (screensaverType !== 'dim') return;
+    // In external_app mode, bringToFront() brings FreeKiosk to the foreground first,
+    // so RNBrightness applies normally — no special guard needed.
+    if (!brightnessManagementRef.current) return;
+    try {
+      await applyScreensaverBrightness();
+    } catch (error) {
+      console.error('[KioskScreen] Error applying screensaver brightness:', error);
+    }
+  }, [screensaverType, applyScreensaverBrightness]);
+
+  const loadSettingsRef = useRef<() => Promise<void>>(async () => {});
+  const currentUrlIndexRef = useRef(currentUrlIndex);
+  currentUrlIndexRef.current = currentUrlIndex;
+  const clearRelaunchTimer = useCallback(() => {
+    if (relaunchTimerRef.current) {
+      clearTimeout(relaunchTimerRef.current);
+      relaunchTimerRef.current = null;
+    }
+  }, []);
 
   // AppState listener - detects when the app returns to the foreground
   useEffect(() => {
@@ -597,7 +695,7 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
         })();
       }
     }
-  }, [isFocused, isScreensaverActive, isPreCheckingMotion, defaultBrightness, autoBrightnessEnabled, autoBrightnessMin, autoBrightnessMax, autoBrightnessOffset, autoBrightnessInterval]);
+  }, [isFocused, isScreensaverActive, isPreCheckingMotion, defaultBrightness, autoBrightnessEnabled, autoBrightnessMin, autoBrightnessMax, autoBrightnessOffset, autoBrightnessInterval, clearTimer]);
 
   // Listen for screen state changes from native (power button pressed)
   useEffect(() => {
@@ -688,7 +786,7 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
       // This triggers AsyncStorage to look for data in SharedPreferences and migrate it to SQLite
       try {
         await AsyncStorage.getItem('__force_init__');
-      } catch (e) {}
+      } catch {}
 
       // Clear navigating-to-pin guard BEFORE loadSettings so that returning from
       // PIN/Settings causes loadSettings to proceed with the external app launch.
@@ -696,7 +794,7 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
       // served: by the time KioskScreen gains focus again, the PIN flow is complete.
       isNavigatingToPinRef.current = false;
 
-      await loadSettings();
+      await loadSettingsRef.current();
 
       // Reload blocking overlays to ensure they stay active when returning from settings
       try {
@@ -738,14 +836,14 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
       // Disable blocking overlays when leaving the kiosk screen
       try {
         await BlockingOverlayModule.setEnabled(false);
-      } catch (e) {
+      } catch {
         // Silent fail
       }
 
       // Stop the native overlay service in WebView mode (if active for blocking overlays)
       try {
         await OverlayServiceModule.stopOverlayService();
-      } catch (e) {
+      } catch {
         // Silent fail - might not be running
       }
     });
@@ -754,7 +852,7 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
       unsubscribeFocus();
       unsubscribeBlur();
     };
-  }, [navigation]);
+  }, [navigation, clearTimer, clearInactivityReturnTimer]);
 
   // #180 — Tell native when the Kiosk screen is the active route, so the native
   // tap-to-settings fallback (MainActivity.dispatchTouchEvent) only counts taps
@@ -793,7 +891,7 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
         }
       })();
     }
-  }, [defaultBrightness, isScreensaverActive, autoBrightnessEnabled]);
+  }, [defaultBrightness, isScreensaverActive, autoBrightnessEnabled, brightnessManagementEnabled]);
 
   useEffect(() => {
     if (isScreensaverActive) {
@@ -802,7 +900,7 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
       // Woken: stop a fade still in progress (wake paths that write a level stop it themselves)
       cancelBrightnessRamp();
     }
-  }, [isScreensaverActive, screensaverBrightness, screensaverType]);
+  }, [isScreensaverActive, screensaverBrightness, screensaverType, enableScreensaverEffects]);
 
   // Leaving the screen: no ramp may keep writing the brightness
   useEffect(() => cancelBrightnessRamp, []);
@@ -881,7 +979,7 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
       clearTimer();
       setIsScreensaverActive(false);
     }
-  }, [isFocused, screensaverEnabled, inactivityEnabled, inactivityDelay]);
+  }, [isFocused, screensaverEnabled, inactivityEnabled, inactivityDelay, resetTimer, clearTimer]);
 
   // URL Rotation effect
   useEffect(() => {
@@ -902,7 +1000,7 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
       !activeScheduledEvent // Don't rotate when planner event is active
     ) {
       // Set initial URL to first in list
-      if (urlRotationList.length > 0 && currentUrlIndex === 0) {
+      if (urlRotationList.length > 0 && currentUrlIndexRef.current === 0) {
         setUrl(urlRotationList[0]);
       }
 
@@ -1059,10 +1157,7 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
         }
       }
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autoBrightnessEnabled, scheduleNativeWakeAlarm]);
-  // Note: clearTimer is intentionally omitted — it is a stable useCallback([], []) reference
-  // declared later in the file. Adding it to deps here would cause a "used before declaration" error.
+  }, [autoBrightnessEnabled, scheduleNativeWakeAlarm, clearTimer]);
 
   // Helper: exit scheduled sleep mode
   const exitScheduledSleep = useCallback(async () => {
@@ -1099,7 +1194,7 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
     if (screenSchedulerEnabled && screenSchedulerRules.length > 0) {
       await scheduleNativeSleepAlarm(screenSchedulerRules);
     }
-  }, [autoBrightnessEnabled, autoBrightnessMin, autoBrightnessMax, autoBrightnessOffset, autoBrightnessInterval, defaultBrightness, screenSchedulerEnabled, screenSchedulerRules, scheduleNativeSleepAlarm]);
+  }, [autoBrightnessEnabled, autoBrightnessMin, autoBrightnessMax, autoBrightnessOffset, autoBrightnessInterval, defaultBrightness, screenSchedulerEnabled, screenSchedulerRules, scheduleNativeSleepAlarm, resetTimer]);
 
   // Listen for native alarm events (onScheduledWake / onScheduledSleep)
   useEffect(() => {
@@ -1156,7 +1251,7 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
         (async () => {
           try {
             await KioskModule.cancelScheduledScreenAlarms();
-          } catch (e) { /* ignore */ }
+          } catch { /* ignore */ }
           await exitScheduledSleep();
         })();
       } else {
@@ -1257,11 +1352,9 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
       appReturnedListener.remove();
       navigateToPinListener.remove();
       screensaverActivityListener.remove();
-      if (relaunchTimerRef.current) {
-        clearTimeout(relaunchTimerRef.current);
-      }
+      clearRelaunchTimer();
     };
-  }, [autoRelaunchApp, displayMode, externalAppPackage, appCrashCount, navigation]);
+  }, [autoRelaunchApp, displayMode, externalAppPackage, appCrashCount, navigation, resetTimer, clearRelaunchTimer]);
 
   // Pending ADB config is written by MainActivity and moved into storage here. Both
 
@@ -1423,7 +1516,7 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
       // Broadcast that settings are loaded (for ADB config waiting)
       try {
         await KioskModule.broadcastSettingsLoaded();
-      } catch (e) {
+      } catch {
         // Silently fail if broadcast not needed
       }
       setDefaultBrightness(savedDefaultBrightness);
@@ -1748,10 +1841,8 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
       const savedBlockingOverlaysEnabled = await StorageService.getBlockingOverlaysEnabled();
       const savedBlockingOverlaysRegions = await StorageService.getBlockingOverlaysRegions();
 
-      let blockingOverlaysActive = false;
       if (savedBlockingOverlaysEnabled) {
         await BlockingOverlayModule.applyConfiguration(true, savedBlockingOverlaysRegions);
-        blockingOverlaysActive = true;
 
         // Recalculate overlays after a short delay to ensure screen dimensions are correct
         // This fixes issues at boot where dimensions might not be immediately available
@@ -1772,14 +1863,14 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
       if (savedDisplayMode === 'webview') {
         try {
           await OverlayServiceModule.stopOverlayService();
-        } catch (e) {
+        } catch {
           // Silent fail - might not be running
         }
         // Stop background monitor — it's only relevant in external_app mode
         try {
           await AppLauncherModule.stopBackgroundMonitor();
           console.log('[KioskScreen] Background monitor stopped (not in external_app mode)');
-        } catch (e) {
+        } catch {
           // Silent fail
         }
       }
@@ -1931,69 +2022,17 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
       console.error('[KioskScreen] loadSettings error:', error);
     }
   };
+  loadSettingsRef.current = loadSettings;
 
   // #190 — Body of the inactivity expiry: optional motion pre-check, then activate the
   // screensaver. Extracted so it can be triggered by either the JS setTimeout (WebView/
   // media modes) or the native inactivity event (External App mode, where RN freezes JS
   // timers while FreeKiosk is backgrounded behind the external app).
-  const triggerScreensaverTimeout = useCallback(() => {
-    if (isScheduledSleep) return;
-    if (!(screensaverEnabled && inactivityEnabled)) return;
 
-    // sleep schedule, a command or the schedule's own blank screen still can)
-    // #190 — No motion pre-check in External App mode: FreeKiosk is backgrounded there,
-    // so the 10s pre-check setTimeout below is frozen by RN (the exact timer freeze the
-    // native countdown works around) and the screensaver never activated. The camera
-    // can't capture from the background anyway, so the pre-check could never see motion.
-    // Activate directly; wake-on-motion still works once the screensaver has brought
-    // FreeKiosk back to the foreground.
-    if (motionEnabled && displayMode !== 'external_app') {
-      console.log('[KioskScreen] Inactivity expired — starting motion pre-check');
-      setIsPreCheckingMotion(true);
-      // Pre-check window; if no motion is detected within it, activate the screensaver
-      preCheckTimerRef.current = setTimeout(() => {
-        console.log(`[KioskScreen] No motion detected after ${MOTION_PRE_CHECK_DELAY_MS}ms — activating screensaver`);
-        Keyboard.dismiss();
-        setIsScreensaverActive(true);
-        setIsPreCheckingMotion(false);
-      }, MOTION_PRE_CHECK_DELAY_MS);
-    } else {
-      Keyboard.dismiss();
-      setIsScreensaverActive(true);
-    }
-  }, [isScheduledSleep, screensaverEnabled, inactivityEnabled, motionEnabled, displayMode]);
 
-  const resetTimer = () => {
-    clearTimer();
-    // Don't start inactivity timer if screen is in scheduled sleep
-    if (isScheduledSleep) return;
-    // External App mode: RN freezes JS timers while FreeKiosk is backgrounded, so the
-    // native countdown in OverlayService drives screensaver activation instead. #190
-    if (displayMode === 'external_app') return;
-    // PIN or Settings in front: the click that follows the last tap of the N-tap sequence
-    // arrives after the navigation, and would start a screensaver that dims the PIN page.
-    // navigation.isFocused() rather than isFocused: it is current before the next render.
-    if (!navigation.isFocused()) return;
-    if (screensaverEnabled && inactivityEnabled) {
-      timerRef.current = setTimeout(() => {
-        triggerScreensaverTimeout();
-      }, inactivityDelay);
-    }
-  };
-  resetTimerRef.current = resetTimer;
 
-  const clearTimer = useCallback(() => {
-    if (timerRef.current) {
-      clearTimeout(timerRef.current);
-      timerRef.current = null;
-    }
-    if (preCheckTimerRef.current) {
-      clearTimeout(preCheckTimerRef.current);
-      preCheckTimerRef.current = null;
-    }
-    setIsPreCheckingMotion(false);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // only refs and stable setState — safe to omit
+
+
 
   // Leaving through Settings unmounts this screen (navigation.reset): a timer left running
   // would fire on the dead instance
@@ -2030,12 +2069,7 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
   // A single useEffect manages the timer based on all relevant state
   const lastUserInteractionRef = useRef<number>(Date.now());
 
-  const clearInactivityReturnTimer = useCallback(() => {
-    if (inactivityReturnTimerRef.current) {
-      clearTimeout(inactivityReturnTimerRef.current);
-      inactivityReturnTimerRef.current = null;
-    }
-  }, []);
+
 
   // Mark user interaction timestamp (called from onUserInteraction)
   const markUserInteraction = useCallback(() => {
@@ -2150,7 +2184,7 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
     inactivityReturnTimerRef.current = setTimeout(tick, delayMs);
 
     return () => clearInactivityReturnTimer();
-  }, [inactivityReturnEnabled, inactivityReturnDelay, inactivityReturnClearCache, inactivityReturnScrollTop, displayMode, baseUrl, url, isFocused, urlRotationEnabled, urlRotationList.length, activeScheduledEvent, dashboardModeEnabled, dashboardShowGrid]);
+  }, [inactivityReturnEnabled, inactivityReturnDelay, inactivityReturnClearCache, inactivityReturnScrollTop, displayMode, baseUrl, url, isFocused, urlRotationEnabled, urlRotationList.length, activeScheduledEvent, dashboardModeEnabled, dashboardShowGrid, clearInactivityReturnTimer]);
 
   // Ref for 5-tap debounce (prevent multiple events per tap)
   const lastTapTimeRef = useRef<number>(0);
@@ -2304,7 +2338,7 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
         tapCountRef.current = 0;
       }, returnTapTimeout - (now - lastTapTimeRef.current));
     }
-  }, [displayMode, navigation, resetTimer, clearTimer, markUserInteraction, returnTapCount, returnTapTimeout, defaultBrightness, TAP_PROXIMITY_RADIUS, exitScheduledSleep]);
+  }, [displayMode, navigation, resetTimer, clearTimer, markUserInteraction, returnTapCount, returnTapTimeout, defaultBrightness, TAP_PROXIMITY_RADIUS, exitScheduledSleep, autoBrightnessEnabled, returnMode]);
 
 
   const onScreensaverTap = useCallback(async () => {
@@ -2345,7 +2379,7 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
 
   // #266: the dim overlay over the external app was tapped. It has already removed itself;
   // run the same dismissal as a tap on FreeKiosk's own screensaver. Read through a ref:
-  // onScreensaverTap is rebuilt on every render (resetTimer is not memoised).
+  // Native wake events always dispatch to the latest screensaver handler.
   const onScreensaverTapRef = useRef(onScreensaverTap);
   onScreensaverTapRef.current = onScreensaverTap;
   // Android TV: a remote key press wakes the screensaver like a tap does.
@@ -2473,30 +2507,11 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
     };
   }, [proximityEnabled, isFocused, isPreCheckingMotion, isScreensaverActive, onProximityNear]);
 
-  const enableScreensaverEffects = async () => {
-    // Content modes (URL/video) keep the current brightness so the user can see the content
-    if (screensaverType !== 'dim') return;
-    // In external_app mode, bringToFront() brings FreeKiosk to the foreground first,
-    // so RNBrightness applies normally — no special guard needed.
-    if (!brightnessManagementRef.current) return;
-    try {
-      await applyScreensaverBrightness();
-    } catch (error) {
-      console.error('[KioskScreen] Error applying screensaver brightness:', error);
-    }
-  };
+
 
   // Dim to screensaverBrightness, over screensaverFadeMs when a fade is set. A newer ramp,
   // a wake or any setBrightnessLevel() call stops this ramp before its next step.
-  const applyScreensaverBrightness = async () => {
-    if (screensaverFadeMs > 0) {
-      // A new ramp (e.g. the screensaver brightness changed while active) lights the room
-      // again: keep camera motion ignored until it has ended too
-      ignoreCameraMotionUntilRef.current = Date.now() + screensaverFadeMs + FADE_MOTION_SETTLE_MS;
-    }
-    await rampBrightness(() => RNBrightness.getBrightnessLevel(), screensaverBrightness, screensaverFadeMs,
-      RNBrightness.setBrightnessLevel);
-  };
+
 
   const launchExternalApp = async (packageName: string, tapCount?: number, tapTimeout?: number, mode?: string, buttonPos?: string): Promise<void> => {
     try {
@@ -2559,21 +2574,6 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
     // Note: Automatic relaunch is now handled by the AppState listener
   };
 
-  const handleSecretTap = (): void => {
-    tapCountRef.current++;
-    if (tapTimerRef.current) clearTimeout(tapTimerRef.current);
-
-    if (tapCountRef.current === returnTapCount) {
-      tapCountRef.current = 0;
-      clearTimer();
-      setIsScreensaverActive(false);
-      navigation.navigate('Pin');
-    }
-
-    tapTimerRef.current = setTimeout(() => {
-      tapCountRef.current = 0;
-    }, 2000);
-  };
 
   const handleReturnToExternalApp = async (): Promise<void> => {
     // Read fresh mode from ref (most up-to-date)

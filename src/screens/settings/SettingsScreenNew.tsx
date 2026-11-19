@@ -38,7 +38,7 @@ import { hasSettingsAccess, revokeSettingsAccess } from '../../utils/authState';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../navigation/AppNavigator';
 
-import { Colors, Spacing, Typography } from '../../theme';
+import { Colors, Spacing } from '../../theme';
 import { settingsStyles } from './styles/settingsStyles';
 import {
   GeneralTab,
@@ -53,7 +53,7 @@ import { ScheduledEvent } from '../../types/planner';
 import { ScreenScheduleRule } from '../../types/screenScheduler';
 import { ManagedApp } from '../../types/managedApps';
 import { DEFAULT_MULTI_APP_APPEARANCE, MultiAppAppearance, isHexColor } from '../../types/multiAppAppearance';
-import { MediaItem, MediaFitMode, generateMediaItemId, detectMediaType } from '../../types/mediaPlayer';
+import { MediaItem, MediaFitMode, generateMediaItemId } from '../../types/mediaPlayer';
 import FilePickerModule from '../../utils/FilePickerModule';
 import { normalizeLocalFileInput, isLocalDocumentUrl, needsAllFilesAccess } from '../../utils/localFileUrl';
 import { hasUsableHost } from '../../utils/urlInput';
@@ -68,7 +68,7 @@ interface SettingsScreenProps {
 }
 
 // Import Icon types
-import Icon, { IconName, IconMap } from '../../components/Icon';
+import Icon, { IconName } from '../../components/Icon';
 
 // Tab configuration
 const TABS: { id: string; label: string; icon: IconName }[] = [
@@ -348,8 +348,9 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation, route })
     }
   }, [fetchCamera2Fallback]);
 
+  const initialLoadSettingsRef = useRef<() => Promise<void>>(async () => {});
   useEffect(() => {
-    loadSettings();
+    void initialLoadSettingsRef.current();
     loadCertificates();
     checkOverlayPermission();
     checkUsageStatsPermission();
@@ -459,7 +460,7 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation, route })
     try {
       const isOwner = await KioskModule.isDeviceOwner();
       setIsDeviceOwner(isOwner);
-    } catch (error) {
+    } catch {
       setIsDeviceOwner(false);
     }
   };
@@ -468,7 +469,7 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation, route })
     try {
       const canDraw = await OverlayPermissionModule.canDrawOverlays();
       setHasOverlayPermission(canDraw);
-    } catch (error) {
+    } catch {
       // Silent fail
     }
   };
@@ -477,7 +478,7 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation, route })
     try {
       const hasPermission = await KioskModule.hasUsageStatsPermission();
       setHasUsageStatsPermission(hasPermission);
-    } catch (error) {
+    } catch {
       setHasUsageStatsPermission(false);
     }
   };
@@ -486,7 +487,7 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation, route })
     try {
       // Stop lock task temporarily so Android allows leaving the app
       await KioskModule.stopLockTask();
-    } catch (e) {
+    } catch {
       // Not in lock task, that's fine
     }
     Linking.openSettings();
@@ -497,7 +498,7 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation, route })
       // Stop lock task temporarily so Android allows leaving the app
       try {
         await KioskModule.stopLockTask();
-      } catch (e) {
+      } catch {
         // Not in lock task, that's fine
       }
       await KioskModule.requestUsageStatsPermission();
@@ -549,7 +550,7 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation, route })
       if (savedAutoLaunch) {
         await KioskModule.enableAutoLaunch();
       }
-    } catch (e) {
+    } catch {
       // Silent fail
     }
     setScreensaverEnabled(savedScreensaverEnabled ?? false);
@@ -749,7 +750,7 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation, route })
     let rotationLockAvailable = false;
     try {
       rotationLockAvailable = Boolean(await RotationControlModule?.isAvailable?.());
-    } catch (error) {
+    } catch {
       rotationLockAvailable = false;
     }
     setLockscreenControlsEnabled(savedLockscreenControls);
@@ -834,12 +835,13 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation, route })
     setMediaPlayerCache(savedMediaCache);
     setMediaPlayerUnattended(savedMediaUnattended);
   };
+  initialLoadSettingsRef.current = loadSettings;
 
   const loadCertificates = async (): Promise<void> => {
     try {
       const certs = await CertificateModuleTyped.getAcceptedCertificates();
       setCertificates(certs);
-    } catch (error) {
+    } catch {
       // Silent fail
     }
   };
@@ -851,7 +853,7 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation, route })
       // Stop lock task temporarily so Android allows leaving the app
       try {
         await KioskModule.stopLockTask();
-      } catch (e) {
+      } catch {
         // Not in lock task, that's fine
       }
       await OverlayPermissionModule.requestOverlayPermission();
@@ -1060,7 +1062,7 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation, route })
       try {
         const { OverlayServiceModule } = NativeModules;
         await OverlayServiceModule.setButtonOpacity(opacity);
-      } catch (error) {
+      } catch {
         // Silent fail
       }
     }
@@ -1072,7 +1074,7 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation, route })
       try {
         const { OverlayServiceModule } = NativeModules;
         await OverlayServiceModule.setStatusBarEnabled(value && statusBarOnOverlay);
-      } catch (error) {
+      } catch {
         // Silent fail
       }
     }
@@ -1084,7 +1086,7 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation, route })
       try {
         const { OverlayServiceModule } = NativeModules;
         await OverlayServiceModule.setStatusBarEnabled(value);
-      } catch (error) {
+      } catch {
         // Silent fail
       }
     }
@@ -1152,7 +1154,7 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation, route })
                 if (!disabled) {
                   Alert.alert(t('screens.settingsMain.safetyHub'), t('screens.settingsMain.safetyHubFailed'));
                 }
-              } catch (error) {
+              } catch {
                 Alert.alert(t('screens.settingsMain.safetyHub'), t('screens.settingsMain.safetyHubFailedDeviceOwner'));
               }
               setLockscreenEmergencyCallEnabled(true);
@@ -1160,7 +1162,7 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation, route })
           },
         ],
       );
-    } catch (error) {
+    } catch {
       setLockscreenEmergencyCallEnabled(true);
     }
   };
@@ -1834,7 +1836,7 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation, route })
           autoRelaunchApp,
           allowNotifications
         );
-      } catch (error) {
+      } catch {
         // Silent fail
       }
     }
@@ -1865,7 +1867,7 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation, route })
     } else {
       try {
         await KioskModule.stopLockTask();
-      } catch (error) {
+      } catch {
         // Silent fail
       }
       const message = displayMode === 'external_app'

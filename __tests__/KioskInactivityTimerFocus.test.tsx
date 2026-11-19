@@ -103,6 +103,15 @@ describe('KioskScreen inactivity timer', () => {
     expect(expired()).toBe(1);
   });
 
+  it('keeps the original idle deadline across an unrelated render', async () => {
+    await mount();
+    await advance(DELAY / 2);
+    act(() => { renderer.update(React.createElement(KioskScreen, { navigation })); });
+    await settle();
+    await advance(DELAY / 2);
+    expect(expired()).toBe(1);
+  });
+
   it('does not expire after the screen is unmounted', async () => {
     await mount();
     act(() => { renderer.unmount(); });
