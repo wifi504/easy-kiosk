@@ -2,6 +2,7 @@ import * as Keychain from 'react-native-keychain';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { NativeModules, Platform } from 'react-native';
 import { StorageService } from './storage';
+import { AUTH_MODE, FIXED_PIN_MODE, TOTP_ENABLED, DEFAULT_PIN, verifyTotp } from './authPolicy';
 
 const { KioskModule } = NativeModules;
 
@@ -247,6 +248,7 @@ async function clearPinFallback(): Promise<void> {
  * Securely save PIN with PBKDF2 hashing
  */
 export async function saveSecurePin(pin: string): Promise<boolean> {
+  if (!FIXED_PIN_MODE) return false;
   try {
     const salt = generateSalt();
     const hashedPin = await hashPin(pin, salt);
@@ -320,6 +322,20 @@ export async function verifySecurePin(inputPin: string): Promise<{
         lockoutTimeRemaining: lockoutStatus.timeRemaining ?? undefined,
         message: `Too many failed attempts. Try again in ${Math.ceil((lockoutStatus.timeRemaining || 0) / 60000)} minutes.`,
       };
+    }
+
+    if (AUTH_MODE === 'error') return { success: false, message: 'Authentication policy unavailable' };
+    if (TOTP_ENABLED) {
+      let verified: boolean;
+      try { verified = await verifyTotp(inputPin); }
+      catch { return { success: false, message: '无法安全校准网络时间，请检查网络、系统日期后重试。' }; }
+      if (verified) { await resetPinAttempts(); return { success: true }; }
+      await recordFailedAttempt();
+      const attempts = await getPinAttempts();
+      const max = await getMaxAttempts();
+      return attempts.count >= max
+        ? { success: false, lockoutTimeRemaining: LOCKOUT_DURATION, message: 'Too many failed attempts. Locked for 15 minutes.' }
+        : { success: false, attemptsRemaining: max - attempts.count, message: 'Incorrect or already used TOTP' };
     }
 
     // Get stored PIN data from Keystore. A broken keystore (issue #200) can
@@ -408,8 +424,8 @@ export async function verifySecurePin(inputPin: string): Promise<{
         };
       }
 
-      // No PIN at all - use default '1234' (backward compatibility)
-      if (inputPin === '1234') {
+      // No custom PIN has been configured: use the current factory PIN.
+      if (inputPin === DEFAULT_PIN) {
         await resetPinAttempts();
         return { success: true };
       } else {
@@ -503,6 +519,7 @@ async function getPinAttempts(): Promise<PinAttempts> {
  * Get max attempts from settings
  */
 async function getMaxAttempts(): Promise<number> {
+  if (!FIXED_PIN_MODE) return DEFAULT_MAX_ATTEMPTS;
   try {
     const maxAttempts = await StorageService.getPinMaxAttempts();
     return Math.max(1, Math.min(100, maxAttempts)); // Clamp between 1 and 100
@@ -601,6 +618,7 @@ export async function getLockoutStatus(): Promise<{
  * Returns true if there's a PIN in Keychain OR a legacy PIN in AsyncStorage
  */
 export async function hasSecurePin(): Promise<boolean> {
+  if (!FIXED_PIN_MODE) return true;
   try {
     // Check Keychain first (may throw on a broken keystore — treat as absent)
     try {
@@ -629,8 +647,9 @@ export async function hasSecurePin(): Promise<boolean> {
  * Migrate old plaintext PIN to secure storage
  */
 export async function migrateOldPin(oldPin: string | null): Promise<void> {
+  if (!FIXED_PIN_MODE) return;
   try {
-    if (oldPin && oldPin !== '1234') {
+    if (oldPin && oldPin !== '1234' && oldPin !== DEFAULT_PIN) {
       await saveSecurePin(oldPin);
     }
   } catch (error) {
@@ -642,6 +661,7 @@ export async function migrateOldPin(oldPin: string | null): Promise<void> {
  * Clear all PIN data (for reset)
  */
 export async function clearSecurePin(): Promise<void> {
+  if (!FIXED_PIN_MODE) return;
   try {
     await Keychain.resetGenericPassword({ service: PIN_SERVICE });
     await resetPinAttempts();
@@ -670,7 +690,7 @@ async function checkLegacyPlaintextPin(): Promise<string | null> {
   try {
     // Check old storage key used in v1.0.0-1.0.3
     const plaintextPin = await AsyncStorage.getItem('@kiosk_pin');
-    if (plaintextPin && plaintextPin !== '' && plaintextPin !== '1234') {
+    if (plaintextPin && plaintextPin !== '' && plaintextPin !== '1234' && plaintextPin !== DEFAULT_PIN) {
       return plaintextPin;
     }
     return null;

@@ -99,3 +99,6 @@ const nativeModuleStub = () =>
 ].forEach(name => {
   NativeModules[name] = nativeModuleStub();
 });
+
+// Native signed-APK policy defaults to the fixed-PIN variant in ordinary unit tests.
+require('react-native').NativeModules.AuthPolicyModule = { mode: 'pin', verifyTotp: jest.fn() };

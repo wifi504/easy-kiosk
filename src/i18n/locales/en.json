@@ -911,7 +911,11 @@
       "lightOn": "Light On",
       "brightness": "Brightness",
       "rotate": "Rotate",
-      "emergency": "Emergency"
+      "emergency": "Emergency",
+      "totpSixDigits": "Enter the six-digit authenticator code.",
+      "totpHint": "Enter your authenticator code. Network time is required; each code can only be used once.",
+      "totpTimeFailed": "Network time unavailable. Check your connection and system date. Retrying automatically.",
+      "totpTimeLoading": "Synchronizing network time…"
     },
     "managedApps": {
       "error": "Error",

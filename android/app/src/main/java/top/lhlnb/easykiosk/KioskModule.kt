@@ -1227,6 +1227,7 @@ class KioskModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
      */
     @ReactMethod
     fun saveAdbPinHash(pin: String, promise: Promise) {
+        if (AuthPolicy.mode(reactApplicationContext) != "pin") { promise.reject("AUTH_IMMUTABLE", "Authentication policy is immutable"); return }
         try {
             val salt = java.util.UUID.randomUUID().toString()
             val hash = hashPinWithSalt(pin, salt)
@@ -1250,6 +1251,7 @@ class KioskModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
      */
     @ReactMethod
     fun clearAdbPinHash(promise: Promise) {
+        if (AuthPolicy.mode(reactApplicationContext) != "pin") { promise.reject("AUTH_IMMUTABLE", "Authentication policy is immutable"); return }
         try {
             val prefs = reactApplicationContext.getSharedPreferences("FreeKioskAdbConfig", Context.MODE_PRIVATE)
             prefs.edit()

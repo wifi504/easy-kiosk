@@ -97,6 +97,15 @@ afterEach(() => {
 });
 
 describe('KioskScreen inactivity timer', () => {
+  it('does not flash the configuration welcome screen before settings are read', async () => {
+    act(() => { renderer = TestRenderer.create(React.createElement(KioskScreen, { navigation })); });
+    expect(renderer.root.findAllByProps({ testID: 'welcome-configuration' })).toHaveLength(0);
+    expect(renderer.root.findAllByProps({ testID: 'browser-startup-wait' })).not.toHaveLength(0);
+    await emit('focus');
+    expect(renderer.root.findAllByProps({ testID: 'welcome-configuration' })).toHaveLength(0);
+    expect(renderer.root.findAllByProps({ testID: 'browser-startup-wait' })).toHaveLength(0);
+  });
+
   it('expires after the delay while the Kiosk screen is in front', async () => {
     await mount();
     await advance(DELAY);

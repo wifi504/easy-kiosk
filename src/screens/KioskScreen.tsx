@@ -63,6 +63,7 @@ const setBrightnessLevel = (level: number) => {
 const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
   const isFocused = useIsFocused();
   const [url, setUrl] = useState<string>('');
+  const [startupState, setStartupState] = useState<'loading' | 'ready' | 'error'>('loading');
   const [autoReload, setAutoReload] = useState<boolean>(false);
   const [hideErrorUrl, setHideErrorUrl] = useState<boolean>(false);
   const [alwaysLoadFromNetwork, setAlwaysLoadFromNetwork] = useState<boolean>(false);
@@ -1515,7 +1516,7 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
 
       // Broadcast that settings are loaded (for ADB config waiting)
       try {
-        await KioskModule.broadcastSettingsLoaded();
+        void KioskModule.broadcastSettingsLoaded().catch(() => {});
       } catch {
         // Silently fail if broadcast not needed
       }
@@ -1812,6 +1813,9 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
         console.log('[KioskScreen] Media player loaded:', mpItems.length, 'items');
       }
 
+      // The browser can mount now; device services and management UI must not delay it.
+      setStartupState('ready');
+
       // Start auto-brightness if enabled (only in webview/media_player mode and when app manages brightness)
       if (savedBrightnessManagementEnabled && savedAutoBrightnessEnabled && (savedDisplayMode === 'webview' || savedDisplayMode === 'media_player')) {
         try {
@@ -2019,6 +2023,7 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
         console.log('[KioskScreen] NOT launching external app - displayMode:', savedDisplayMode, 'package:', savedExternalAppPackage);
       }
     } catch (error) {
+      setStartupState(state => state === 'loading' ? 'error' : state);
       console.error('[KioskScreen] loadSettings error:', error);
     }
   };
@@ -2942,6 +2947,15 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
         }
       }}
     />
+  );
+
+  if (startupState === 'loading') return <View testID="browser-startup-wait" style={styles.container} />;
+  if (startupState === 'error') return (
+    <View style={styles.container}>
+      <TouchableOpacity accessibilityLabel="Retry loading configuration" onPress={() => { setStartupState('loading'); void loadSettingsRef.current(); }}>
+        <Icon name="refresh" size={32} />
+      </TouchableOpacity>
+    </View>
   );
 
   return (

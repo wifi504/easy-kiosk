@@ -1,8 +1,8 @@
 /**
- * The default PIN 1234 only opens the settings when no PIN was ever set.
+ * The default PIN 123456 only opens the settings when no PIN was ever set.
  *
  * A Keystore that throws on read (#258, #200) used to look exactly like "no PIN set", so a
- * device with a PIN of its own fell back to 1234 the moment its Keystore misbehaved.
+ * device with a PIN of its own fell back to 123456 the moment its Keystore misbehaved.
  */
 export {};
 
@@ -30,15 +30,15 @@ beforeEach(async () => {
   });
 });
 
-test('no PIN ever set: 1234 opens the settings, even with a failing Keystore', async () => {
+test('no PIN ever set: 123456 opens the settings, even with a failing Keystore', async () => {
   keychainBroken = true;
-  expect((await verifySecurePin('1234')).success).toBe(true);
+  expect((await verifySecurePin('123456')).success).toBe(true);
 });
 
-test('a PIN was set: a failing Keystore does not bring back 1234', async () => {
+test('a PIN was set: a failing Keystore does not bring back 123456', async () => {
   await saveSecurePin('9876');
   keychainBroken = true;
-  const result = await verifySecurePin('1234');
+  const result = await verifySecurePin('123456');
   expect(result.success).toBe(false);
   expect(result.attemptsRemaining).toBeUndefined();
 });
@@ -48,12 +48,16 @@ test('a PIN set before the flag existed gets it on the next correct entry', asyn
   await AsyncStorage.removeItem('@kiosk_pin_set'); // as an install from before this change
   expect((await verifySecurePin('9876')).success).toBe(true);
   keychainBroken = true;
-  expect((await verifySecurePin('1234')).success).toBe(false);
+  expect((await verifySecurePin('123456')).success).toBe(false);
 });
 
 test('clearing the PIN restores the default', async () => {
   await saveSecurePin('9876');
   await clearSecurePin();
   keychainBroken = true;
-  expect((await verifySecurePin('1234')).success).toBe(true);
+  expect((await verifySecurePin('123456')).success).toBe(true);
+});
+
+test('the old factory PIN no longer unlocks a fresh installation', async () => {
+  expect((await verifySecurePin('1234')).success).toBe(false);
 });

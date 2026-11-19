@@ -27,7 +27,7 @@ class MainApplication : Application(), ReactApplication {
           add(UpdatePackage())
           add(SoundPlayerPackage())
           add(object : com.facebook.react.ReactPackage {
-            override fun createNativeModules(context: com.facebook.react.bridge.ReactApplicationContext): List<com.facebook.react.bridge.NativeModule> = listOf(DeviceUtilitiesModule(context), EmbeddedChromiumModule(context))
+            override fun createNativeModules(context: com.facebook.react.bridge.ReactApplicationContext): List<com.facebook.react.bridge.NativeModule> = listOf(DeviceUtilitiesModule(context), EmbeddedChromiumModule(context), AuthPolicyModule(context))
             override fun createViewManagers(context: com.facebook.react.bridge.ReactApplicationContext): List<com.facebook.react.uimanager.ViewManager<*, *>> = emptyList()
           })
           add(BlockingOverlayPackage())

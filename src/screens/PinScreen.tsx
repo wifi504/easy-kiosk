@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, TouchableOpacity, Text, NativeModules, BackHandler } from 'react-native';
 import PinInput from '../components/PinInput';
+import { DEFAULT_PIN } from '../utils/authPolicy';
 import { StorageService } from '../utils/storage';
 import { migrateOldPin, hasSecurePin } from '../utils/secureStorage';
 import AppLauncherModule from '../utils/AppLauncherModule';
@@ -19,7 +20,7 @@ interface PinScreenProps {
 const PinScreen: React.FC<PinScreenProps> = ({ navigation, route }) => {
   const initialTab = route?.params?.initialTab;
   const { t } = useTranslation();
-  const storedPin = '1234';
+  const storedPin = DEFAULT_PIN;
   const [migrationDone, setMigrationDone] = useState<boolean>(false);
   const [displayMode, setDisplayMode] = useState<'webview' | 'external_app' | 'media_player'>('webview');
   const [externalAppPackage, setExternalAppPackage] = useState<string | null>(null);

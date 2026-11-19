@@ -2,7 +2,6 @@ import React, { useRef, useState, useMemo, useCallback, useImperativeHandle, for
 import {
   View,
   StyleSheet,
-  ActivityIndicator,
   Text,
   TouchableOpacity,
   Animated,
@@ -1457,7 +1456,7 @@ const WebViewComponent = forwardRef<WebViewComponentRef, WebViewComponentProps>(
 
   if (!url) {
     return (
-      <View style={styles.welcomeContainer}>
+      <View testID="welcome-configuration" style={styles.welcomeContainer}>
         <ScrollView 
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
@@ -1590,7 +1589,7 @@ const WebViewComponent = forwardRef<WebViewComponentRef, WebViewComponentProps>(
 
         onMessage={onMessageHandler}
 
-        startInLoadingState={true}
+        startInLoadingState={false}
 
         onShouldStartLoadWithRequest={(request: ShouldStartLoadRequest) => {
           // Security: Block dangerous URL schemes
@@ -1782,10 +1781,7 @@ const WebViewComponent = forwardRef<WebViewComponentRef, WebViewComponentProps>(
 
       {loading && !error && (
         <View style={[styles.loadingContainer, darkLoading && styles.loadingContainerDark]}>
-          <ActivityIndicator size="large" color={darkLoading ? '#8ab4ff' : '#2b7fff'} />
-          <Text style={[styles.loadingText, darkLoading && styles.loadingTextDark]}>
-            {t('components.webView.loading')}
-          </Text>
+
           {/* Fallback settings button inside loading overlay */}
           <TouchableOpacity
             style={[styles.fallbackSettingsButton, darkLoading && styles.fallbackSettingsButtonDark]}

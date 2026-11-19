@@ -353,6 +353,17 @@ class BootReceiver : BroadcastReceiver() {
      * Legacy path: delayed launch of MainActivity (for non-Device-Owner installs).
      */
     private fun launchMainActivityLegacy(context: Context) {
+        // A browser kiosk with no managed boot apps has nothing to wait for.
+        if (readString(context, "@kiosk_display_mode") != "external_app" && getManagedAppsForBoot(context).isEmpty()) {
+            if (!MainActivity.hasStarted) {
+                try {
+                    context.startActivity(Intent(context, MainActivity::class.java).addFlags(
+                        Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                        Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_NO_ANIMATION))
+                } catch (e: Exception) { DebugLog.errorProduction("BootReceiver", "Immediate browser launch failed: ${e.message}") }
+            }
+            return
+        }
         Handler(Looper.getMainLooper()).postDelayed({
             DebugLog.d("BootReceiver", "Legacy path: launching MainActivity")
 

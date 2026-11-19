@@ -22,13 +22,14 @@ import org.json.JSONTokener;
 /** Runs the actual release application payload with a controlled loopback webpage. */
 public class EmbeddedChromiumInstrumentation extends Instrumentation {
  private String expectedVersion;
+ private boolean authFixture;
  private void screenshot(String name) {
   try {
    Bitmap image=getUiAutomation().takeScreenshot();
    if(image!=null)try(FileOutputStream out=new FileOutputStream(new File(getTargetContext().getExternalFilesDir(null),name))){image.compress(Bitmap.CompressFormat.PNG,100,out);}
   }catch(Throwable ignored){}
  }
- @Override public void onCreate(Bundle args) { super.onCreate(args); start(); }
+ @Override public void onCreate(Bundle args) { super.onCreate(args); authFixture=args!=null && "true".equals(args.getString("totp_fixture")); start(); }
  private WebView findWebView(View view) {
   if(view instanceof WebView) return (WebView)view;
   if(view instanceof ViewGroup) {
@@ -71,6 +72,20 @@ public class EmbeddedChromiumInstrumentation extends Instrumentation {
  }
  @Override public void onStart() {
   Bundle report=new Bundle();
+  if(authFixture) {
+   try {
+    Context context=getTargetContext();
+    if(!"totp".equals(AuthPolicy.INSTANCE.mode(context)))throw new AssertionError("Fixture is not immutable TOTP mode");
+    NetworkTime.INSTANCE.prepare();
+    byte[] key=Totp.INSTANCE.decodeSecret("GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ");
+    String code=Totp.INSTANCE.code(key,NetworkTime.INSTANCE.preparedUnixMillis()/30000);
+    if(!AuthPolicy.INSTANCE.verify(context,code))throw new AssertionError("Network-time TOTP rejected");
+    if(AuthPolicy.INSTANCE.verify(context,code))throw new AssertionError("Replayed TOTP accepted");
+    if(AuthPolicy.INSTANCE.verify(context,"1234"))throw new AssertionError("Legacy PIN accepted");
+    report.putString("stream","EASYKIOSK_TOTP_OK network_time=true replay_rejected=true\n");finish(Activity.RESULT_OK,report);
+   }catch(Throwable error){report.putString("stream","EASYKIOSK_TOTP_FAILED "+error.getClass().getSimpleName()+"\n");finish(Activity.RESULT_CANCELED,report);}
+   return;
+  }
   try {
    Context context=getTargetContext();fixtureConfig(context);
    Activity activity=startActivitySync(new Intent().setClassName(context.getPackageName(),context.getPackageName()+".MainActivity").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));

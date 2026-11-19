@@ -911,7 +911,11 @@
       "lightOn": "开灯",
       "brightness": "亮度",
       "rotate": "旋转",
-      "emergency": "紧急"
+      "emergency": "紧急",
+      "totpSixDigits": "请输入 6 位动态验证码。",
+      "totpHint": "请输入验证器中的动态密码。验证时需要联网校准时间；同一个验证码只能使用一次。",
+      "totpTimeFailed": "联网授时失败，请检查网络和系统日期。稍后会自动重试。",
+      "totpTimeLoading": "正在联网校准时间…"
     },
     "managedApps": {
       "error": "错误",

@@ -4,6 +4,7 @@
  */
 
 import React from 'react';
+import { FIXED_PIN_MODE } from '../../../utils/authPolicy';
 import { View, Text, TouchableOpacity, StyleSheet, Alert, Platform } from 'react-native';
 import {
   SettingsSection,
@@ -982,8 +983,8 @@ const GeneralTab: React.FC<GeneralTabProps> = ({
         </>
       )}
 
-      {/* Password Configuration */}
-      <SettingsSection title={t('general.password.title')} icon="pin">
+      {/* Fixed-PIN controls do not exist in immutable TOTP builds. */}
+      {FIXED_PIN_MODE && <SettingsSection title={t('general.password.title')} icon="pin">
         <SettingsSwitch
           label={t('general.password.advancedMode')}
           hint={t('general.password.advancedModeHint')}
@@ -1025,7 +1026,7 @@ const GeneralTab: React.FC<GeneralTabProps> = ({
             hint={t('general.password.maxAttemptsHint')}
           />
         </View>
-      </SettingsSection>
+      </SettingsSection>}
 
       {/* Inactivity Return to Home - WebView only */}
       {displayMode === 'webview' && (

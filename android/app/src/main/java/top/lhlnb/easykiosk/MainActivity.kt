@@ -266,12 +266,11 @@ class MainActivity : ReactActivity() {
       object : DefaultReactActivityDelegate(this, mainComponentName, fabricEnabled) {
         override fun loadApp(appKey: String?) {
           val activity = this@MainActivity
+          // Preload the JS runtime concurrently, but never mount a WebView before Chromium is ready.
+          (activity.application as MainApplication).reactHost.start()
           EmbeddedChromium.prepare(activity.application)
           val splash = android.widget.FrameLayout(activity).apply {
-            setBackgroundColor(android.graphics.Color.rgb(43, 127, 255))
-            addView(android.widget.ImageView(activity).apply { setImageResource(R.mipmap.ic_launcher) },
-              android.widget.FrameLayout.LayoutParams((120 * resources.displayMetrics.density).toInt(),
-                (120 * resources.displayMetrics.density).toInt(), android.view.Gravity.CENTER))
+            setBackgroundColor(android.graphics.Color.WHITE)
           }
           activity.setContentView(splash)
           EmbeddedChromium.whenReady { error ->
@@ -1905,6 +1904,13 @@ class MainActivity : ReactActivity() {
     if (intentHash == lastProcessedAdbIntent) return false
     lastProcessedAdbIntent = intentHash
 
+    // Immutable TOTP builds accept management changes only through verified in-app settings.
+    // Reject before the virgin-setup path, which otherwise accepts an arbitrary new PIN.
+    if (AuthPolicy.mode(this) != "pin") {
+      showAdbToast("ADB configuration is disabled by the authentication policy")
+      return false
+    }
+
     // Check if device is already configured (has PIN)
     val isVirginSetup = !hasExistingPin()
 
@@ -2477,7 +2483,7 @@ class MainActivity : ReactActivity() {
       }
 
       // No PIN stored, check default (for backward compatibility)
-      return pin == "1234"
+      return pin == "123456"
 
     } catch (e: Exception) {
       DebugLog.errorProduction("MainActivity", "Failed to verify ADB PIN: ${e.message}")

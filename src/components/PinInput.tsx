@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, TextInput, StyleSheet, Alert, ActivityIndicator, NativeModules, Platform, TouchableOpacity } from 'react-native';
 import { verifySecurePin, getLockoutStatus } from '../utils/secureStorage';
 import { StorageService } from '../utils/storage';
+import { FIXED_PIN_MODE, TOTP_ENABLED, prepareTotpTime } from '../utils/authPolicy';
 import WifiDialog from './WifiDialog';
 import BluetoothDialog from './BluetoothDialog';
 import AudioOutputDialog from './AudioOutputDialog';
@@ -20,6 +21,27 @@ interface PinInputProps {
 const PinInput: React.FC<PinInputProps> = ({ onSuccess }) => {
   const { t } = useTranslation();
   const [pin, setPin] = useState<string>('');
+  const [timeReady, setTimeReady] = useState(!TOTP_ENABLED);
+  const [timeFailed, setTimeFailed] = useState(false);
+  const [timeRetry, setTimeRetry] = useState(0);
+  useEffect(() => {
+    if (!TOTP_ENABLED) return;
+    let active = true;
+    const sync = async () => {
+      setTimeReady(false);
+      setTimeFailed(false);
+      try {
+        await prepareTotpTime();
+        if (active) { setTimeReady(true); setTimeFailed(false); }
+      } catch {
+        if (active) { setTimeReady(false); setTimeFailed(true); }
+      }
+    };
+    void sync();
+    const timer = setInterval(sync, 60_000);
+    return () => { active = false; clearInterval(timer); };
+  }, [timeRetry]);
+
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isLockedOut, setIsLockedOut] = useState<boolean>(false);
   const [lockoutTimeRemaining, setLockoutTimeRemaining] = useState<number>(0);
@@ -114,7 +136,7 @@ const PinInput: React.FC<PinInputProps> = ({ onSuccess }) => {
   };
 
   const loadPinMode = async (): Promise<void> => {
-    const mode = await StorageService.getPinMode();
+    const mode = FIXED_PIN_MODE ? await StorageService.getPinMode() : 'numeric';
     setPinMode(mode);
   };
 
@@ -127,6 +149,7 @@ const PinInput: React.FC<PinInputProps> = ({ onSuccess }) => {
   };
 
   const handleSubmit = async (): Promise<void> => {
+    if (TOTP_ENABLED && !timeReady) return;
     if (isLockedOut) {
       Alert.alert(
         t('components.pinInput.lockedOutTitle'),
@@ -135,6 +158,10 @@ const PinInput: React.FC<PinInputProps> = ({ onSuccess }) => {
       return;
     }
 
+    if (TOTP_ENABLED && !/^\d{6}$/.test(pin)) {
+      Alert.alert(t('components.pinInput.error'), t('components.pinInput.totpSixDigits'));
+      return;
+    }
     if (pin.length < 4) {
       Alert.alert(t('components.pinInput.error'), t('components.pinInput.passwordMinLength'));
       return;
@@ -291,6 +318,8 @@ const PinInput: React.FC<PinInputProps> = ({ onSuccess }) => {
             </View>
           )}
 
+          {TOTP_ENABLED && <Text style={styles.warningText}>{t(timeFailed ? 'components.pinInput.totpTimeFailed' : timeReady ? 'components.pinInput.totpHint' : 'components.pinInput.totpTimeLoading')}</Text>}
+          {TOTP_ENABLED && timeFailed && <TouchableOpacity onPress={() => setTimeRetry(value => value + 1)}><Text>{t('components.pinInput.tryAgain')}</Text></TouchableOpacity>}
           <TextInput
             ref={inputRef}
             style={[styles.input, isLoading && styles.inputDisabled]}
@@ -299,7 +328,7 @@ const PinInput: React.FC<PinInputProps> = ({ onSuccess }) => {
             secureTextEntry={true}
             keyboardType={pinMode === 'alphanumeric' ? 'default' : 'numeric'}
             maxLength={pinMode === 'alphanumeric' ? undefined : 6}
-            placeholder={pinMode === 'alphanumeric' ? t('components.pinInput.passwordPlaceholder') : '••••'}
+            placeholder={pinMode === 'alphanumeric' ? t('components.pinInput.passwordPlaceholder') : TOTP_ENABLED ? '••••••' : '••••'}
             placeholderTextColor="#999999"
             autoCapitalize={pinMode === 'alphanumeric' ? 'none' : undefined}
             autoCorrect={false}
@@ -314,7 +343,7 @@ const PinInput: React.FC<PinInputProps> = ({ onSuccess }) => {
           <TouchableOpacity
             style={[styles.button, (isLoading || isLockedOut) && styles.buttonDisabled]}
             onPress={handleSubmit}
-            disabled={isLoading || isLockedOut}
+            disabled={isLoading || isLockedOut || !timeReady}
           >
             {isLoading ? (
               <ActivityIndicator color="#fff" />

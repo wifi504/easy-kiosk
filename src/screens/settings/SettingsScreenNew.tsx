@@ -23,6 +23,7 @@ import {
 import CookieManager from '@react-native-cookies/cookies';
 import { Camera } from 'react-native-vision-camera';
 import { StorageService } from '../../utils/storage';
+import { FIXED_PIN_MODE } from '../../utils/authPolicy';
 import { formatInactivityMinutes, resolveInactivityDelayMs, StoredInactivityDelay } from '../../utils/inactivityDelay';
 import i18n, { setAppLanguage, resolveSupportedLanguage, SupportedLanguage } from '../../i18n';
 import { useTranslation } from 'react-i18next';
@@ -1532,12 +1533,12 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation, route })
 
     // PIN validation
     // If mode changed, a new password is REQUIRED
-    if (pinModeChanged && !pin) {
+    if (FIXED_PIN_MODE && pinModeChanged && !pin) {
       Alert.alert(t('screens.settingsMain.error'), t('screens.settingsMain.passwordModeChanged'));
       return;
     }
 
-    if (pin && pin.length > 0) {
+    if (FIXED_PIN_MODE && pin && pin.length > 0) {
       if (pin.length < 4) {
         Alert.alert(t('screens.settingsMain.error'), t('screens.settingsMain.passwordMinLength'));
         return;
@@ -1550,7 +1551,7 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation, route })
         Alert.alert(t('screens.settingsMain.error'), t('screens.settingsMain.numericPinLength'));
         return;
       }
-    } else if (!isPinConfigured && !pin) {
+    } else if (FIXED_PIN_MODE && !isPinConfigured && !pin) {
       // Save can be pressed from any tab, and the PIN lives on General. "Please enter a
       // password" named neither, so an operator saving from Display had nothing to go
       // on. Say where, and take them there.
@@ -1570,7 +1571,7 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation, route })
     }
 
     // PIN max attempts validation
-    const pinMaxAttemptsNumber = parseInt(pinMaxAttemptsText, 10);
+    const pinMaxAttemptsNumber = FIXED_PIN_MODE ? parseInt(pinMaxAttemptsText, 10) : 5;
     if (isNaN(pinMaxAttemptsNumber) || pinMaxAttemptsNumber < 1 || pinMaxAttemptsNumber > 100) {
       Alert.alert(t('screens.settingsMain.error'), t('screens.settingsMain.pinAttemptsRange'));
       return;
@@ -1582,7 +1583,7 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation, route })
       await StorageService.saveUrl(finalUrl);
     }
 
-    if (pin && pin.length >= 4) {
+    if (FIXED_PIN_MODE && pin && pin.length >= 4) {
       await saveSecurePin(pin);
       await StorageService.savePin('');
       setIsPinConfigured(true);
@@ -1591,8 +1592,10 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation, route })
       setPinModeChanged(false);
     }
 
-    await StorageService.savePinMaxAttempts(pinMaxAttemptsNumber);
-    await StorageService.savePinMode(pinMode);
+    if (FIXED_PIN_MODE) {
+      await StorageService.savePinMaxAttempts(pinMaxAttemptsNumber);
+      await StorageService.savePinMode(pinMode);
+    }
 
     // Save brightness management setting (applies to ALL modes)
     await StorageService.saveBrightnessManagementEnabled(brightnessManagementEnabled);
