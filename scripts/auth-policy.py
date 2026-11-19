@@ -40,7 +40,8 @@ def main():
     with open(os.environ["GITHUB_OUTPUT"], "a") as stream:
         stream.write("mode=" + mode + "\n")
     with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as stream:
-        stream.write("### Authentication preflight\nMode: " + mode + ". Configuration is valid.\n")
+        label = "TOTP 动态密码" if secret else "固定密码"
+        stream.write("### 认证配置校验\n认证模式：" + label + "。配置校验通过。\n")
     print("Authentication preflight passed: " + mode)
 
 
