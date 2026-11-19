@@ -911,7 +911,11 @@
       "lightOn": "Accendi",
       "brightness": "Luminosità",
       "rotate": "Ruota",
-      "emergency": "Emergenza"
+      "emergency": "Emergenza",
+      "totpSixDigits": "Inserisci il codice a sei cifre.",
+      "totpHint": "Inserisci il codice dell’autenticatore. Richiede l’ora di rete; ogni codice è utilizzabile una sola volta.",
+      "totpTimeFailed": "Ora di rete non disponibile. Controlla connessione e data di sistema. Nuovo tentativo automatico.",
+      "totpTimeLoading": "Sincronizzazione dell’ora di rete…"
     },
     "managedApps": {
       "error": "Errore",

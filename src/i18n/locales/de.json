@@ -911,7 +911,11 @@
       "lightOn": "Licht an",
       "brightness": "Helligkeit",
       "rotate": "Drehen",
-      "emergency": "Notruf"
+      "emergency": "Notruf",
+      "totpSixDigits": "Gib den sechsstelligen Authenticator-Code ein.",
+      "totpHint": "Gib den Authenticator-Code ein. Netzwerkzeit erforderlich; jeder Code ist nur einmal verwendbar.",
+      "totpTimeFailed": "Netzwerkzeit nicht verfügbar. Netzwerk und Systemdatum prüfen. Automatischer neuer Versuch.",
+      "totpTimeLoading": "Netzwerkzeit wird synchronisiert…"
     },
     "managedApps": {
       "error": "Fehler",

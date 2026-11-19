@@ -911,7 +911,11 @@
       "lightOn": "Licht aan",
       "brightness": "Helderheid",
       "rotate": "Roteren",
-      "emergency": "Nood"
+      "emergency": "Nood",
+      "totpSixDigits": "Voer de zescijferige code in.",
+      "totpHint": "Voer de code uit je authenticator in. Netwerktijd vereist; elke code kan één keer worden gebruikt.",
+      "totpTimeFailed": "Netwerktijd niet beschikbaar. Controleer verbinding en systeemdatum. Automatisch opnieuw proberen.",
+      "totpTimeLoading": "Netwerktijd synchroniseren…"
     },
     "managedApps": {
       "error": "Fout",

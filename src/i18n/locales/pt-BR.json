@@ -911,7 +911,11 @@
       "lightOn": "Acender luz",
       "brightness": "Brilho",
       "rotate": "Girar",
-      "emergency": "Emergência"
+      "emergency": "Emergência",
+      "totpSixDigits": "Digite o código de seis dígitos.",
+      "totpHint": "Digite o código do autenticador. Requer horário da rede; cada código só pode ser usado uma vez.",
+      "totpTimeFailed": "Horário da rede indisponível. Verifique a conexão e a data do sistema. Nova tentativa automática.",
+      "totpTimeLoading": "Sincronizando o horário da rede…"
     },
     "managedApps": {
       "error": "Erro",

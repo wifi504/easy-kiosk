@@ -911,7 +911,11 @@
       "lightOn": "Włącz latarkę",
       "brightness": "Jasność",
       "rotate": "Obrót",
-      "emergency": "Alarmowe"
+      "emergency": "Alarmowe",
+      "totpSixDigits": "Wpisz sześciocyfrowy kod.",
+      "totpHint": "Wpisz kod z aplikacji uwierzytelniającej. Wymagany czas sieciowy; każdy kod jest jednorazowy.",
+      "totpTimeFailed": "Czas sieciowy niedostępny. Sprawdź połączenie i datę systemową. Próba zostanie ponowiona automatycznie.",
+      "totpTimeLoading": "Synchronizowanie czasu sieciowego…"
     },
     "managedApps": {
       "error": "Błąd",
