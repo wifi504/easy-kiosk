@@ -13,8 +13,8 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: android-actions/setup-android@v3
+      - uses: actions/checkout@v7.0.1
+      - uses: android-actions/setup-android@v4.0.4
         with:
           packages: 'build-tools;36.0.0'
       - name: 下载固定内核并检查文件布局
@@ -28,7 +28,7 @@ jobs:
           "$ANDROID_HOME/build-tools/36.0.0/aapt" dump resources "$APK" | grep -i -E 'licen[cs]e|notice|raw/' >> kernel-audit.txt || true
           python3 scripts/extract-chromium-notices.py "$APK" "$RUNNER_TEMP/Chromium-CREDITS.html"
           cat kernel-audit.txt
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7.0.2
         with:
           name: prebuilt-kernel-audit
           path: kernel-audit.txt

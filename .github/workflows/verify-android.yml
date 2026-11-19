@@ -21,8 +21,8 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-node@v7.1.0
         with:
           node-version: '22'
           cache: npm
@@ -31,24 +31,16 @@ jobs:
         run: |
           python3 -m pip install 'Pillow==11.3.0' 'Brotli==1.1.0'
           python3 scripts/generate-app-icons.py
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7.0.2
         with:
           name: easy-kiosk-logo-preview
           path: ${{ runner.temp }}/easy-kiosk-logo-preview.png
           retention-days: 7
       - name: TypeScript 检查
         run: npm run typecheck
-      - name: ESLint 新增错误检查（与 main 对比）
+      - name: ESLint 零错误检查
         if: success() || failure()
-        run: |
-          git fetch --no-tags origin main
-          BASE="$RUNNER_TEMP/lint-main"
-          mkdir -p "$BASE"
-          git archive FETCH_HEAD | tar -x -C "$BASE"
-          ln -s "$GITHUB_WORKSPACE/node_modules" "$BASE/node_modules"
-          (cd "$BASE" && ./node_modules/.bin/eslint . -f json > "$RUNNER_TEMP/lint-main.json") || test $? -eq 1
-          ./node_modules/.bin/eslint . -f json > "$RUNNER_TEMP/lint-dev.json" || test $? -eq 1
-          node scripts/check-lint-regressions.mjs "$BASE" "$GITHUB_WORKSPACE" "$RUNNER_TEMP/lint-main.json" "$RUNNER_TEMP/lint-dev.json"
+        run: npm run lint -- --quiet
       - name: 构建辅助工具语法检查
         run: python3 -m py_compile scripts/download-embedded-chromium.py scripts/prepare-embedded-chromium.py scripts/prepare-embedded-loader.py scripts/embed-chromium-apk.py scripts/engine-fixture-server.py scripts/generate-app-icons.py scripts/extract-chromium-notices.py scripts/stage-renderer-assets.py scripts/prepare-independent-engine-probe.py scripts/check-android-guest.py scripts/configure-android-guest.py
       - name: 单元测试
@@ -62,14 +54,14 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/checkout@v7.0.1
         with:
           repository: JonaNorman/WebViewUpgrade
           ref: 5a5a7d11b5e67bba37787a697f45c9f5d45e6dda
           path: .engine-loader
           persist-credentials: false
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v6.3.0
         with:
           distribution: temurin
           java-version: '17'
@@ -77,10 +69,10 @@ jobs:
           cache-dependency-path: |
             **/*.gradle*
             **/gradle-wrapper.properties
-      - uses: android-actions/setup-android@v3
+      - uses: android-actions/setup-android@v4.0.4
         with:
           packages: platform-tools
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6.1.0
         with:
           path: ${{ runner.temp }}/chromium
           key: embedded-chromium-x86_64-${{ hashFiles('config/chromium.json') }}
@@ -101,7 +93,7 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
       - name: Android 10 独立内核和私有文件隔离检查
-        uses: reactivecircus/android-emulator-runner@v2
+        uses: reactivecircus/android-emulator-runner@v2.38.0
         with:
           api-level: 29
           target: default
@@ -126,7 +118,7 @@ jobs:
             grep -E 'ISOLATED_RENDERER_UID 9[0-9]{4}' preflight-logcat.txt
             grep -E 'PRIVATE_DATA_ACCESS_DENIED 9[0-9]{4}' preflight-logcat.txt
             diff preflight-system-before.txt preflight-system-after.txt
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7.0.2
         if: always()
         with:
           name: isolated-engine-preflight
@@ -149,24 +141,24 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/cache@v4
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/cache@v6.1.0
         with:
           path: ${{ runner.temp }}/chromium
           key: embedded-chromium-${{ matrix.abi }}-${{ hashFiles('config/chromium.json') }}
       - name: 获取并校验固定版本的预编译内核
         run: python3 scripts/download-embedded-chromium.py '${{ matrix.abi }}' "$RUNNER_TEMP/chromium"
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7.0.1
         with:
           repository: JonaNorman/WebViewUpgrade
           ref: 5a5a7d11b5e67bba37787a697f45c9f5d45e6dda
           path: .engine-loader
           persist-credentials: false
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7.1.0
         with:
           node-version: '22'
           cache: npm
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v6.3.0
         with:
           distribution: temurin
           java-version: '17'
@@ -176,7 +168,7 @@ jobs:
             **/gradle-wrapper.properties
             android/gradle.properties.template
             android/app/proguard-rules.pro
-      - uses: android-actions/setup-android@v3
+      - uses: android-actions/setup-android@v4.0.4
         with:
           packages: platform-tools
       - run: npm ci
@@ -214,7 +206,7 @@ jobs:
           python3 scripts/engine-fixture-server.py > "$RUNNER_TEMP/engine-fixtures.log" 2>&1 &
       - name: Android 10 / 1GB / 16GB 完整应用运行测试
         if: matrix.cpu == 'x64'
-        uses: reactivecircus/android-emulator-runner@v2
+        uses: reactivecircus/android-emulator-runner@v2.38.0
         with:
           api-level: 29
           target: default
@@ -256,13 +248,13 @@ jobs:
           unzip -p "$APK" assets/LICENSE | grep -F 'Copyright (c) 2025 Rushb'
           unzip -p "$APK" assets/third-party/Chromium-CREDITS.html > /dev/null
           unzip -p "$APK" assets/third-party/WebViewUpgrade-LICENSE.txt > /dev/null
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7.0.2
         with:
           name: ci-intermediate-do-not-install-${{ matrix.abi }}
           path: android/app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error
           retention-days: 1
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7.0.2
         if: always() && matrix.cpu == 'x64'
         with:
           name: easy-kiosk-engine-validation-${{ github.run_number }}
@@ -280,7 +272,7 @@ jobs:
     timeout-minutes: 15
     steps:
       # Fresh VM; no checkout, Gradle, npm, loader source, APK execution, or restored build caches.
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8.0.2
         with:
           pattern: ci-intermediate-do-not-install-*
           path: incoming
@@ -329,7 +321,7 @@ jobs:
             printf '%s\n' "$AFTER" > "$APK.payload.sha256"
             sha256sum "$APK" > "$APK.sha256"
           done
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7.0.2
         with:
           name: EasyKiosk-signed-${{ github.sha }}
           path: release/
