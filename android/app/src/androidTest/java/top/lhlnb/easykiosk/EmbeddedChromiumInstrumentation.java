@@ -68,7 +68,12 @@ public class EmbeddedChromiumInstrumentation extends Instrumentation {
   try(java.io.InputStream in=context.getAssets().open("embedded-chromium.json")) {
    java.io.ByteArrayOutputStream out=new java.io.ByteArrayOutputStream();byte[] buf=new byte[8192];int n;
    while((n=in.read(buf))!=-1)out.write(buf,0,n);
-   expectedVersion=new JSONObject(out.toString("UTF-8")).getString("version");
+   JSONObject engine=new JSONObject(out.toString("UTF-8"));
+   expectedVersion=engine.getString("version");
+   String abi=engine.getString("abi");
+   boolean expected64="arm64-v8a".equals(abi) || "x86_64".equals(abi);
+   if(android.os.Process.is64Bit()!=expected64)throw new AssertionError("Application process bitness does not match engine ABI: "+abi);
+   android.util.Log.i("EasyKioskEngine","HOST_ABI_OK abi="+abi+" bits="+(expected64?64:32));
   }
  }
  @Override public void onStart() {

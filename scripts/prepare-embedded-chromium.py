@@ -30,6 +30,7 @@ if service not in xml: raise SystemExit('Kernel renderer service changed; review
 with zipfile.ZipFile(engine) as archive:
     if not any(n.startswith(f'lib/{abi}/') and n.endswith('.so') for n in archive.namelist()):
         raise SystemExit('Kernel has no native library for ' + abi)
+subprocess.run([sys.executable, str(root / 'scripts/verify-apk-abi.py'), str(engine), abi], check=True)
 assets = root / 'android/app/src/main/assets'; assets.mkdir(parents=True, exist_ok=True)
 shutil.copyfile(engine, assets / 'embedded-chromium.apk')
 subprocess.run([sys.executable, str(root / 'scripts/stage-renderer-assets.py'), str(engine), str(assets)], check=True)
