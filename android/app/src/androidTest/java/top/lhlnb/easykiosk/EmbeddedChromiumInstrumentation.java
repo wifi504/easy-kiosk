@@ -40,7 +40,7 @@ public class EmbeddedChromiumInstrumentation extends Instrumentation {
  }
  private boolean loadingVisible(View view) {
   if(!view.isShown() || view.getAlpha()<0.05f)return false;
-  if("browser-page-loading".contentEquals(view.getContentDescription()))return true;
+  if("browser-page-loading".equals(String.valueOf(view.getContentDescription())))return true;
   if(view instanceof android.widget.TextView && ((android.widget.TextView)view).getText().toString().startsWith("Loading"))return true;
   if(view instanceof ViewGroup){ViewGroup group=(ViewGroup)view;for(int i=0;i<group.getChildCount();i++)if(loadingVisible(group.getChildAt(i)))return true;}
   return false;
@@ -84,7 +84,7 @@ public class EmbeddedChromiumInstrumentation extends Instrumentation {
     if(AuthPolicy.INSTANCE.verify(context,code))throw new AssertionError("Replayed TOTP accepted");
     if(AuthPolicy.INSTANCE.verify(context,"1234"))throw new AssertionError("Legacy PIN accepted");
     report.putString("stream","EASYKIOSK_TOTP_OK network_time=true replay_rejected=true\n");finish(Activity.RESULT_OK,report);
-   }catch(Throwable error){report.putString("stream","EASYKIOSK_TOTP_FAILED "+error.getClass().getSimpleName()+"\n");finish(Activity.RESULT_CANCELED,report);}
+   }catch(Throwable error){report.putString("stream","EASYKIOSK_TOTP_FAILED "+android.util.Log.getStackTraceString(error)+"\n");finish(Activity.RESULT_CANCELED,report);}
    return;
   }
   try {

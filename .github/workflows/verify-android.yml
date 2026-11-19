@@ -253,6 +253,15 @@ jobs:
             adb shell am instrument -w -e totp_fixture true top.lhlnb.easykiosk.test/top.lhlnb.easykiosk.EmbeddedChromiumInstrumentation | tee totp-fixture-result.txt
             grep -F 'EASYKIOSK_TOTP_OK' totp-fixture-result.txt
 
+      - name: 失败时将诊断写入日志（不上传附件）
+        if: failure() && matrix.cpu == 'x64'
+        run: |
+          for LOG in engine-first-logcat.txt engine-cold-logcat.txt totp-fixture-result.txt; do
+            if test -f "$LOG"; then
+              echo "$LOG"
+              tail -n 400 "$LOG"
+            fi
+          done
       - name: 校验中间包版本与许可（此包不可部署）
         run: |
           APK=android/app/build/outputs/apk/release/app-release.apk
@@ -368,14 +377,11 @@ jobs:
             "$TOOLS/apksigner" verify --verbose --print-certs "$APK"
             AFTER=$(payload_hash "$APK")
             test "$BEFORE" = "$AFTER"
-            (cd release && sha256sum "${APK##*/}" > "${APK##*/}.sha256")
           done
       - uses: actions/upload-artifact@v7.0.2
         with:
           name: EasyKiosk-signed-${{ github.sha }}-${{ needs.validate-auth.outputs.mode }}
-          path: |
-            release/*.apk
-            release/*.apk.sha256
+          path: release/*.apk
           if-no-files-found: error
           retention-days: 7
 

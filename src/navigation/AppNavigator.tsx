@@ -2,10 +2,7 @@ import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import KioskScreen from '../screens/KioskScreen';
-import PinScreen from '../screens/PinScreen';
 // v1.2: Use new settings screen with Material tabs
-import { SettingsScreen } from '../screens/settings';
-import BlockingOverlaysScreen from '../screens/settings/BlockingOverlaysScreen';
 
 export type RootStackParamList = {
   Kiosk: undefined;
@@ -16,6 +13,10 @@ export type RootStackParamList = {
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
+// Management screens load only after the user asks to enter them.
+const getPinScreen = () => require('../screens/PinScreen').default;
+const getSettingsScreen = () => require('../screens/settings').SettingsScreen;
+const getBlockingOverlaysScreen = () => require('../screens/settings/BlockingOverlaysScreen').default;
 
 const AppNavigator: React.FC = () => {
   return (
@@ -35,7 +36,7 @@ const AppNavigator: React.FC = () => {
         />
         <Stack.Screen 
           name="Pin" 
-          component={PinScreen}
+          getComponent={getPinScreen}
           options={{
             headerShown: false,
             gestureEnabled: false,
@@ -43,7 +44,7 @@ const AppNavigator: React.FC = () => {
         />
         <Stack.Screen 
           name="Settings" 
-          component={SettingsScreen}
+          getComponent={getSettingsScreen}
           options={{
             headerShown: false, // v1.2: Custom header with tabs
             gestureEnabled: false,
@@ -51,7 +52,7 @@ const AppNavigator: React.FC = () => {
         />
         <Stack.Screen 
           name="BlockingOverlays" 
-          component={BlockingOverlaysScreen}
+          getComponent={getBlockingOverlaysScreen}
           options={{
             headerShown: false,
           }}

@@ -360,9 +360,10 @@ class BootReceiver : BroadcastReceiver() {
                     context.startActivity(Intent(context, MainActivity::class.java).addFlags(
                         Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or
                         Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_NO_ANIMATION))
+                    return
                 } catch (e: Exception) { DebugLog.errorProduction("BootReceiver", "Immediate browser launch failed: ${e.message}") }
-            }
-            return
+            } else return
+            // A rejected immediate launch still gets the legacy retry path.
         }
         Handler(Looper.getMainLooper()).postDelayed({
             DebugLog.d("BootReceiver", "Legacy path: launching MainActivity")
