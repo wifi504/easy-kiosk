@@ -4,29 +4,36 @@ import hashlib
 import hmac
 import json
 import os
+import re
 from pathlib import Path
 
 
 def normalize_secret(raw):
     if raw == "":
         return None
-    text = "".join(raw.split()).upper()
-    if not text or any(char not in "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567=" for char in text):
-        raise ValueError("Invalid TOTP secret: supply a Base32 key (128 to 512 bits), not an OTP or URL")
-    unpadded = text.rstrip("=")
-    if "=" in unpadded:
-        raise ValueError("Invalid TOTP Base32 padding")
-    try:
-        key = base64.b32decode(unpadded + "=" * (-len(unpadded) % 8))
-    except Exception:
-        raise ValueError("Invalid TOTP Base32 encoding") from None
-    if not 16 <= len(key) <= 64 or base64.b32encode(key).decode().rstrip("=") != unpadded:
-        raise ValueError("TOTP key must be canonical Base32 encoding of 128 to 512 bits")
-    if "=" in text and text != base64.b32encode(key).decode():
-        raise ValueError("Invalid TOTP Base32 padding")
+    if raw.strip().lower().startswith(("otpauth:", "http:", "https:")):
+        raise ValueError("Supply the secret itself, not a URL")
+    # Match BaseToolbox's I()/L() decoder: discard non-alphabet characters,
+    # consume complete bytes, and ignore remaining bits. Never guess ASCII/Base64.
+    # Reference: https://basetoolbox.com/zh/2fa/
+    text = re.sub(r"[^A-Z2-7]", "", raw.upper())
+    alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567"
+    output = bytearray()
+    buffer = bits = 0
+    for char in text:
+        buffer = (buffer << 5) | alphabet.index(char)
+        bits += 5
+        if bits >= 8:
+            bits -= 8
+            output.append((buffer >> bits) & 255)
+        buffer &= (1 << bits) - 1
+    key = bytes(output)
+    if not 16 <= len(key) <= 64:
+        raise ValueError("TOTP key must decode to 128 to 512 bits after normalization")
     if len(hmac.new(key, bytes(8), hashlib.sha1).digest()) != 20:
         raise ValueError("TOTP HMAC unavailable")
-    return unpadded
+    # Package only a canonical encoding of the exact decoded bytes.
+    return base64.b32encode(key).decode("ascii").rstrip("=")
 
 
 def main():

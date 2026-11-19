@@ -16,8 +16,17 @@ class TotpTest {
         assertNull(Totp.matchingStep(key, Totp.code(key, step - 2), step * 30000))
         assertNull(Totp.matchingStep(key, "1234", step * 30000))
     }
+    @Test fun matchesBaseToolboxNormalization() {
+        // RFC test key, with synthetic unsupported digits inserted.
+        val decorated = "gezd8gnbvgy3tqojqgez9dgnbvgy3tqojq"
+        assertArrayEquals(key, Totp.decodeSecret(decorated))
+        assertEquals("287082", Totp.code(Totp.decodeSecret(decorated), 1))
+        // The site's decoder discards five incomplete trailing bits here.
+        assertArrayEquals(key, Totp.decodeSecret("GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQB"))
+        assertArrayEquals(ByteArray(16), Totp.decodeSecret("A".repeat(27)))
+    }
     @Test fun refusesWeakAndInvalidBase32() {
-        for (invalid in listOf("123456", "AAAAAAAA", "A".repeat(27), "A".repeat(104))) {
+        for (invalid in listOf("123456", "AAAAAAAA", "A".repeat(25), "A".repeat(104))) {
             try { Totp.decodeSecret(invalid); fail("Invalid key accepted") } catch (_: IllegalArgumentException) { }
         }
     }

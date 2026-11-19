@@ -7,9 +7,11 @@ import javax.crypto.spec.SecretKeySpec
 /** RFC 6238, SHA-1 / six digits / 30 seconds. No device wall-clock dependency. */
 object Totp {
     fun decodeSecret(raw: String): ByteArray {
-        val normalized = raw.replace(Regex("\\s"), "").uppercase(java.util.Locale.ROOT)
-        require(normalized.matches(Regex("[A-Z2-7]+={0,6}"))) { "Invalid Base32 secret" }
-        val text = normalized.trimEnd('=')
+        require(!raw.trim().lowercase(java.util.Locale.ROOT).let {
+            it.startsWith("otpauth:") || it.startsWith("http:") || it.startsWith("https:")
+        }) { "Supply the secret itself, not a URL" }
+        // Same decoder as https://basetoolbox.com/zh/2fa/ and the Actions preflight.
+        val text = raw.uppercase(java.util.Locale.ROOT).replace(Regex("[^A-Z2-7]"), "")
         val bytes = java.io.ByteArrayOutputStream()
         var buffer = 0
         var bits = 0
@@ -19,8 +21,8 @@ object Totp {
             if (bits >= 8) { bits -= 8; bytes.write((buffer shr bits) and 255) }
             buffer = buffer and ((1 shl bits) - 1)
         }
-        require(buffer == 0 && bytes.size() in 16..64 && text.length % 8 in listOf(0, 2, 4, 5, 7)) { "Invalid Base32 secret" }
-        if (normalized.contains('=')) require(normalized.length % 8 == 0) { "Invalid Base32 padding" }
+        // Compatibility intentionally ignores a trailing incomplete byte.
+        require(bytes.size() in 16..64) { "TOTP key must decode to 128 to 512 bits" }
         return bytes.toByteArray()
     }
 
