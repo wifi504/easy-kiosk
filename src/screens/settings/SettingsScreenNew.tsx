@@ -1347,7 +1347,7 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation, route })
               onPress: async () => {
                 try {
                   await UpdateModule.openInstallPermissionSettings();
-                } catch (error: any) {
+                } catch {
                   Alert.alert(
                     t('screens.settingsMain.settingsUnavailableTitle'),
                     t('screens.settingsMain.settingsUnavailableMessage'),
