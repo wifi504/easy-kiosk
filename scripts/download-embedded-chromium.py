@@ -1,6 +1,7 @@
 """Download a pinned precompiled WebView release in Actions, checking release and asset identities."""
 from pathlib import Path
 import os, sys, json, subprocess, hashlib, base64
+from urllib.parse import urlparse
 if os.environ.get('GITHUB_ACTIONS') != 'true':
     raise SystemExit('Engine downloads must run in GitHub Actions')
 root = Path(__file__).resolve().parents[1]
@@ -19,16 +20,26 @@ if repo == 'holtdroid/chromium-builds':
         raise SystemExit('Precompiled engine asset metadata changed')
 elif repo in ('LineageOS/android_external_chromium-webview_prebuilt_arm', 'LineageOS/android_external_chromium-webview_prebuilt_x86'):
     commit = artifact['provider_commit']
-    # GitHub media serves the real Git-LFS object, rather than its small pointer.
-    # The immutable source commit, byte length and LFS SHA-256 are pinned together.
-    url = f"https://media.githubusercontent.com/media/{repo}/{commit}/webview.apk"
+    # GitHub mirrors the LFS pointer only; the object is hosted by LineageOS.
+    endpoint = f"https://review.lineageos.org/{repo}.git/info/lfs/objects/batch"
+    request = {'operation': 'download', 'transfers': ['basic'], 'objects': [{'oid': artifact['sha256'], 'size': artifact['size']}]}
+    response = json.loads(subprocess.check_output(['curl', '--fail', '--silent', '--show-error', '--retry', '3', '--connect-timeout', '20', '--max-time', '120', '--proto', '=https', '-H', 'Content-Type: application/vnd.git-lfs+json', '--data-binary', json.dumps(request), endpoint]))
+    obj = response['objects'][0]
+    if obj.get('error') or obj['oid'] != artifact['sha256'] or obj['size'] != artifact['size']:
+        raise SystemExit('LineageOS LFS object identity mismatch')
+    action = obj['actions']['download']
+    url = action['href']
+    parsed = urlparse(url)
+    if parsed.scheme != 'https' or parsed.hostname not in ('review.lineageos.org', '02e8220d630bcced078978aeedad418f.r2.cloudflarestorage.com') or action.get('header'):
+        raise SystemExit('Review changed LineageOS LFS download endpoint')
 else:
     raise SystemExit('Review new engine provider before use')
 cpu = {'arm64-v8a': 'arm64', 'x86_64': 'x64', 'armeabi-v7a': 'arm', 'x86': 'x86'}[abi]
 folder.mkdir(parents=True, exist_ok=True)
 apk = folder / f"Chromium-{selected['version']}-{cpu}.apk"
 if not apk.exists():
-    subprocess.run(['curl', '--fail', '--location', '--retry', '3', '--proto', '=https', '--proto-redir', '=https', url, '--output', str(apk)], check=True)
+    result = subprocess.run(['curl', '--fail', '--location', '--retry', '3', '--connect-timeout', '20', '--max-time', '600', '--proto', '=https', '--proto-redir', '=https', url, '--output', str(apk)])
+    if result.returncode: raise SystemExit('Pinned Chromium download failed')
 with apk.open('rb') as stream: actual = hashlib.file_digest(stream, 'sha256').hexdigest()
 if 'size' in artifact and apk.stat().st_size != artifact['size']: raise SystemExit('Kernel size mismatch')
 if actual != artifact['sha256']: raise SystemExit('Precompiled engine SHA-256 mismatch')
