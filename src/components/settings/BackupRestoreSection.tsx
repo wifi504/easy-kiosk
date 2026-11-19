@@ -1,5 +1,5 @@
 /**
- * FreeKiosk v1.3 - BackupRestoreSection Component
+ * EasyKiosk - BackupRestoreSection Component
  * UI component for backup and restore functionality
  */
 
@@ -158,25 +158,12 @@ const BackupRestoreSection: React.FC<BackupRestoreSectionProps> = ({
             try {
               const result = await importBackupFromContent(browsedContent, browsedFileName || undefined);
               if (result.success) {
-                let message = t('components.backupRestore.restoreSuccessBase');
-                if (result.warning) {
-                  message += `\n\n${result.warning}`;
-                }
-                message += t('components.backupRestore.restartNote');
-
-                Alert.alert(t('components.backupRestore.restoreCompleteTitle'), message, [
-                  {
-                    text: t('components.backupRestore.ok'),
-                    onPress: () => {
-                      setShowRestoreModal(false);
-                      setSelectedBackup(null);
-                      setBackupPreview(null);
-                      setBrowsedContent(null);
-                      setBrowsedFileName(null);
-                      onRestoreComplete?.();
-                    },
-                  },
-                ]);
+                setShowRestoreModal(false);
+                setSelectedBackup(null);
+                setBackupPreview(null);
+                setBrowsedContent(null);
+                setBrowsedFileName(null);
+                onRestoreComplete?.();
               } else {
                 Alert.alert(
                   t('components.backupRestore.restoreFailedTitle'),
@@ -209,23 +196,12 @@ const BackupRestoreSection: React.FC<BackupRestoreSectionProps> = ({
             try {
               const result = await importBackup(selectedBackup.path);
               if (result.success) {
-                let message = t('components.backupRestore.restoreSuccessBase');
-                if (result.warning) {
-                  message += `\n\n${result.warning}`;
-                }
-                message += t('components.backupRestore.restartNote');
-
-                Alert.alert(t('components.backupRestore.restoreCompleteTitle'), message, [
-                  {
-                    text: t('components.backupRestore.ok'),
-                    onPress: () => {
-                      setShowRestoreModal(false);
-                      setSelectedBackup(null);
-                      setBackupPreview(null);
-                      onRestoreComplete?.();
-                    },
-                  },
-                ]);
+                setShowRestoreModal(false);
+                setSelectedBackup(null);
+                setBackupPreview(null);
+                setBrowsedContent(null);
+                setBrowsedFileName(null);
+                onRestoreComplete?.();
               } else {
                 Alert.alert(
                   t('components.backupRestore.restoreFailedTitle'),

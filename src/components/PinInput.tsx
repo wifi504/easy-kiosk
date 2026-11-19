@@ -14,11 +14,13 @@ import { useTranslation } from 'react-i18next';
 const { KioskModule, AudioControlModule, FlashlightModule, RotationControlModule } = NativeModules;
 
 interface PinInputProps {
-  onSuccess: () => void;
+  onSuccess: () => void | Promise<void>;
+  submitLabel?: string;
+  onBusyChange?: (busy: boolean) => void;
   storedPin: string; // Kept for backward compatibility but not used
 }
 
-const PinInput: React.FC<PinInputProps> = ({ onSuccess }) => {
+const PinInput: React.FC<PinInputProps> = ({ onSuccess, submitLabel, onBusyChange }) => {
   const { t } = useTranslation();
   const [pin, setPin] = useState<string>('');
   const [timeReady, setTimeReady] = useState(!TOTP_ENABLED);
@@ -168,13 +170,14 @@ const PinInput: React.FC<PinInputProps> = ({ onSuccess }) => {
     }
 
     setIsLoading(true);
+    onBusyChange?.(true);
 
     try {
       const result = await verifySecurePin(pin);
 
       if (result.success) {
         setPin('');
-        onSuccess();
+        await onSuccess();
       } else {
         setPin('');
 
@@ -203,6 +206,7 @@ const PinInput: React.FC<PinInputProps> = ({ onSuccess }) => {
       Alert.alert(t('components.pinInput.error'), t('components.pinInput.genericError'));
     } finally {
       setIsLoading(false);
+      onBusyChange?.(false);
     }
   };
 
@@ -318,7 +322,7 @@ const PinInput: React.FC<PinInputProps> = ({ onSuccess }) => {
             </View>
           )}
 
-          {TOTP_ENABLED && <Text style={styles.warningText}>{t(timeFailed ? 'components.pinInput.totpTimeFailed' : timeReady ? 'components.pinInput.totpHint' : 'components.pinInput.totpTimeLoading')}</Text>}
+          {TOTP_ENABLED && timeFailed && <Text style={styles.warningText}>{t('components.pinInput.totpTimeFailed')}</Text>}
           {TOTP_ENABLED && timeFailed && <TouchableOpacity onPress={() => setTimeRetry(value => value + 1)}><Text>{t('components.pinInput.tryAgain')}</Text></TouchableOpacity>}
           <TextInput
             ref={inputRef}
@@ -345,10 +349,10 @@ const PinInput: React.FC<PinInputProps> = ({ onSuccess }) => {
             onPress={handleSubmit}
             disabled={isLoading || isLockedOut || !timeReady}
           >
-            {isLoading ? (
+            {isLoading || (TOTP_ENABLED && !timeReady && !timeFailed) ? (
               <ActivityIndicator color="#fff" />
             ) : (
-              <Text style={styles.buttonText}>{t('components.pinInput.validate')}</Text>
+              <Text style={styles.buttonText}>{submitLabel || t('components.pinInput.validate')}</Text>
             )}
           </TouchableOpacity>
         </>

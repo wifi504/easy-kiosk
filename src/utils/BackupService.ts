@@ -265,7 +265,7 @@ function getBackupDirectory(): string {
 function generateBackupFilename(): string {
   const date = new Date();
   const timestamp = date.toISOString().replace(/[:.]/g, '-').slice(0, 19);
-  return `freekiosk-backup-${timestamp}.json`;
+  return `EasyKiosk-backup-${timestamp}.json`;
 }
 
 /**
@@ -371,7 +371,7 @@ export async function listBackupFiles(): Promise<{ name: string; path: string; d
 
     const files = await RNFS.readDir(directory);
     const backupFiles = files
-      .filter(file => file.name.startsWith('freekiosk-backup-') && file.name.endsWith('.json'))
+      .filter(file => /^(?:EasyKiosk|freekiosk)-backup-.*\.json$/i.test(file.name))
       .map(file => ({
         name: file.name,
         path: file.path,
@@ -397,14 +397,7 @@ export async function readBackupFile(filePath: string): Promise<{ success: boole
     }
 
     const content = await RNFS.readFile(filePath, 'utf8');
-    const data = JSON.parse(content) as BackupData;
-
-    // Validate backup structure
-    if (!data.version || !data.settings || typeof data.settings !== 'object') {
-      return { success: false, error: 'Invalid backup file format' };
-    }
-
-    return { success: true, data };
+    return parseBackupContent(content);
   } catch (error) {
     console.error('Read backup file error:', error);
     return { success: false, error: String(error) };
@@ -416,100 +409,69 @@ export async function readBackupFile(filePath: string): Promise<{ success: boole
  */
 export async function importBackup(filePath: string): Promise<{ success: boolean; error?: string; warning?: string }> {
   try {
-    // Read and validate backup
-    const result = await readBackupFile(filePath);
-    if (!result.success || !result.data) {
-      return { success: false, error: result.error };
-    }
-
-    const backupData = result.data;
-    let warning: string | undefined;
-
-    // Check if backup had a PIN configured
-    if (backupData.hasPinConfigured) {
-      warning = 'Note: PIN code was not imported for security reasons. Please configure a new PIN.';
-    }
-
-    // Import settings
-    const keys = Object.keys(backupData.settings);
-    for (const key of keys) {
-      try {
-        const value = backupData.settings[key];
-        if (value !== null && value !== undefined) {
-          // Handle API key separately - save to secure storage (Keychain)
-          if (BACKUP_KEYS.includes(key)) await AsyncStorage.setItem(key, value);
-        }
-      } catch (e) {
-        console.warn(`Failed to import key ${key}:`, e);
-      }
-    }
-
-    return { success: true, warning };
-  } catch (error) {
-    console.error('Import backup error:', error);
-    return { success: false, error: String(error) };
+    return await importBackupFromContent(await RNFS.readFile(filePath, 'utf8'));
+  } catch {
+    return { success: false, error: 'Unable to read backup file' };
   }
 }
 
-/**
- * Import configuration from raw JSON content (from SAF file picker).
- * This bypasses Scoped Storage restrictions by working with the content directly.
- */
-export async function importBackupFromContent(jsonContent: string, fileName?: string): Promise<{ success: boolean; error?: string; warning?: string }> {
+/** Only allowlisted settings are restored. Authentication credentials are never imported. */
+export async function importBackupFromContent(jsonContent: string, _fileName?: string): Promise<{ success: boolean; error?: string; warning?: string }> {
+  const parsed = parseBackupContent(jsonContent);
+  if (!parsed.success || !parsed.data) return { success: false, error: parsed.error };
+  const pairs = Object.entries(parsed.data.settings).filter(
+    (entry): entry is [string, string] => BACKUP_KEYS.includes(entry[0]) && typeof entry[1] === 'string',
+  );
   try {
-    // Parse and validate
-    let data: BackupData;
+    const previous = await AsyncStorage.multiGet(pairs.map(([key]) => key));
     try {
-      data = JSON.parse(jsonContent) as BackupData;
-    } catch (parseError) {
-      return { success: false, error: `Invalid JSON format${fileName ? ` in ${fileName}` : ''}: ${String(parseError)}` };
+      await AsyncStorage.multiSet(pairs);
+    } catch {
+      // Do not claim success after a partially failed restore.
+      await AsyncStorage.multiSet(previous.filter((entry): entry is [string, string] => entry[1] !== null));
+      await AsyncStorage.multiRemove(previous.filter(([, value]) => value === null).map(([key]) => key));
+      throw new Error('Restore failed');
     }
-
-    // Validate backup structure
-    if (!data.version || !data.settings || typeof data.settings !== 'object') {
-      return { success: false, error: 'Invalid backup file format. Missing version or settings.' };
-    }
-
-    let warning: string | undefined;
-
-    // Check if backup had a PIN configured
-    if (data.hasPinConfigured) {
-      warning = 'Note: PIN code was not imported for security reasons. Please configure a new PIN.';
-    }
-
-    // Import settings
-    const keys = Object.keys(data.settings);
-    for (const key of keys) {
-      try {
-        const value = data.settings[key];
-        if (value !== null && value !== undefined) {
-          if (BACKUP_KEYS.includes(key)) await AsyncStorage.setItem(key, value);
-        }
-      } catch (e) {
-        console.warn(`Failed to import key ${key}:`, e);
-      }
-    }
-
-    return { success: true, warning };
-  } catch (error) {
-    console.error('Import backup from content error:', error);
-    return { success: false, error: String(error) };
+    return { success: true };
+  } catch {
+    return { success: false, error: 'Unable to apply configuration' };
   }
 }
 
-/**
- * Parse and validate backup content from raw JSON string (for preview).
- */
+/** Validate once for both preview and restore, before any setting is changed. */
 export function parseBackupContent(jsonContent: string): { success: boolean; data?: BackupData; error?: string } {
   try {
     const data = JSON.parse(jsonContent) as BackupData;
-    if (!data.version || !data.settings || typeof data.settings !== 'object') {
+    if (!data || typeof data !== 'object' || Array.isArray(data) || typeof data.version !== 'string' || !data.version ||
+        !data.settings || typeof data.settings !== 'object' || Array.isArray(data.settings)) {
       return { success: false, error: 'Invalid backup file format' };
     }
+    for (const key of ['exportDate', 'appVersion'] as const) {
+      if (data[key] !== undefined && typeof data[key] !== 'string') return { success: false, error: 'Invalid backup metadata' };
+    }
+    const mode = data.settings['@kiosk_display_mode'];
+    if (mode != null && !['webview', 'external_app', 'media_player'].includes(mode)) {
+      return { success: false, error: 'Invalid display mode' };
+    }
+    const recognized = Object.entries(data.settings).filter(([key]) => BACKUP_KEYS.includes(key));
+    if (!recognized.some(([, value]) => typeof value === 'string') ||
+        recognized.some(([, value]) => value !== null && typeof value !== 'string')) {
+      return { success: false, error: 'No valid configuration settings found' };
+    }
     return { success: true, data };
-  } catch (error) {
-    return { success: false, error: String(error) };
+  } catch {
+    return { success: false, error: 'Invalid JSON configuration' };
   }
+}
+
+export function getBackupPreview(data: BackupData): { count: number; url: string; displayMode: string } {
+  const url = data.settings['@kiosk_url'];
+  return {
+    count: Object.entries(data.settings).filter(([key, value]) => BACKUP_KEYS.includes(key) && typeof value === 'string').length,
+    // Never show URL credentials, query tokens or raw secret-bearing settings on the preview.
+    url: typeof url === 'string' ? url.replace(/\/\/[^/@]+@/, '//••••@').split(/[?#]/)[0] : '',
+    displayMode: typeof data.settings['@kiosk_display_mode'] === 'string' ? data.settings['@kiosk_display_mode'] : 'webview',
+  };
 }
 
 /**

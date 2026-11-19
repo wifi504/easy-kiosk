@@ -12,12 +12,12 @@ class AuthPolicyModule(context: ReactApplicationContext) : ReactContextBaseJavaM
     @ReactMethod
     fun prepareTime(promise: Promise) {
         try { NetworkTime.prepare(); promise.resolve(true) }
-        catch (_: Exception) { promise.reject("AUTH_TIME_UNAVAILABLE", "无法安全校准网络时间，请检查网络、系统日期后重试。") }
+        catch (_: Exception) { promise.reject("AUTH_TIME_UNAVAILABLE", "网络连接失败") }
     }
 
     @ReactMethod
     fun verifyTotp(code: String, promise: Promise) {
         try { promise.resolve(AuthPolicy.verify(reactApplicationContext, code)) }
-        catch (_: Exception) { promise.reject("AUTH_TIME_UNAVAILABLE", "无法安全校准网络时间，请检查网络、系统日期后重试。") }
+        catch (_: Exception) { promise.reject("AUTH_TIME_UNAVAILABLE", "网络连接失败") }
     }
 }

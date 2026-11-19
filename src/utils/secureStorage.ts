@@ -328,7 +328,7 @@ export async function verifySecurePin(inputPin: string): Promise<{
     if (TOTP_ENABLED) {
       let verified: boolean;
       try { verified = await verifyTotp(inputPin); }
-      catch { return { success: false, message: '无法安全校准网络时间，请检查网络、系统日期后重试。' }; }
+      catch { return { success: false, message: '网络连接失败' }; }
       if (verified) { await resetPinAttempts(); return { success: true }; }
       await recordFailedAttempt();
       const attempts = await getPinAttempts();

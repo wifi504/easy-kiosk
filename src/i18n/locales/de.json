@@ -913,9 +913,7 @@
       "rotate": "Drehen",
       "emergency": "Notruf",
       "totpSixDigits": "Gib den sechsstelligen Authenticator-Code ein.",
-      "totpHint": "Gib den Authenticator-Code ein. Netzwerkzeit erforderlich; jeder Code ist nur einmal verwendbar.",
-      "totpTimeFailed": "Netzwerkzeit nicht verfügbar. Netzwerk und Systemdatum prüfen. Automatischer neuer Versuch.",
-      "totpTimeLoading": "Netzwerkzeit wird synchronisiert…"
+      "totpTimeFailed": "Netzwerkverbindung fehlgeschlagen"
     },
     "managedApps": {
       "error": "Fehler",
@@ -1394,5 +1392,20 @@
       "installFailedTitle": "Update nicht installiert",
       "installFailedMessage": "Das Update wurde heruntergeladen, aber Android hat die Installation abgelehnt: {{message}}"
     }
+  },
+  "configurationEntry": {
+    "admin": "Verwaltung",
+    "choose": "Konfiguration importieren",
+    "confirmImport": "Import bestätigen",
+    "readFailed": "Konfigurationsdatei konnte nicht gelesen werden.",
+    "applyFailed": "Konfiguration konnte nicht angewendet werden.",
+    "externalApp": "Externe App",
+    "mediaPlayer": "Mediaplayer",
+    "browser": "Browser",
+    "mode": "Modus: {{value}}",
+    "url": "URL: {{value}}",
+    "count": "{{count}} Einstellungen",
+    "version": "App-Version: {{value}}",
+    "exported": "Exportiert: {{value}}"
   }
 }

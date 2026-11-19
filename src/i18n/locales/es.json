@@ -913,9 +913,7 @@
       "rotate": "Rotar",
       "emergency": "Emergencia",
       "totpSixDigits": "Introduce el código de seis dígitos.",
-      "totpHint": "Introduce el código del autenticador. Requiere hora de red; cada código solo se puede usar una vez.",
-      "totpTimeFailed": "Hora de red no disponible. Revisa la conexión y la fecha del sistema. Se reintentará automáticamente.",
-      "totpTimeLoading": "Sincronizando la hora de red…"
+      "totpTimeFailed": "Error de conexión de red"
     },
     "managedApps": {
       "error": "Error",
@@ -1395,5 +1393,20 @@
       "installFailedTitle": "Actualización no instalada",
       "installFailedMessage": "La actualización se descargó, pero Android se negó a instalarla: {{message}}"
     }
+  },
+  "configurationEntry": {
+    "admin": "Administración",
+    "choose": "Elegir configuración para importar",
+    "confirmImport": "Confirmar importación",
+    "readFailed": "No se pudo leer el archivo.",
+    "applyFailed": "No se pudo aplicar la configuración.",
+    "externalApp": "Aplicación externa",
+    "mediaPlayer": "Reproductor multimedia",
+    "browser": "Navegador",
+    "mode": "Modo: {{value}}",
+    "url": "URL: {{value}}",
+    "count": "{{count}} ajustes",
+    "version": "Versión: {{value}}",
+    "exported": "Exportado: {{value}}"
   }
 }

@@ -913,9 +913,7 @@
       "rotate": "Ruota",
       "emergency": "Emergenza",
       "totpSixDigits": "Inserisci il codice a sei cifre.",
-      "totpHint": "Inserisci il codice dell’autenticatore. Richiede l’ora di rete; ogni codice è utilizzabile una sola volta.",
-      "totpTimeFailed": "Ora di rete non disponibile. Controlla connessione e data di sistema. Nuovo tentativo automatico.",
-      "totpTimeLoading": "Sincronizzazione dell’ora di rete…"
+      "totpTimeFailed": "Connessione di rete non riuscita"
     },
     "managedApps": {
       "error": "Errore",
@@ -1395,5 +1393,20 @@
       "installFailedTitle": "Aggiornamento non installato",
       "installFailedMessage": "L'aggiornamento è stato scaricato ma Android ha rifiutato di installarlo: {{message}}"
     }
+  },
+  "configurationEntry": {
+    "admin": "Amministrazione",
+    "choose": "Scegli configurazione da importare",
+    "confirmImport": "Conferma importazione",
+    "readFailed": "Impossibile leggere il file.",
+    "applyFailed": "Impossibile applicare la configurazione.",
+    "externalApp": "App esterna",
+    "mediaPlayer": "Lettore multimediale",
+    "browser": "Browser",
+    "mode": "Modalità: {{value}}",
+    "url": "URL: {{value}}",
+    "count": "{{count}} impostazioni",
+    "version": "Versione: {{value}}",
+    "exported": "Esportato: {{value}}"
   }
 }

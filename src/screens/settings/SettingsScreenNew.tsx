@@ -2475,7 +2475,7 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation, route })
             onExitKioskMode={handleExitKioskMode}
             onRemoveDeviceOwner={handleRemoveDeviceOwner}
             kioskEnabled={kioskEnabled}
-            onRestoreComplete={loadSettings}
+            onRestoreComplete={() => { revokeSettingsAccess(); navigation.reset({ index: 0, routes: [{ name: 'Kiosk' }] }); }}
           />
         );
 

@@ -913,9 +913,7 @@
       "rotate": "Rotate",
       "emergency": "Emergency",
       "totpSixDigits": "Enter the six-digit authenticator code.",
-      "totpHint": "Enter your authenticator code. Network time is required; each code can only be used once.",
-      "totpTimeFailed": "Network time unavailable. Check your connection and system date. Retrying automatically.",
-      "totpTimeLoading": "Synchronizing network time…"
+      "totpTimeFailed": "Network connection failed"
     },
     "managedApps": {
       "error": "Error",
@@ -1394,5 +1392,20 @@
       "installFailedTitle": "Update not installed",
       "installFailedMessage": "The update was downloaded but Android refused to install it: {{message}}"
     }
+  },
+  "configurationEntry": {
+    "admin": "Administration",
+    "choose": "Choose configuration to import",
+    "confirmImport": "Confirm import",
+    "readFailed": "Unable to read configuration file.",
+    "applyFailed": "Unable to apply configuration. Please try again.",
+    "externalApp": "External app",
+    "mediaPlayer": "Media player",
+    "browser": "Browser",
+    "mode": "Mode: {{value}}",
+    "url": "URL: {{value}}",
+    "count": "{{count}} configuration settings",
+    "version": "App version: {{value}}",
+    "exported": "Exported: {{value}}"
   }
 }
