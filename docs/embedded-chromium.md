@@ -46,3 +46,20 @@ HTTP/fetch、React Native 桥接、隔离 UID、系统 WebView 不变，记录�
 
 当前接入代码已提交，但 **158 完整应用运行验证尚未通过，不能宣称交付完成**。
 ARM64 实机内存、启动速度及具体业务网页还需要对应设备实测。
+## 32 位兼容构建
+
+四架构 Actions 使用预编译内核，不从源码构建 Chromium：
+
+| 应用 ABI | Chromium | 提供方 |
+| --- | --- | --- |
+| arm64-v8a / x86_64 | 158.0.8127.36 | holtdroid/chromium-builds |
+| armeabi-v7a / x86 | 157.0.8103.78 | LineageOS |
+
+32 位使用 LineageOS 官方 GitHub 预编译仓库的固定提交，下载 Git LFS 实际对象，
+校验固定 SHA-256、长度、APK 签名、版本、最低系统要求与架构；其构建参数和补丁集合
+固定在 android_external_chromium-webview_patches 的提交
+544b12e3d42a02b4337f31819f6ba917187dcccf。来源链接与 Chromium 许可、Credits 一起入包。
+32 位不伪装为 Chromium 158，不回退设备系统 WebView。
+x86 32 位新增 Android 10 / 1GB / 16GB 完整应用运行、冷启动、隔离与 TOTP 测试。
+ARM32 和 ARM64 均构建与执行原生单元测试，但需要厂商设备补充真实 ARM 运行验证。
+正式签名任务保持独立，不执行第三方代码；最终只上传四个独立 APK，删除临时交接附件。

@@ -15,6 +15,26 @@
       "asset_id": 745403449,
       "name": "webview-158.0.8127.36-x86_64.apk",
       "sha256": "875af9f446e0abacb3fb252cb0071ade49c1fe7cf37a218e20ad515dc2ed91bf"
+    },
+    "armeabi-v7a": {
+      "provider_repository": "LineageOS/android_external_chromium-webview_prebuilt_arm",
+      "provider_commit": "1c11dffe87310d3c81e2ad93b9f0a7e8c09adfc0",
+      "version": "157.0.8103.78",
+      "source_commit": "4b3d0dabb8250b6f152d2d85d79e7706e309d087",
+      "patches_commit": "544b12e3d42a02b4337f31819f6ba917187dcccf",
+      "name": "webview.apk",
+      "sha256": "f7ccf01cf3ec8555fd4500ddc7512430cb2cd3cadd1806a166be2092d25c7298",
+      "size": 98528166
+    },
+    "x86": {
+      "provider_repository": "LineageOS/android_external_chromium-webview_prebuilt_x86",
+      "provider_commit": "35395eb69570634874458468a0824bae3d133491",
+      "version": "157.0.8103.78",
+      "source_commit": "4b3d0dabb8250b6f152d2d85d79e7706e309d087",
+      "patches_commit": "544b12e3d42a02b4337f31819f6ba917187dcccf",
+      "name": "webview.apk",
+      "sha256": "435686e95cc444e4cf5dcd1a961f7be9f9ddded020003261bb20e5c16ef46628",
+      "size": 157879188
     }
   }
 }

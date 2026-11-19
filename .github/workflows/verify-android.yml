@@ -144,8 +144,20 @@ jobs:
         include:
           - abi: arm64-v8a
             cpu: arm64
+            runtime: false
+            target: default
           - abi: x86_64
             cpu: x64
+            runtime: true
+            target: default
+          - abi: armeabi-v7a
+            cpu: arm
+            runtime: false
+            target: default
+          - abi: x86
+            cpu: x86
+            runtime: true
+            target: google_apis
     env:
       GH_TOKEN: ${{ github.token }}
     steps:
@@ -199,11 +211,11 @@ jobs:
           cp android/app/build/outputs/apk/release/app-release-unsigned.apk android/app/build/outputs/apk/release/app-release.apk
           python3 scripts/embed-chromium-apk.py android/app/build/outputs/apk/release/app-release.apk
       - name: 构建完整应用的端到端测试包
-        if: matrix.cpu == 'x64'
+        if: matrix.runtime
         working-directory: android
         run: ./gradlew --no-daemon assembleReleaseAndroidTest -PciUnsigned -PreactNativeArchitectures=${{ matrix.abi }}
       - name: 使用公开测试签名并准备模拟器
-        if: matrix.cpu == 'x64'
+        if: matrix.runtime
         run: |
           python3 scripts/prepare-auth-fixture.py android/app/build/outputs/apk/release/app-release.apk "$RUNNER_TEMP/totp-fixture.apk"
           TEST_APK=$(find android/app/build/outputs/apk/androidTest/release -name '*.apk' -print -quit)
@@ -214,12 +226,12 @@ jobs:
           sudo udevadm trigger --name-match=kvm
           python3 scripts/engine-fixture-server.py > "$RUNNER_TEMP/engine-fixtures.log" 2>&1 &
       - name: Android 10 / 1GB / 16GB 完整应用运行测试
-        if: matrix.cpu == 'x64'
+        if: matrix.runtime
         uses: reactivecircus/android-emulator-runner@v2.38.0
         with:
           api-level: 29
-          target: default
-          arch: x86_64
+          target: ${{ matrix.target }}
+          arch: ${{ matrix.abi }}
           ram-size: 1024M
           heap-size: 256M
           disk-size: 16384M
@@ -254,7 +266,7 @@ jobs:
             grep -F 'EASYKIOSK_TOTP_OK' totp-fixture-result.txt
 
       - name: 失败时将诊断写入日志（不上传附件）
-        if: failure() && matrix.cpu == 'x64'
+        if: failure() && matrix.runtime
         run: |
           for LOG in engine-first-logcat.txt engine-cold-logcat.txt totp-fixture-result.txt; do
             if test -f "$LOG"; then
@@ -322,11 +334,15 @@ jobs:
           print(digest.hexdigest())
           PY
           }
-          for ABI in arm64-v8a x86_64; do
+          for ABI in arm64-v8a x86_64 armeabi-v7a x86; do
             APK="release/EasyKiosk-${GITHUB_SHA:0:7}-$ABI.apk"
             cp "incoming/ci-intermediate-do-not-install-$ABI/app-release.apk" "$APK"
             "$TOOLS/aapt" dump badging "$APK" | grep -F "package: name='top.lhlnb.easykiosk'" | grep -F "versionName='${GITHUB_SHA:0:7}'"
-            unzip -p "$APK" assets/embedded-chromium.json | jq -e '.version == "158.0.8127.36" and .source_commit == "14d6f648e8cd7ad750a4044200ce94d3321be260"' > /dev/null
+            case "$ABI" in
+              arm64-v8a|x86_64) VERSION=158.0.8127.36; SOURCE=14d6f648e8cd7ad750a4044200ce94d3321be260 ;;
+              armeabi-v7a|x86) VERSION=157.0.8103.78; SOURCE=4b3d0dabb8250b6f152d2d85d79e7706e309d087 ;;
+            esac
+            unzip -p "$APK" assets/embedded-chromium.json | jq -e --arg version "$VERSION" --arg source "$SOURCE" --arg abi "$ABI" '.version == $version and .source_commit == $source and .abi == $abi' > /dev/null
             CONTENT_BEFORE=$(payload_hash "$APK" exclude-auth)
             python3 - "$APK" <<'POLICY'
           import json,os,sys,zipfile,tempfile,base64,hashlib,hmac,re
@@ -400,13 +416,34 @@ jobs:
           archive: false
           if-no-files-found: error
           retention-days: 7
+      - name: 直接上传 ARM32 APK（不打 ZIP）
+        id: upload-arm32
+        uses: actions/upload-artifact@v7.0.2
+        with:
+          path: release/*-armeabi-v7a.apk
+          archive: false
+          if-no-files-found: error
+          retention-days: 7
+      - name: 直接上传 x86 32 位 APK（不打 ZIP）
+        id: upload-x86
+        uses: actions/upload-artifact@v7.0.2
+        with:
+          path: release/*-x86.apk
+          archive: false
+          if-no-files-found: error
+          retention-days: 7
       - name: 核对 GitHub 摘要对应 APK 本身
         env:
           ARM64_DIGEST: ${{ steps.upload-arm64.outputs.artifact-digest }}
+          ARM32_DIGEST: ${{ steps.upload-arm32.outputs.artifact-digest }}
+          X86_DIGEST: ${{ steps.upload-x86.outputs.artifact-digest }}
           X64_DIGEST: ${{ steps.upload-x64.outputs.artifact-digest }}
         run: |
           test "$(sha256sum release/*-arm64-v8a.apk | cut -d ' ' -f 1)" = "$ARM64_DIGEST"
           test "$(sha256sum release/*-x86_64.apk | cut -d ' ' -f 1)" = "$X64_DIGEST"
+
+          test "$(sha256sum release/*-armeabi-v7a.apk | cut -d ' ' -f 1)" = "$ARM32_DIGEST"
+          test "$(sha256sum release/*-x86.apk | cut -d ' ' -f 1)" = "$X86_DIGEST"
 
   cleanup:
     name: 清理本次运行的中间产物
