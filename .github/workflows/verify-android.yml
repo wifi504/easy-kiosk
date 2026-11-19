@@ -277,7 +277,7 @@ jobs:
           if-no-files-found: error
           retention-days: 1
   sign:
-    name: 独立正式签名（不执行第三方源码）
+    name: 独立正式签名
     needs: [validate-auth, build, engine-preflight]
     runs-on: ubuntu-24.04
     timeout-minutes: 15
